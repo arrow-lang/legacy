@@ -1,0 +1,77 @@
+
+# Represents a symbolic identifier that is non-contextually reservered
+# for use and identification by the lexer.
+enum Keyword {
+    # let
+    # "local" variable declaration
+    Let,
+
+    # mut
+    # annotate a variable, parameter, or member as mutable
+    Mutable,
+
+    # as
+    # perform a "safe" type cast
+    As,
+
+    # and
+    # logical AND
+    And,
+
+    # or
+    # logical OR
+    Or,
+
+    # not
+    # logical NOT
+    Not,
+
+    # [...]
+}
+
+# A token that has syntactic and semantic meaning derived from the
+# surrounding context. Used for declarators, operators, and for grouping
+# symbols.
+enum Punctuator {
+    # ->
+    # function declaration
+    Arrow,
+
+    # +
+    # unary "promotion" or binary "addition" operator
+    Plus,
+
+    # -
+    # unary "negation" or binary "subtraction" operator
+    Minus,
+
+    # [...]
+
+    # {
+    # start of various statements or expressions
+    LBracket,
+
+    # [...]
+}
+
+# The set of possible tokens that may be produced from lexing
+# a source module.
+enum Token {
+    # Symbolic identifier that is non-contextually reserved.
+    Keyword(Keyword),
+
+    # Collection of symbols and punctuation that make up the remainder of
+    # the acceptable token set.
+    Punctuator(Punctuator),
+
+    # Name of a symbol in the source module.
+    Identifier(str),
+
+    # Constant integral literal of a specific base and source text.
+    Integer(text: str, base: int = 10),
+
+    # Constant string literal.
+    String(str),
+
+    # [...]
+}

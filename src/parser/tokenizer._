@@ -1,0 +1,26 @@
+
+# TODO: Think about what to do for proper 'package-local' imports.
+#       Perhaps "from . import <..>", perhaps
+#       the "use" statement can be repurposed like it is in rust "use <..>"
+import tokens;
+use tokens.{Token, Keyword, Punctuator};
+
+type Tokenizer {
+
+    # The last character read from the token stream.
+    mut last: char = ' '
+
+}
+
+implement Tokenizer {
+
+    next(&mut self) -> Token {
+
+        # Consume any whitespace.
+        while self.last.isspace() { self.last = getchar(); }
+
+        # [...]
+
+    }
+
+}

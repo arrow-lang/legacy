@@ -1,0 +1,9 @@
+*.bc
+*.o
+*.pyc
+*build/
+*lock-*
+*waf-*
+*waf3*
+bin/
+dist/

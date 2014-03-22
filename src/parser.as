@@ -17,7 +17,11 @@ import asciz;
 # [ ] Tokenize ourself
 # [ ] Return location span along with token
 # [ ] Refactor
+# [ ]   - Perhaps separate some things to keep this file smaller
 # [ ] Fully test both good and bad sets of data (eg. trigger all errors)
+# [ ] Ensure a new line token is always produced
+# [ ] Fix numerical handling (lots of refactor needed there)
+# [ ] Error "counting"
 
 # The lexer returns tokens [0-255] to if its an unknown symbol, otherwise
 # one of the known symbols.

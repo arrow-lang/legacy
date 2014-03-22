@@ -220,7 +220,7 @@ let TOK_HEX_INTEGER: int = -4004;
 let TOK_FLOAT: int = -4005;
 
 # The last token read from input stream.
-let mut last_char: int = 0x20;
+let mut last_char: int = asciz.ord(' ');
 
 # The current identifier being consumed by the tokenizer.
 let mut current_id: asciz.String;
@@ -234,65 +234,134 @@ def print_error(m: str) {
     printf("error: %s\n" as ^int8, m);
 }
 
+# bump -- Advance the tokenizer by a single character.
+# -----------------------------------------------------------------------------
+def bump() -> int {
+    let temp: int = last_char;
+    last_char = getchar();
+    temp;
+}
+
+# is_whitespace -- Test if the passed character constitutes whitespace.
+# -----------------------------------------------------------------------------
+def is_whitespace(c: int) -> bool {
+    c == asciz.ord(' ') or
+    c == asciz.ord('\n') or
+    c == asciz.ord('\t') or
+    c == asciz.ord('\r');
+}
+
+# is_alphabetic -- Test if the passed character is alphabetic.
+# -----------------------------------------------------------------------------
+def is_alphabetic(c: int) -> bool {
+    isalpha(c as int32) <> 0;
+}
+
+# is_alphanumeric -- Test if the passed character is alphanumeric.
+# -----------------------------------------------------------------------------
+def is_alphanumeric(c: int) -> bool {
+    isalnum(c as int32) <> 0;
+}
+
+# consume_whitespace -- Eat whitespace.
+# -----------------------------------------------------------------------------
+def consume_whitespace() { while is_whitespace(last_char) { bump(); } }
+
+# scan_identifier -- Scan for and match and identifier or keyword.
+# -----------------------------------------------------------------------------
+# identifier = [A-Za-z_][A-Za-z_0-9]*
+# -----------------------------------------------------------------------------
+def scan_identifier() -> int {
+    # Clear the identifier buffer.
+    asciz.clear(current_id);
+
+    # Continue through the input stream until we are no longer part
+    # of a possible identifier.
+    loop {
+        asciz.push(current_id, bump());
+        if not is_alphanumeric(last_char) and
+                not last_char == asciz.ord('_') {
+            break;
+        }
+    }
+
+    # Check for and return keyword tokens instead of the identifier.
+    # TODO: A hash-table would better serve this.
+    if asciz.eq_str(current_id, "def")        { return TOK_DEF; }
+    if asciz.eq_str(current_id, "let")        { return TOK_LET; }
+    if asciz.eq_str(current_id, "static")     { return TOK_STATIC; }
+    if asciz.eq_str(current_id, "mut")        { return TOK_MUT; }
+    if asciz.eq_str(current_id, "true")       { return TOK_TRUE; }
+    if asciz.eq_str(current_id, "false")      { return TOK_FALSE; }
+    if asciz.eq_str(current_id, "self")       { return TOK_SELF; }
+    if asciz.eq_str(current_id, "as")         { return TOK_AS; }
+    if asciz.eq_str(current_id, "and")        { return TOK_AND; }
+    if asciz.eq_str(current_id, "or")         { return TOK_OR; }
+    if asciz.eq_str(current_id, "not")        { return TOK_NOT; }
+    if asciz.eq_str(current_id, "if")         { return TOK_IF; }
+    if asciz.eq_str(current_id, "else")       { return TOK_ELSE; }
+    if asciz.eq_str(current_id, "for")        { return TOK_FOR; }
+    if asciz.eq_str(current_id, "while")      { return TOK_WHILE; }
+    if asciz.eq_str(current_id, "loop")       { return TOK_LOOP; }
+    if asciz.eq_str(current_id, "match")      { return TOK_MATCH; }
+    if asciz.eq_str(current_id, "break")      { return TOK_BREAK; }
+    if asciz.eq_str(current_id, "continue")   { return TOK_CONTINUE; }
+    if asciz.eq_str(current_id, "return")     { return TOK_RETURN; }
+    if asciz.eq_str(current_id, "type")       { return TOK_TYPE; }
+    if asciz.eq_str(current_id, "enum")       { return TOK_ENUM; }
+    if asciz.eq_str(current_id, "module")     { return TOK_MODULE; }
+    if asciz.eq_str(current_id, "import")     { return TOK_IMPORT; }
+    if asciz.eq_str(current_id, "use")        { return TOK_USE; }
+    if asciz.eq_str(current_id, "foreign")    { return TOK_FOREIGN; }
+    if asciz.eq_str(current_id, "unsafe")     { return TOK_UNSAFE; }
+
+    # Scanned identifier does not match any defined keyword.
+    return TOK_IDENTIFIER;
+}
+
+# scan_numeric -- Scan for and produce a numeric token.
+# -----------------------------------------------------------------------------
+# numeric = integer | float
+# digit = [0-9]
+# integer = dec_integer | hex_integer | bin_integer | oct_integer
+# dec_integer = {digit}({digit}|_)*
+# bin_integer = 0[bB][0-1]([0-1]|_)*
+# oct_integer = 0[oO][0-7]([0-7]|_)*
+# hex_integer = 0[xX][0-9A-Fa-f]([0-9A-Fa-f]|_)*
+# exp = [Ee][-+]?{digit}({digit}|_)*
+# float = {digit}({digit}|_)*\.{digit}({digit}|_)*{exp}?
+#       | {digit}({digit}|_)*{exp}?
+# -----------------------------------------------------------------------------
+# [...]
+
+# scan_string -- Scan for and produce a string token.
+# -----------------------------------------------------------------------------
+# [...]
+# -----------------------------------------------------------------------------
+# [...]
+
+# scan_punctuator -- Scan for and match a punctuator token.
+# -----------------------------------------------------------------------------
+# [...]
+
 # get_next_token -- Return the next token from stdin.
 # -----------------------------------------------------------------------------
 def get_next_token() -> int {
     # Skip any whitespace.
-    while isspace(last_char as int32) <> 0 { last_char = getchar(); }
+    consume_whitespace();
 
     # Check if we've reached the end of the stream and the send the END token.
-    if last_char == -1 { return TOK_END; }
+    if last_char == asciz.EOF { return TOK_END; }
 
-    # Check for and attempt to consume identifiers and keywords (eg. "def").
-    if isalpha(last_char as int32) <> 0
-            or last_char == 0x5F {
-        # identifier = [_a-zA-Z][_a-zA-Z0-9]*
-
-        # Clear out the current identifier for use.
-        asciz.clear(current_id);
-
-        loop {
-            asciz.push(current_id, last_char);
-            last_char = getchar();
-            if isalnum(last_char as int32) == 0
-                and last_char <> 0x5F { break; }
-        }
-
-        # Check for and return keyword tokens instead of the identifier.
-        # TODO: A hash-table would better serve this.
-        if asciz.eq_str(current_id, "def")        { return TOK_DEF; }
-        if asciz.eq_str(current_id, "let")        { return TOK_LET; }
-        if asciz.eq_str(current_id, "static")     { return TOK_STATIC; }
-        if asciz.eq_str(current_id, "mut")        { return TOK_MUT; }
-        if asciz.eq_str(current_id, "true")       { return TOK_TRUE; }
-        if asciz.eq_str(current_id, "false")      { return TOK_FALSE; }
-        if asciz.eq_str(current_id, "self")       { return TOK_SELF; }
-        if asciz.eq_str(current_id, "as")         { return TOK_AS; }
-        if asciz.eq_str(current_id, "and")        { return TOK_AND; }
-        if asciz.eq_str(current_id, "or")         { return TOK_OR; }
-        if asciz.eq_str(current_id, "not")        { return TOK_NOT; }
-        if asciz.eq_str(current_id, "if")         { return TOK_IF; }
-        if asciz.eq_str(current_id, "else")       { return TOK_ELSE; }
-        if asciz.eq_str(current_id, "for")        { return TOK_FOR; }
-        if asciz.eq_str(current_id, "while")      { return TOK_WHILE; }
-        if asciz.eq_str(current_id, "loop")       { return TOK_LOOP; }
-        if asciz.eq_str(current_id, "match")      { return TOK_MATCH; }
-        if asciz.eq_str(current_id, "break")      { return TOK_BREAK; }
-        if asciz.eq_str(current_id, "continue")   { return TOK_CONTINUE; }
-        if asciz.eq_str(current_id, "return")     { return TOK_RETURN; }
-        if asciz.eq_str(current_id, "type")       { return TOK_TYPE; }
-        if asciz.eq_str(current_id, "enum")       { return TOK_ENUM; }
-        if asciz.eq_str(current_id, "module")     { return TOK_MODULE; }
-        if asciz.eq_str(current_id, "import")     { return TOK_IMPORT; }
-        if asciz.eq_str(current_id, "use")        { return TOK_USE; }
-        if asciz.eq_str(current_id, "foreign")    { return TOK_FOREIGN; }
-        if asciz.eq_str(current_id, "unsafe")     { return TOK_UNSAFE; }
-
-        # Consumed identifier does not match any defined keyword.
-        return TOK_IDENTIFIER;
+    # Check for an alphabetic or '_' character which signals the beginning
+    # of an identifier.
+    if is_alphabetic(last_char) or last_char == asciz.ord('_') {
+        # Scan for and match the identifier
+        return scan_identifier();
     }
 
-    # Check for and consume a numeric token.
+    # Check for a leading digit that would indicate the start of a
+    # numeric token.
     if isdigit(last_char as int32) <> 0 {
         # digit = [0-9]
         # exp = [Ee][-+]?{digit}+
@@ -468,36 +537,23 @@ def get_next_token() -> int {
         return TOK_EQ;
     }
 
-    # Consume and ignore line comments.
-    if last_char == 0x23 {
-        # comment = "#".*\n
+    # We didn't match an operator.
+    last_char = uchar;
+
+    # Consume and ignore line comments; returning the next token
+    # following the line comment.
+    if last_char == asciz.ord('#') {
         loop {
             last_char = getchar();
-            if (last_char == -1)
-                    or (last_char == 0x0A)
-                    or (last_char == 0x0D) {
-                break;
+            if last_char == -1 { break; }
+            else if last_char == 0x0A or last_char == 0x0D {
+                return get_next_token();
             }
         }
     }
 
-    # Check for and produce an end-of-line token.
-    # Peek one character and see if there is the corresponding character.
-    let pchar: int = getchar();
-    if last_char == 0x0A and pchar == 0x0D {
-        # Return an end-of-line token.
-        return TOK_LINE;
-    } else if last_char == 0x0D and pchar == 0x0A {
-        # Return an end-of-line token.
-        return TOK_LINE;
-    } else if last_char == 0x0A or last_char == 0x0D {
-        # Return an end-of-line token and store the peeked character.
-        last_char = pchar;
-        return TOK_LINE;
-    }
-
     # No idea what we have; return a poison token.
-    print_error("unknown token");
+    printf("error: unknown token: '%c'\n" as ^int8, last_char);
     last_char = getchar();
     return TOK_ERROR;
 }

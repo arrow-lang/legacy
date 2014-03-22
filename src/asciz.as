@@ -5,6 +5,12 @@ type String {
     size: uint
 }
 
+let EOF: int8 = -1;
+
+def ord(c: char) -> int8 {
+    c as int8;
+}
+
 def clear(&mut self: String) {
     # Initialize the string buffer.
     self.buffer[0] = 0x00;

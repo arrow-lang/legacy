@@ -96,11 +96,20 @@ let TOK_FOREIGN: int = -1025;
 # "unsafe" -- Unsafe indicator
 let TOK_UNSAFE: int = -1026;
 
+# "->" -- Function return type declarator
+let TOK_RARROW: int = -2001;
+
+# "+" -- Plus
+let TOK_PLUS: int = -2002;
+
+# "-" -- Minus
+let TOK_MINUS: int = -2003;
+
 # "identifier" -- Lexical identifier
-let TOK_IDENTIFIER: int = -2001;
+let TOK_IDENTIFIER: int = -3001;
 
 # "integer" -- Constant integral number
-let TOK_INTEGER: int = -3001;
+let TOK_INTEGER: int = -4001;
 
 # The last token read from input stream.
 let mut last_char: int8 = 0x20;
@@ -189,4 +198,7 @@ def get_next_token() -> int {
             }
         }
     }
+
+    # Check for and attempt to consume punctuators (eg. "+").
+
 }

@@ -1,5 +1,7 @@
 # Tokens
 # The enumeration of all possible tokens the tokenizer can produce.
+# NOTE: Someone please replace this with enum Token {...} when we have
+#   nominal enumerations in the language.
 # ----------------------------------------------------------------------------
 
 # "error" -- poison token to indicate an error in the token stream
@@ -158,7 +160,7 @@ let TOK_LCARET_EQ: int = -2021;
 # ">=" -- Right caret followed by equals to
 let TOK_RCARET_EQ: int = -2022;
 
-# "==" -- Equals followed by and Equals
+# "==" -- Equals followed by an Equals
 let TOK_EQ_EQ: int = -2023;
 
 # "<>" -- Left caret followed by a right caret

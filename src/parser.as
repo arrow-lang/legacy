@@ -23,6 +23,10 @@ import tokens;
 # [ ] Error "counting"
 # -----------------------------------------------------------------------------
 
+# Kinds of string literals.
+let STR_SINGLE: int = 1;
+let STR_DOUBLE: int = 2;
+
 # The last token read from input stream.
 let mut lchar: int = asciz.ord(' ');
 
@@ -37,6 +41,9 @@ let mut current_id: asciz.String;
 
 # The current number being consumed by the tokenizer.
 let mut current_num: asciz.String;
+
+# The current string being consumed by the tokenizer.
+let mut cur_str: asciz.String;
 
 # print_error -- Print an error message.
 # -----------------------------------------------------------------------------
@@ -281,9 +288,71 @@ def scan_numeric() -> int {
 
 # scan_string -- Scan for and produce a string token.
 # -----------------------------------------------------------------------------
-# [...]
+# xdigit = [0-9a-fa-F]
+# str = \'([^'\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\'
+#     | \"([^"\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\"
 # -----------------------------------------------------------------------------
-# [...]
+def scan_string() -> int {
+    # What kind of string are we dealing with here; we're either single-quoted
+    # or double-quoted.
+    let current_tok: int = tokens.TOK_STRING;
+    let kind: int =
+        if lchar == asciz.ord('"') {
+            STR_DOUBLE;
+        } else {
+            STR_SINGLE;
+        };
+
+    # Bump past the quote character.
+    bump();
+
+    # Clear the string buffer.
+    asciz.clear(cur_str);
+
+    # Loop and consume the string token.
+    let in_escape: bool = false;
+    let in_byte_escape: bool = false;
+    loop {
+        if in_escape {
+            # Bump the character onto the buffer.
+            asciz.push(cur_str, bump());
+
+            # Check if we have an extension control character.
+            if lchar == asciz.ord('x') or lchar == asciz.ord('X') {
+                in_byte_escape = true;
+            }
+
+            # No longer in an escape sequence.
+            in_escape = false;
+        } else if in_byte_escape {
+            # Bump two characters.
+            asciz.push(cur_str, bump());
+            asciz.push(cur_str, bump());
+
+            # No longer in a byte-escape sequence.
+            in_byte_escape = false;
+        } else {
+            if lchar == asciz.ord('\\') {
+                # Mark that we're now in an escape sequence.
+                in_escape = true;
+
+                # Bump the character onto the buffer.
+                asciz.push(cur_str, bump());
+            } else if (kind == STR_SINGLE and lchar == asciz.ord("'")) or
+                      (kind == STR_DOUBLE and lchar == asciz.ord('"')) {
+                # Found the closing quote; we're done.
+                bump();
+                break;
+            } else {
+                # Bump the character onto the buffer.
+                asciz.push(cur_str, bump());
+            }
+        }
+    }
+
+    # Matched the string token.
+    current_tok;
+}
 
 # scan_punctuator -- Scan for and match a punctuator token.
 # -----------------------------------------------------------------------------
@@ -369,7 +438,10 @@ def get_next_token() -> int {
     }
 
     # Check for and consume a string token.
-    # [ ... ]
+    if lchar == asciz.ord("'") or lchar == asciz.ord('"') {
+        # Scan the entire string token.
+        return scan_string();
+    }
 
     # Check for and attempt to consume punctuators (eg. "+").
     let possible_token: int = scan_punctuator();
@@ -429,6 +501,10 @@ def println_token(token: int) {
     } else if token == tokens.TOK_FLOAT {
         printf("<floating-point> '" as ^int8);
         asciz.print(current_num);
+        printf("'\n" as ^int8);
+    } else if token == tokens.TOK_STRING  {
+        printf("<string> '" as ^int8);
+        asciz.print(cur_str);
         printf("'\n" as ^int8);
     } else if token == tokens.TOK_RARROW {
         printf("<punctuator> '->'\n" as ^int8);

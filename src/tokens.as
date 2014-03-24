@@ -193,3 +193,6 @@ let TOK_HEX_INTEGER: int = -4004;
 
 # "float" -- Floating-point literal
 let TOK_FLOAT: int = -4005;
+
+# "string" -- String literal
+let TOK_STRING: int = -4006;

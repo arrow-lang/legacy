@@ -27,6 +27,10 @@ def push(&mut self: String, c: int) {
     self.size = self.size + 1;
 }
 
+def pushc(&mut self: String, c: char) {
+    push(self, c as int);
+}
+
 def eq(&self: String, &other: String) -> bool {
     # Compare both strings and return true if they are equal.
     self.buffer[self.size] = 0x0;

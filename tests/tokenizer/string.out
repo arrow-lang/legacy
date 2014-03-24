@@ -1,0 +1,9 @@
+<string> 'Hello World'
+<string> 'Hi \x32 \n\?'
+<string> 'SH'
+<string> '''
+<string> '\"'
+<string> '\''
+<string> '"'
+<string> '''
+<end>

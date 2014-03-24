@@ -1,0 +1,8 @@
+ ☐ hash-table module (str -> int)
+ ☐ asicz module should use arena allocation in order to allow for larger identifiers
+ ☐ Location spans (tokenizer)
+ ☐ binding over ICU and a string module for unicode operations
+    ☐ UTF-16 to UTF-8 conversions (tokenizer :: string tokens)
+    ☐ UTF-32 to UTF-8 conversions (tokenizer :: string tokens)
+    ☐ Unicode methods (isalpha, isspace, etc.)
+ ☐ handle /uXXXX and /UXXXXXXXX escapes in the string tokenizer (needs ICU)

@@ -66,10 +66,10 @@ def parse_paren_expr() -> ast.Node {
 
 # Expression
 # -----------------------------------------------------------------------------
-# expr = primary binop_rhs
+# expr = unary binop_rhs
 # -----------------------------------------------------------------------------
 def parse_expr() -> ast.Node {
-    let result: ast.Node = parse_primary_expr();
+    let result: ast.Node = parse_unary_expr();
     if ast.isnull(result) { return result; }
 
     return parse_binop_rhs(0, result);
@@ -91,7 +91,7 @@ def get_binop_tok_precedence() -> int {
 
 # Binary expression RHS
 # -----------------------------------------------------------------------------
-# binop_rhs = { binop primary }
+# binop_rhs = { binop unary }
 # binop = <plus>
 #       | <minus>
 #       | <fslash>
@@ -112,7 +112,7 @@ def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
         bump_token();
 
         # Parse the RHS of this binary expression.
-        let rhs: ast.Node = parse_primary_expr();
+        let rhs: ast.Node = parse_unary_expr();
         if ast.isnull(rhs) { return ast.null(); }
 
         # If binop binds less tightly with RHS than the operator after
@@ -142,6 +142,46 @@ def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
 
     # Unreachable code.
     return ast.null();
+}
+
+# Unary expression
+# -----------------------------------------------------------------------------
+# unary_expr = primary_expr
+#            | "+" unary_expr
+#            | "-" unary_expr
+#            | "not" unary_expr
+# -----------------------------------------------------------------------------
+def parse_unary_expr() -> ast.Node {
+    # If the current token is not a unary operator then it must be a
+    # primary expression.
+    if cur_tok <> tokens.TOK_PLUS
+            and cur_tok <> tokens.TOK_MINUS
+            and cur_tok <> tokens.TOK_NOT {
+        return parse_primary_expr();
+    }
+
+    # Okay; this is a unary operator token; consume and move on.
+    let opc: int = cur_tok;
+    bump_token();
+
+    # Parse the RHS of this unary expression.
+    let operand: ast.Node = parse_unary_expr();
+    if ast.isnull(operand) { return ast.null(); }
+
+    # Determine the AST tag.
+    let tag: int =
+        if      opc == tokens.TOK_PLUS      { ast.TAG_PROMOTE; }
+        else if opc == tokens.TOK_MINUS     { ast.TAG_NUMERIC_NEGATE; }
+        else if opc == tokens.TOK_NOT       { ast.TAG_LOGICAL_NEGATE; }
+        else { 0; };  # Cannot happen.
+
+    # Create a unary expression node.
+    let node: ast.Node = ast.make(tag);
+    let expr: ^ast.UnaryExpr = ast.unwrap(node) as ^ast.UnaryExpr;
+    expr.operand = operand;
+
+    # Return our constructed node.
+    node;
 }
 
 # Primary expression

@@ -1,0 +1,36 @@
+# import unique
+
+# use unique.{~, Nil}
+
+# struct List<T> {
+#     value: T
+#     next: ~<List<T>> = Nil
+# }
+
+# List{312, ~{List{12}}}
+
+# Declare an array and add some items to it.
+# Yay usage-based type inference.
+let mut x = []
+x.append(2884.2)
+x.append(10)
+x.append(60)
+x.append(8910)
+x.append(27)
+
+assert(type(x).name == "float64[]")
+assert(x.size() == 5)
+
+# Add 3 to each item in the array.
+i += 3 for &mut i in x
+
+# Make a new array using a comprehension and a higher-order function to make
+# them all strings.
+is := std.collect(str, [i ** i for i in x if i < 1000])
+
+# Unique the resulting strings (because we can) by turing it into a Set using
+# a sequence comprehension.
+st := Set{i for i in is}
+
+# Note: An array comprehension (eg. [.. for .. in ..] is just sugar for
+#       a sequence comprehension as Array{.. for .. in ..}

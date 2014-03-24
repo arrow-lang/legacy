@@ -4,14 +4,17 @@ import arena;
 # AST tag defintions
 # -----------------------------------------------------------------------------
 # AST tags are just an enumeration of all possible nodes.
-let TAG_INTEGER   : int = 1;              # IntegerExpr
-let TAG_ADD       : int = 2;              # AddExpr
-let TAG_SUBTRACT  : int = 3;              # SubtractExpr
-let TAG_MULTIPLY  : int = 4;              # MultiplyExpr
-let TAG_DIVIDE    : int = 5;              # DivideExpr
-let TAG_MODULO    : int = 6;              # ModuloExpr
-let TAG_MODULE    : int = 7;              # ModuleDecl
-let TAG_NODES     : int = 9;              # Nodes
+let TAG_INTEGER         : int =  1;             # IntegerExpr
+let TAG_ADD             : int =  2;             # AddExpr
+let TAG_SUBTRACT        : int =  3;             # SubtractExpr
+let TAG_MULTIPLY        : int =  4;             # MultiplyExpr
+let TAG_DIVIDE          : int =  5;             # DivideExpr
+let TAG_MODULO          : int =  6;             # ModuloExpr
+let TAG_PROMOTE         : int =  7;             # NumericPromoteExpr
+let TAG_NUMERIC_NEGATE  : int =  8;             # NumericNegateExpr
+let TAG_LOGICAL_NEGATE  : int =  9;             # LogicalNegateExpr
+let TAG_MODULE          : int = 10;             # ModuleDecl
+let TAG_NODES           : int = 11;             # Nodes
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -31,6 +34,9 @@ type IntegerExpr { base: int8, text: arena.Store }
 # "Generic" binary expression type.
 type BinaryExpr { lhs: Node, rhs: Node }
 
+# "Generic" unary expression type.
+type UnaryExpr { operand: Node }
+
 # Module declaration that contains a sequence of nodes.
 type ModuleDecl { nodes: Nodes }
 
@@ -47,6 +53,11 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_DIVIDE
            or tag == TAG_MODULO {
         let tmp: BinaryExpr;
+        ((&tmp + 1) - &tmp);
+   } else if tag == TAG_PROMOTE
+           or tag == TAG_NUMERIC_NEGATE
+           or tag == TAG_LOGICAL_NEGATE {
+        let tmp: UnaryExpr;
         ((&tmp + 1) - &tmp);
    } else if tag == TAG_MODULE {
         let tmp: ModuleDecl;
@@ -168,6 +179,9 @@ def dump(&node: Node) {
         dump_table[TAG_DIVIDE] = dump_binop_expr;
         dump_table[TAG_MODULO] = dump_binop_expr;
         dump_table[TAG_MODULE] = dump_module;
+        dump_table[TAG_PROMOTE] = dump_unary_expr;
+        dump_table[TAG_NUMERIC_NEGATE] = dump_unary_expr;
+        dump_table[TAG_LOGICAL_NEGATE] = dump_unary_expr;
         dump_initialized = true;
     }
 
@@ -208,6 +222,22 @@ def dump_binop_expr(node: ^Node) {
     dump_indent = dump_indent + 1;
     dump(x.lhs);
     dump(x.rhs);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_unary_expr
+# -----------------------------------------------------------------------------
+def dump_unary_expr(node: ^Node) {
+    let x: ^UnaryExpr = unwrap(node^) as ^UnaryExpr;
+    if node.tag == TAG_PROMOTE {
+        printf("NumericPromoteExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_NUMERIC_NEGATE {
+        printf("NumericNegateExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_LOGICAL_NEGATE {
+        printf("LogicalNegateExpr <?>\n" as ^int8);
+    }
+    dump_indent = dump_indent + 1;
+    dump(x.operand);
     dump_indent = dump_indent - 1;
 }
 

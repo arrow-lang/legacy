@@ -339,9 +339,6 @@ def scan_identifier() -> int {
 #       | {digit}({digit}|_)*{exp}?
 # -----------------------------------------------------------------------------
 def scan_numeric() -> int {
-    # Declare our expected token; we don't know yet.
-    let current_tok: int = 0;
-
     # Clear the current_num buffer for user.
     asciz.clear(current_num);
 
@@ -349,7 +346,7 @@ def scan_numeric() -> int {
     if last_char == asciz.ord('0') {
         # ... Peek ahead and check if we are a base-prefixed numeric.
         let pchar: int = getchar();
-        current_tok =
+        let current_tok: int =
             if pchar == asciz.ord('b') or pchar == asciz.ord('B') {
                 TOK_BIN_INTEGER;
             } else if pchar == asciz.ord('x') or pchar == asciz.ord('X') {
@@ -410,30 +407,33 @@ def scan_numeric() -> int {
         bump();
     }
 
-    # Check for a '.' that would mean we are continuing this decimal integer
-    # into a floating-point token.
-    if last_char == asciz.ord('.') {
-        # We need to have at least one digit after the period to make this a
-        # floating-point numeric.
-        last_char = getchar();
-        if is_numeric(last_char) {
-            # Scan for the remainder of the fractional part of the numeric.
-            while is_numeric(last_char) {
-                asciz.push(current_num, last_char);
-                bump();
-            }
-
-            # We've matched a floating-point token.
-            return TOK_FLOAT;
-        } else {
-            # We didn't want this.
-            # ungetc(last_char as int32, 1 as ^_IO_FILE);
-            last_char = 3;
-        }
-    }
-
     # We've matched a numeric; return the token.
     return TOK_DEC_INTEGER;
+
+    # # Check for a '.' that would mean we are continuing this decimal integer
+    # # into a floating-point token.
+    # if last_char == asciz.ord('.') {
+    #     # We need to have at least one digit after the period to make this a
+    #     # floating-point numeric.
+    #     last_char = getchar();
+    #     if is_numeric(last_char) {
+    #         # Scan for the remainder of the fractional part of the numeric.
+    #         while is_numeric(last_char) {
+    #             asciz.push(current_num, last_char);
+    #             bump();
+    #         }
+
+    #         # We've matched a floating-point token.
+    #         return TOK_FLOAT;
+    #     } else {
+    #         # We didn't want this.
+    #         # ungetc(last_char as int32, 1 as ^_IO_FILE);
+    #         last_char = 3;
+    #     }
+    # }
+
+    # # We've matched a numeric; return the token.
+    # return TOK_DEC_INTEGER;
 }
 
 # scan_string -- Scan for and produce a string token.

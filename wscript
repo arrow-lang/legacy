@@ -30,20 +30,35 @@ def configure(ctx):
     ctx.find_program('gcc', var='GCC')
 
 def build(ctx):
-    # Compile the tokenizier to the llvm IL.
+    # Compile the tokenizer to the llvm IL.
     ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
         source="src/tokenizer.as",
         target="tokenizer.ll")
 
-    # Compile the tokenizier from llvm IL into native object code.
+    # Compile the tokenizer from llvm IL into native object code.
     ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
         source="tokenizer.ll",
         target="tokenizer.o")
 
-    # Link the tokenizier into a final executable.
+    # Link the tokenizer into a final executable.
     ctx(rule="${GCC} -o${TGT} ${SRC}",
         source="tokenizer.o",
         target="tokenizer")
+
+    # Compile the parser to the llvm IL.
+    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
+        source="src/parser.as",
+        target="parser.ll")
+
+    # Compile the parser from llvm IL into native object code.
+    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
+        source="parser.ll",
+        target="parser.o")
+
+    # Link the parser into a final executable.
+    ctx(rule="${GCC} -o${TGT} ${SRC}",
+        source="parser.o",
+        target="parser")
 
 def _run(filename, commands):
     with open(filename) as stream:

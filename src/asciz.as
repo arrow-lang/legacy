@@ -1,4 +1,5 @@
 foreign "C" import "string.h";
+foreign "C" import "stdio.h";
 
 type String {
     buffer: int8[1024],
@@ -48,6 +49,10 @@ def print(&self: String) {
     # Print the ASCII string.
     self.buffer[self.size] = 0x0;
     printf("%s" as ^int8, &self.buffer[0]);
+}
+
+def println_str(s: str) {
+    printf("%s\n" as ^int8, s as ^int8);
 }
 
 def println(&self: String) {

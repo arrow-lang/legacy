@@ -76,7 +76,7 @@ def _report(filename, status):
     else:
         print("{:<50}: \033[32m{}\033[0m".format(filename, 'PASS'))
 
-def _test_parser_tokenizer(ctx):
+def _test_tokenizer(ctx):
     # Enumerate through the test directory and run the command sequence,
     # checking against the expected output.
     for fixture in glob("tests/tokenizer/*.as"):
@@ -92,5 +92,20 @@ def _test_parser_tokenizer(ctx):
         # Report our status.
         _report(fixture, status)
 
+def _test_tokenizer_self(ctx):
+    # Check the tokenizer against itself.
+    returncode, stdout, stderr = _run("src/parser.as", [])
+
+    # Check the output against the expected.
+    # FIXME: Check the returncode
+    status = True
+    # status = returncode == 0
+    status = status and _check_expected_stdout(
+        "tests/tokenizer/parser.as", stdout)
+
+    # Report our status.
+    _report("src/parser.as", status)
+
 def test(ctx):
-    _test_parser_tokenizer(ctx)
+    _test_tokenizer(ctx)
+    _test_tokenizer_self(ctx)

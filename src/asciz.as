@@ -11,6 +11,10 @@ def ord(c: char) -> int8 {
     c as int8;
 }
 
+def in_range(c: int, s: char, e: char) -> bool {
+    c >= (s as int8) and c <= (e as int8);
+}
+
 def clear(&mut self: String) {
     # Initialize the string buffer.
     self.buffer[0] = 0x00;

@@ -263,6 +263,12 @@ def is_alphanumeric(c: int) -> bool {
     isalnum(c as int32) <> 0;
 }
 
+# is_numeric -- Test if the passed character is numeric.
+# -----------------------------------------------------------------------------
+def is_numeric(c: int) -> bool {
+    isdigit(c as int32) <> 0;
+}
+
 # consume_whitespace -- Eat whitespace.
 # -----------------------------------------------------------------------------
 def consume_whitespace() { while is_whitespace(last_char) { bump(); } }
@@ -332,7 +338,103 @@ def scan_identifier() -> int {
 # float = {digit}({digit}|_)*\.{digit}({digit}|_)*{exp}?
 #       | {digit}({digit}|_)*{exp}?
 # -----------------------------------------------------------------------------
-# [...]
+def scan_numeric() -> int {
+    # Declare our expected token; we don't know yet.
+    let current_tok: int = 0;
+
+    # Clear the current_num buffer for user.
+    asciz.clear(current_num);
+
+    # If we are currently a zero ...
+    if last_char == asciz.ord('0') {
+        # ... Peek ahead and check if we are a base-prefixed numeric.
+        let pchar: int = getchar();
+        current_tok =
+            if pchar == asciz.ord('b') or pchar == asciz.ord('B') {
+                TOK_BIN_INTEGER;
+            } else if pchar == asciz.ord('x') or pchar == asciz.ord('X') {
+                TOK_HEX_INTEGER;
+            } else if pchar == asciz.ord('o') or pchar == asciz.ord('O') {
+                TOK_OCT_INTEGER;
+            } else {
+                # We are not a base-prefixed integer.
+                0;
+            };
+
+        if current_tok == 0 {
+            # We are not dealing with a base_prefixed numeric.
+            asciz.push(current_num, last_char);
+            last_char = pchar;
+        } else if current_tok == TOK_BIN_INTEGER {
+            # Scan for the remainder of this binary numeric.
+            # TODO: This could probably be reduced into a single
+            #   loop that uses a function pointer taken from an anon function
+            #   to make the check.
+            loop {
+                bump();
+                if asciz.in_range(last_char, '0', '1') {
+                    asciz.push(current_num, last_char);
+                } else if last_char <> asciz.ord('_') {
+                    break;
+                }
+            }
+            return current_tok;
+        } else if current_tok == TOK_HEX_INTEGER {
+            # Scan for the remainder of this hexadecimal numeric.
+            loop {
+                bump();
+                if isxdigit(last_char as int32) <> 0 {
+                    asciz.push(current_num, last_char);
+                } else if last_char <> asciz.ord('_') {
+                    break;
+                }
+            }
+            return current_tok;
+        } else if current_tok == TOK_OCT_INTEGER {
+            # Scan for the remainder of this octal numeric.
+            loop {
+                bump();
+                if asciz.in_range(last_char, '0', '7') {
+                    asciz.push(current_num, last_char);
+                } else if last_char <> asciz.ord('_') {
+                    break;
+                }
+            }
+            return current_tok;
+        }
+    }
+
+    # Scan for the remainder of the integral part of the numeric.
+    while is_numeric(last_char) {
+        asciz.push(current_num, last_char);
+        bump();
+    }
+
+    # Check for a '.' that would mean we are continuing this decimal integer
+    # into a floating-point token.
+    if last_char == asciz.ord('.') {
+        # We need to have at least one digit after the period to make this a
+        # floating-point numeric.
+        last_char = getchar();
+        if is_numeric(last_char) {
+            # Scan for the remainder of the fractional part of the numeric.
+            while is_numeric(last_char) {
+                asciz.push(current_num, last_char);
+                bump();
+            }
+
+            # We've matched a floating-point token.
+            return TOK_FLOAT;
+        } else {
+            # We didn't want this.
+            # ungetc(last_char as int32, 1 as ^_IO_FILE);
+            last_char = 3;
+        }
+    }
+
+    # We've matched a numeric; return the token.
+    return TOK_DEC_INTEGER;
+}
 
 # scan_string -- Scan for and produce a string token.
 # -----------------------------------------------------------------------------
@@ -342,154 +444,7 @@ def scan_identifier() -> int {
 
 # scan_punctuator -- Scan for and match a punctuator token.
 # -----------------------------------------------------------------------------
-# [...]
-
-# get_next_token -- Return the next token from stdin.
-# -----------------------------------------------------------------------------
-def get_next_token() -> int {
-    # Skip any whitespace.
-    consume_whitespace();
-
-    # Check if we've reached the end of the stream and the send the END token.
-    if last_char == asciz.EOF { return TOK_END; }
-
-    # Check for an alphabetic or '_' character which signals the beginning
-    # of an identifier.
-    if is_alphabetic(last_char) or last_char == asciz.ord('_') {
-        # Scan for and match the identifier
-        return scan_identifier();
-    }
-
-    # Check for a leading digit that would indicate the start of a
-    # numeric token.
-    if isdigit(last_char as int32) <> 0 {
-        # digit = [0-9]
-        # exp = [Ee][-+]?{digit}+
-        # dec_integer = {digit}{digit}*
-        # hex_integer = 0[xX]{digit}{digit}*
-        # oct_integer = 0[oO][0-7][0-7]*
-        # bin_integer = 0[bB][0-1][0-1]*
-        # float = {digit}{digit}*\.{digit}{digit}*{exp}?
-        #       | {digit}{digit}*{exp}?
-        let mut current_tok: int = 0;
-        let mut pchar: int = 0;
-
-        # Clear out the current number for use.
-        asciz.clear(current_num);
-
-        if last_char == 0x30 {
-            # Peek ahead and see if we are dealing with
-            # a base-prefixed numeric.
-            pchar = getchar() as int;
-            current_tok =
-                if      pchar == 0x78 or pchar == 0x58 { TOK_HEX_INTEGER; }
-                else if pchar == 0x6F or pchar == 0x4F { TOK_OCT_INTEGER; }
-                else if pchar == 0x62 or pchar == 0x42 { TOK_BIN_INTEGER; }
-                else { 0; };
-
-            # If we are not dealing with a base-prefixed numeric check if we
-            # are still dealing with a number.
-            if current_tok == 0
-                    and isxdigit(pchar as int32) == 0
-                    and pchar <> 0x2E
-                    and pchar <> 0x65
-                    and pchar <> 0x45 {
-                # This is no longer a number; grab the zero and return us.
-                asciz.push(current_num, last_char);
-                last_char = pchar;
-                return TOK_DEC_INTEGER;
-            }
-
-            # We are still a number.
-            last_char = getchar();
-        } else {
-            # We are now tentatively a decimal number.
-            current_tok = TOK_DEC_INTEGER;
-        }
-
-        # Enumerate through the input stream until we are no longer
-        # a number.
-        loop {
-            asciz.push(current_num, last_char);
-            last_char = getchar();
-            if isxdigit(last_char as int32) == 0 { break; }
-        }
-
-        # Check if the next character continues the number token
-        # into a floating-point token.
-        if last_char <> 0x2E and pchar <> 0x65 and pchar <> 0x45 {
-            # We have stopped being a number; return us.
-            return current_tok;
-        } else if current_tok <> TOK_DEC_INTEGER {
-            # We are a base-prefixed integeral number; we cannot be
-            # a floating-point number; raise an error and return poison.
-            if current_tok == TOK_OCT_INTEGER {
-                print_error("octal floating-point literal is not supported");
-            } else if current_tok == TOK_HEX_INTEGER {
-                print_error("hexadecimal floating-point literal is not supported");
-            } else if current_tok == TOK_BIN_INTEGER {
-                print_error("binary floating-point literal is not supported");
-            }
-            return TOK_ERROR;
-        }
-
-        if last_char == 0x2E {  # last_char == '.'
-            # We are now a floating-point token.
-            current_tok = TOK_FLOAT;
-
-            # Push the period onto to buffer.
-            asciz.push(current_num, last_char);
-
-            # Enumerate through the input stream until we are no longer
-            # a number.
-            loop {
-                last_char = getchar();
-                if isdigit(last_char as int32) == 0 { break; }
-                asciz.push(current_num, last_char);
-            }
-        }
-
-        if last_char == 0x65 or last_char == 0x45 {
-            # We are now a floating-point token.
-            current_tok = TOK_FLOAT;
-
-            # Push the e/E onto to buffer.
-            asciz.push(current_num, last_char);
-
-            # Ensure there is at least one number after the e/E.
-            last_char = getchar();
-            if isdigit(last_char as int32) == 0{
-                # There is not at least one number of the e/E; report
-                # an error and return a poison token.
-                print_error("exponent has no digits");
-                return TOK_ERROR;
-            }
-
-            # Enumerate through the input stream until we are no longer
-            # a number.
-            asciz.push(current_num, last_char);
-            loop {
-                last_char = getchar();
-                if isdigit(last_char as int32) == 0 { break; }
-                asciz.push(current_num, last_char);
-            }
-        }
-
-        # Ensure that there is not a trailing period.
-        if last_char == 0x2E {
-            print_error("invalid suffix on floating-point literal");
-            return TOK_ERROR;
-        }
-
-        # Return the token indicator.
-        return current_tok;
-    }
-
-    # Check for and consume a string token.
-    # [ ... ]
-
-    # Check for and attempt to consume punctuators (eg. "+").
-
+def scan_punctuator() -> int {
     # First attempt to match those that are unambigious in that
     # if the current character matches it is the token.
     let uchar: int = last_char;
@@ -537,8 +492,163 @@ def get_next_token() -> int {
         return TOK_EQ;
     }
 
-    # We didn't match an operator.
+    # Didn't match a punctuator token.
     last_char = uchar;
+    0;
+}
+
+# get_next_token -- Return the next token from stdin.
+# -----------------------------------------------------------------------------
+def get_next_token() -> int {
+    # Skip any whitespace.
+    consume_whitespace();
+
+    # Check if we've reached the end of the stream and the send the END token.
+    if last_char == asciz.EOF { return TOK_END; }
+
+    # Check for an alphabetic or '_' character which signals the beginning
+    # of an identifier.
+    if is_alphabetic(last_char) or last_char == asciz.ord('_') {
+        # Scan for and match the identifier
+        return scan_identifier();
+    }
+
+    # Check for a leading digit that would indicate the start of a
+    # numeric token.
+    if is_numeric(last_char) {
+        # Scan for and match the numeric token.
+        return scan_numeric();
+    }
+
+    # if isdigit(last_char as int32) <> 0 {
+    #     # digit = [0-9]
+    #     # exp = [Ee][-+]?{digit}+
+    #     # dec_integer = {digit}{digit}*
+    #     # hex_integer = 0[xX]{digit}{digit}*
+    #     # oct_integer = 0[oO][0-7][0-7]*
+    #     # bin_integer = 0[bB][0-1][0-1]*
+    #     # float = {digit}{digit}*\.{digit}{digit}*{exp}?
+    #     #       | {digit}{digit}*{exp}?
+    #     let mut current_tok: int = 0;
+    #     let mut pchar: int = 0;
+
+    #     # Clear out the current number for use.
+    #     asciz.clear(current_num);
+
+    #     if last_char == 0x30 {
+    #         # Peek ahead and see if we are dealing with
+    #         # a base-prefixed numeric.
+    #         pchar = getchar() as int;
+    #         current_tok =
+    #             if      pchar == 0x78 or pchar == 0x58 { TOK_HEX_INTEGER; }
+    #             else if pchar == 0x6F or pchar == 0x4F { TOK_OCT_INTEGER; }
+    #             else if pchar == 0x62 or pchar == 0x42 { TOK_BIN_INTEGER; }
+    #             else { 0; };
+
+    #         # If we are not dealing with a base-prefixed numeric check if we
+    #         # are still dealing with a number.
+    #         if current_tok == 0
+    #                 and isxdigit(pchar as int32) == 0
+    #                 and pchar <> 0x2E
+    #                 and pchar <> 0x65
+    #                 and pchar <> 0x45 {
+    #             # This is no longer a number; grab the zero and return us.
+    #             asciz.push(current_num, last_char);
+    #             last_char = pchar;
+    #             return TOK_DEC_INTEGER;
+    #         }
+
+    #         # We are still a number.
+    #         last_char = getchar();
+    #     } else {
+    #         # We are now tentatively a decimal number.
+    #         current_tok = TOK_DEC_INTEGER;
+    #     }
+
+    #     # Enumerate through the input stream until we are no longer
+    #     # a number.
+    #     loop {
+    #         asciz.push(current_num, last_char);
+    #         last_char = getchar();
+    #         if isxdigit(last_char as int32) == 0 { break; }
+    #     }
+
+    #     # Check if the next character continues the number token
+    #     # into a floating-point token.
+    #     if last_char <> 0x2E and pchar <> 0x65 and pchar <> 0x45 {
+    #         # We have stopped being a number; return us.
+    #         return current_tok;
+    #     } else if current_tok <> TOK_DEC_INTEGER {
+    #         # We are a base-prefixed integeral number; we cannot be
+    #         # a floating-point number; raise an error and return poison.
+    #         if current_tok == TOK_OCT_INTEGER {
+    #             print_error("octal floating-point literal is not supported");
+    #         } else if current_tok == TOK_HEX_INTEGER {
+    #             print_error("hexadecimal floating-point literal is not supported");
+    #         } else if current_tok == TOK_BIN_INTEGER {
+    #             print_error("binary floating-point literal is not supported");
+    #         }
+    #         return TOK_ERROR;
+    #     }
+
+    #     if last_char == 0x2E {  # last_char == '.'
+    #         # We are now a floating-point token.
+    #         current_tok = TOK_FLOAT;
+
+    #         # Push the period onto to buffer.
+    #         asciz.push(current_num, last_char);
+
+    #         # Enumerate through the input stream until we are no longer
+    #         # a number.
+    #         loop {
+    #             last_char = getchar();
+    #             if isdigit(last_char as int32) == 0 { break; }
+    #             asciz.push(current_num, last_char);
+    #         }
+    #     }
+
+    #     if last_char == 0x65 or last_char == 0x45 {
+    #         # We are now a floating-point token.
+    #         current_tok = TOK_FLOAT;
+
+    #         # Push the e/E onto to buffer.
+    #         asciz.push(current_num, last_char);
+
+    #         # Ensure there is at least one number after the e/E.
+    #         last_char = getchar();
+    #         if isdigit(last_char as int32) == 0{
+    #             # There is not at least one number of the e/E; report
+    #             # an error and return a poison token.
+    #             print_error("exponent has no digits");
+    #             return TOK_ERROR;
+    #         }
+
+    #         # Enumerate through the input stream until we are no longer
+    #         # a number.
+    #         asciz.push(current_num, last_char);
+    #         loop {
+    #             last_char = getchar();
+    #             if isdigit(last_char as int32) == 0 { break; }
+    #             asciz.push(current_num, last_char);
+    #         }
+    #     }
+
+    #     # Ensure that there is not a trailing period.
+    #     if last_char == 0x2E {
+    #         print_error("invalid suffix on floating-point literal");
+    #         return TOK_ERROR;
+    #     }
+
+    #     # Return the token indicator.
+    #     return current_tok;
+    # }
+
+    # Check for and consume a string token.
+    # [ ... ]
+
+    # Check for and attempt to consume punctuators (eg. "+").
+    let possible_token: int = scan_punctuator();
+    if possible_token <> 0 { return possible_token; }
 
     # Consume and ignore line comments; returning the next token
     # following the line comment.

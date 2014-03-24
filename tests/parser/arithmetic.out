@@ -1,0 +1,77 @@
+ModuleDecl <?>
+  AddExpr <?>
+    IntegerExpr <?> 'int' 4 (10)
+    IntegerExpr <?> 'int' 320 (10)
+  AddExpr <?>
+    AddExpr <?>
+      AddExpr <?>
+        IntegerExpr <?> 'int' 52 (10)
+        IntegerExpr <?> 'int' 434 (10)
+      IntegerExpr <?> 'int' 25 (10)
+    AddExpr <?>
+      IntegerExpr <?> 'int' 523 (10)
+      IntegerExpr <?> 'int' 30 (10)
+  SubtractExpr <?>
+    IntegerExpr <?> 'int' 43 (10)
+    IntegerExpr <?> 'int' 43 (10)
+  AddExpr <?>
+    SubtractExpr <?>
+      IntegerExpr <?> 'int' 63 (10)
+      IntegerExpr <?> 'int' 36 (10)
+    IntegerExpr <?> 'int' 325 (10)
+  SubtractExpr <?>
+    IntegerExpr <?> 'int' 63 (10)
+    AddExpr <?>
+      IntegerExpr <?> 'int' 36 (10)
+      IntegerExpr <?> 'int' 430 (10)
+  MultiplyExpr <?>
+    IntegerExpr <?> 'int' 43 (10)
+    IntegerExpr <?> 'int' 43 (10)
+  MultiplyExpr <?>
+    MultiplyExpr <?>
+      MultiplyExpr <?>
+        IntegerExpr <?> 'int' 63 (10)
+        IntegerExpr <?> 'int' 36 (10)
+      IntegerExpr <?> 'int' 63 (10)
+    AddExpr <?>
+      IntegerExpr <?> 'int' 36 (10)
+      IntegerExpr <?> 'int' 430 (10)
+  AddExpr <?>
+    IntegerExpr <?> 'int' 32 (10)
+    MultiplyExpr <?>
+      IntegerExpr <?> 'int' 30 (10)
+      IntegerExpr <?> 'int' 10 (10)
+  DivideExpr <?>
+    IntegerExpr <?> 'int' 43 (10)
+    IntegerExpr <?> 'int' 43 (10)
+  DivideExpr <?>
+    MultiplyExpr <?>
+      DivideExpr <?>
+        IntegerExpr <?> 'int' 63 (10)
+        IntegerExpr <?> 'int' 36 (10)
+      IntegerExpr <?> 'int' 63 (10)
+    AddExpr <?>
+      IntegerExpr <?> 'int' 36 (10)
+      IntegerExpr <?> 'int' 430 (10)
+  AddExpr <?>
+    IntegerExpr <?> 'int' 32 (10)
+    DivideExpr <?>
+      IntegerExpr <?> 'int' 30 (10)
+      IntegerExpr <?> 'int' 10 (10)
+  ModuloExpr <?>
+    IntegerExpr <?> 'int' 43 (10)
+    IntegerExpr <?> 'int' 43 (10)
+  ModuloExpr <?>
+    DivideExpr <?>
+      ModuloExpr <?>
+        IntegerExpr <?> 'int' 63 (10)
+        IntegerExpr <?> 'int' 36 (10)
+      IntegerExpr <?> 'int' 63 (10)
+    AddExpr <?>
+      IntegerExpr <?> 'int' 36 (10)
+      IntegerExpr <?> 'int' 430 (10)
+  AddExpr <?>
+    IntegerExpr <?> 'int' 32 (10)
+    ModuloExpr <?>
+      IntegerExpr <?> 'int' 30 (10)
+      IntegerExpr <?> 'int' 10 (10)

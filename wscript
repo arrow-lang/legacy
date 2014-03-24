@@ -60,10 +60,10 @@ def build(ctx):
         source="parser.o",
         target="parser")
 
-def _run(filename, commands):
+def _run(filename, command, options):
     with open(filename) as stream:
         # Execute and run the test case.
-        p = Popen([path.join(out, 'tokenizer')] + commands,
+        p = Popen([path.join(out, command)] + options,
                   stdin=stream, stdout=PIPE, stderr=PIPE)
         stdout, stderr = p.communicate()
         return p.returncode, stdout, stderr
@@ -83,20 +83,27 @@ def _check_expected_stdout(filename, stdout):
 
     return expected == stdout
 
+_passed = 0
+_failed = 0
+
 def _report(filename, status):
+    global _passed
+    global _failed
     filename = path.relpath(filename)
     if not status:
-        print("\033[31m{:<50}: {}\033[0m".format(filename, 'FAIL'))
+        _failed += 1
+        print("\033[31m{:<72}: {}\033[0m".format(filename, 'FAIL'))
 
     else:
-        print("{:<50}: \033[32m{}\033[0m".format(filename, 'PASS'))
+        _passed += 1
+        print("{:<72}: \033[32m{}\033[0m".format(filename, 'PASS'))
 
 def _test_tokenizer(ctx):
     # Enumerate through the test directory and run the command sequence,
     # checking against the expected output.
     for fixture in glob("tests/tokenizer/*.as"):
         # Run the tokenizer over our fixture.
-        returncode, stdout, stderr = _run(fixture, [])
+        returncode, stdout, stderr = _run(fixture, 'tokenizer', [])
 
         # Check the output against the expected.
         # FIXME: Check the returncode
@@ -109,7 +116,7 @@ def _test_tokenizer(ctx):
 
 def _test_tokenizer_self(ctx):
     # Check the tokenizer against itself.
-    returncode, stdout, stderr = _run("src/tokenizer.as", [])
+    returncode, stdout, stderr = _run("src/tokenizer.as", 'tokenizer', [])
 
     # Check the output against the expected.
     # FIXME: Check the returncode
@@ -121,6 +128,50 @@ def _test_tokenizer_self(ctx):
     # Report our status.
     _report("src/tokenizer.as", status)
 
+def _test_parser(ctx):
+    # Enumerate through the test directory and run the command sequence,
+    # checking against the expected output.
+    for fixture in glob("tests/parser/*.as"):
+        # Run the parser over our fixture.
+        returncode, stdout, stderr = _run(fixture, 'parser', [])
+
+        # Check the output against the expected.
+        # FIXME: Check the returncode
+        status = True
+        # status = returncode == 0
+        status = status and _check_expected_stdout(fixture, stdout)
+
+        # Report our status.
+        _report(fixture, status)
+
+def _print_report():
+    print()
+
+    message = "{} passed".format(_passed)
+    if _failed:
+        message += ", {} failed".format(_failed)
+
+    if not _failed:
+        sys.stdout.write("\033[1;32m")
+        print(_sep(message))
+        sys.stdout.write("\033[0m")
+    else:
+        sys.stdout.write("\033[1;31m")
+        print(_sep(message))
+        sys.stdout.write("\033[0m")
+
+def _sep(text, char="=", size=80):
+    size -= len(text) + 2
+    left = right = size // 2
+    if size % 2 != 0:
+        right += 1
+    return (char * left) + " " + text + " " + (char * right)
+
 def test(ctx):
+    print(_sep("test session starts", "="))
+    print(_sep("tokenizer", "-"))
     _test_tokenizer(ctx)
     _test_tokenizer_self(ctx)
+    print(_sep("parser", "-"))
+    _test_parser(ctx)
+    _print_report()

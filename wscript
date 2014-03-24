@@ -32,7 +32,7 @@ def configure(ctx):
 def build(ctx):
     # Compile the tokenizier to the llvm IL.
     ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
-        source="src/parser.as",
+        source="src/tokenizer.as",
         target="tokenizer.ll")
 
     # Compile the tokenizier from llvm IL into native object code.
@@ -94,17 +94,17 @@ def _test_tokenizer(ctx):
 
 def _test_tokenizer_self(ctx):
     # Check the tokenizer against itself.
-    returncode, stdout, stderr = _run("src/parser.as", [])
+    returncode, stdout, stderr = _run("src/tokenizer.as", [])
 
     # Check the output against the expected.
     # FIXME: Check the returncode
     status = True
     # status = returncode == 0
     status = status and _check_expected_stdout(
-        "tests/tokenizer/parser.as", stdout)
+        "tests/tokenizer/tokenizer.as", stdout)
 
     # Report our status.
-    _report("src/parser.as", status)
+    _report("src/tokenizer.as", status)
 
 def test(ctx):
     _test_tokenizer(ctx)

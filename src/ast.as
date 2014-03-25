@@ -15,9 +15,15 @@ let TAG_NUMERIC_NEGATE  : int =  8;             # NumericNegateExpr
 let TAG_LOGICAL_NEGATE  : int =  9;             # LogicalNegateExpr
 let TAG_LOGICAL_AND     : int = 10;             # LogicalAndExpr
 let TAG_LOGICAL_OR      : int = 11;             # LogicalOrExpr
-let TAG_MODULE          : int = 12;             # ModuleDecl
-let TAG_NODES           : int = 13;             # Nodes
-let TAG_BOOLEAN         : int = 14;             # BooleanExpr
+let TAG_EQ              : int = 12;             # EQExpr
+let TAG_NE              : int = 13;             # NEExpr
+let TAG_LT              : int = 14;             # LTExpr
+let TAG_LE              : int = 15;             # LEExpr
+let TAG_GT              : int = 16;             # GTExpr
+let TAG_GE              : int = 17;             # GEExpr
+let TAG_MODULE          : int = 18;             # ModuleDecl
+let TAG_NODES           : int = 19;             # Nodes
+let TAG_BOOLEAN         : int = 20;             # BooleanExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -59,7 +65,13 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_DIVIDE
            or tag == TAG_MODULO
            or tag == TAG_LOGICAL_AND
-           or tag == TAG_LOGICAL_OR {
+           or tag == TAG_LOGICAL_OR
+           or tag == TAG_EQ
+           or tag == TAG_NE
+           or tag == TAG_LT
+           or tag == TAG_LE
+           or tag == TAG_GT
+           or tag == TAG_GE {
         let tmp: BinaryExpr;
         ((&tmp + 1) - &tmp);
    } else if tag == TAG_PROMOTE
@@ -68,9 +80,9 @@ def _sizeof(tag: int) -> uint {
         let tmp: UnaryExpr;
         ((&tmp + 1) - &tmp);
    }
-   else if tag == TAG_MODULE { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
-   else if tag == TAG_NODES { let tmp: Nodes; ((&tmp + 1) - &tmp); }
-   else if tag == TAG_NODES { let tmp: Nodes; ((&tmp + 1) - &tmp); }
+   else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
+   else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
+   else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
    else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
    else { 0; }
 }
@@ -190,6 +202,12 @@ def dump(&node: Node) {
         dump_table[TAG_LOGICAL_NEGATE] = dump_unary_expr;
         dump_table[TAG_LOGICAL_AND] = dump_binop_expr;
         dump_table[TAG_LOGICAL_OR] = dump_binop_expr;
+        dump_table[TAG_EQ] = dump_binop_expr;
+        dump_table[TAG_NE] = dump_binop_expr;
+        dump_table[TAG_LT] = dump_binop_expr;
+        dump_table[TAG_LE] = dump_binop_expr;
+        dump_table[TAG_GT] = dump_binop_expr;
+        dump_table[TAG_GE] = dump_binop_expr;
         dump_initialized = true;
     }
 
@@ -237,6 +255,18 @@ def dump_binop_expr(node: ^Node) {
         printf("LogicalAndExpr <?>\n" as ^int8);
     } else if node.tag == TAG_LOGICAL_OR {
         printf("LogicalOrExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_EQ {
+        printf("EQExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_NE {
+        printf("NEExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_LT {
+        printf("LTExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_LE {
+        printf("LEExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_GT {
+        printf("GTExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_GE {
+        printf("GEExpr <?>\n" as ^int8);
     }
     dump_indent = dump_indent + 1;
     dump(x.lhs);

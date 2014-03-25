@@ -95,13 +95,19 @@ def parse_expr() -> ast.Node {
 # Binary operator token precedence
 # -----------------------------------------------------------------------------
 def get_binop_tok_precedence() -> int {
-         if cur_tok == tokens.TOK_AND         { 010; }
-    else if cur_tok == tokens.TOK_OR          { 010; }
-    else if cur_tok == tokens.TOK_PLUS        { 020; }
-    else if cur_tok == tokens.TOK_MINUS       { 020; }
-    else if cur_tok == tokens.TOK_STAR        { 040; }
-    else if cur_tok == tokens.TOK_FSLASH      { 040; }
-    else if cur_tok == tokens.TOK_PERCENT     { 040; }
+         if cur_tok == tokens.TOK_AND            { 010; }  # and
+    else if cur_tok == tokens.TOK_OR             { 010; }  # or
+    else if cur_tok == tokens.TOK_EQ_EQ          { 020; }  # ==
+    else if cur_tok == tokens.TOK_LCARET_RCARET  { 020; }  # <>
+    else if cur_tok == tokens.TOK_LCARET         { 020; }  # <
+    else if cur_tok == tokens.TOK_LCARET_EQ      { 020; }  # <=
+    else if cur_tok == tokens.TOK_RCARET         { 020; }  # >
+    else if cur_tok == tokens.TOK_RCARET_EQ      { 020; }  # >=
+    else if cur_tok == tokens.TOK_PLUS           { 040; }  # +
+    else if cur_tok == tokens.TOK_MINUS          { 040; }  # -
+    else if cur_tok == tokens.TOK_STAR           { 060; }  # *
+    else if cur_tok == tokens.TOK_FSLASH         { 060; }  # /
+    else if cur_tok == tokens.TOK_PERCENT        { 060; }  # %
     else {
         # Not a binary operator.
         -1;
@@ -144,13 +150,19 @@ def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
 
         # Determine the AST tag.
         let tag: int =
-            if      binop == tokens.TOK_PLUS        { ast.TAG_ADD; }
-            else if binop == tokens.TOK_MINUS       { ast.TAG_SUBTRACT; }
-            else if binop == tokens.TOK_STAR        { ast.TAG_MULTIPLY; }
-            else if binop == tokens.TOK_FSLASH      { ast.TAG_DIVIDE; }
-            else if binop == tokens.TOK_PERCENT     { ast.TAG_MODULO; }
-            else if binop == tokens.TOK_AND         { ast.TAG_LOGICAL_AND; }
-            else if binop == tokens.TOK_OR          { ast.TAG_LOGICAL_OR; }
+            if      binop == tokens.TOK_PLUS           { ast.TAG_ADD; }
+            else if binop == tokens.TOK_MINUS          { ast.TAG_SUBTRACT; }
+            else if binop == tokens.TOK_STAR           { ast.TAG_MULTIPLY; }
+            else if binop == tokens.TOK_FSLASH         { ast.TAG_DIVIDE; }
+            else if binop == tokens.TOK_PERCENT        { ast.TAG_MODULO; }
+            else if binop == tokens.TOK_AND            { ast.TAG_LOGICAL_AND; }
+            else if binop == tokens.TOK_OR             { ast.TAG_LOGICAL_OR; }
+            else if binop == tokens.TOK_EQ_EQ          { ast.TAG_EQ; }
+            else if binop == tokens.TOK_LCARET_RCARET  { ast.TAG_NE; }
+            else if binop == tokens.TOK_LCARET         { ast.TAG_LT; }
+            else if binop == tokens.TOK_LCARET_EQ      { ast.TAG_LE; }
+            else if binop == tokens.TOK_RCARET         { ast.TAG_GT; }
+            else if binop == tokens.TOK_RCARET_EQ      { ast.TAG_GE; }
             else { 0; };  # Cannot happen.
 
         # Merge LHS/RHS into a binary expression node.

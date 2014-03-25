@@ -1,0 +1,28 @@
+ModuleDecl <?>
+  GTExpr <?>
+    IntegerExpr <?> 'int' 10 (10)
+    IntegerExpr <?> 'int' 430 (10)
+  LTExpr <?>
+    IntegerExpr <?> 'int' 60 (10)
+    IntegerExpr <?> 'int' 43 (10)
+  GEExpr <?>
+    IntegerExpr <?> 'int' 350 (10)
+    IntegerExpr <?> 'int' 403 (10)
+  LEExpr <?>
+    IntegerExpr <?> 'int' 32 (10)
+    IntegerExpr <?> 'int' 302 (10)
+  LTExpr <?>
+    LogicalNegateExpr <?>
+      IntegerExpr <?> 'int' 0023 (10)
+    IntegerExpr <?> 'int' 302 (10)
+  GTExpr <?>
+    IntegerExpr <?> 'int' 40 (10)
+    IntegerExpr <?> 'int' 502 (10)
+  LogicalAndExpr <?>
+    GTExpr <?>
+      LogicalNegateExpr <?>
+        IntegerExpr <?> 'int' 40 (10)
+      IntegerExpr <?> 'int' 40 (10)
+    GTExpr <?>
+      IntegerExpr <?> 'int' 70 (10)
+      IntegerExpr <?> 'int' 403 (10)

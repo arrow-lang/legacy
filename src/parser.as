@@ -11,6 +11,23 @@ def bump_token() -> int {
     cur_tok;
 }
 
+# Boolean expression
+# -----------------------------------------------------------------------------
+# boolean_expr = <true> | <false>
+# -----------------------------------------------------------------------------
+def parse_bool_expr() -> ast.Node {
+    # Allocate space for the boolean expression.
+    let node: ast.Node = ast.make(ast.TAG_BOOLEAN);
+    let expr: ^ast.BooleanExpr = ast.unwrap(node) as ^ast.BooleanExpr;
+
+    # Set our value.
+    expr.value = cur_tok == tokens.TOK_TRUE;
+
+    # Consume the token and return our node.
+    bump_token();
+    node;
+}
+
 # Integer expression
 # -----------------------------------------------------------------------------
 # integer_expr = <dec_integer>
@@ -78,7 +95,9 @@ def parse_expr() -> ast.Node {
 # Binary operator token precedence
 # -----------------------------------------------------------------------------
 def get_binop_tok_precedence() -> int {
-    if      cur_tok == tokens.TOK_PLUS        { 020; }
+         if cur_tok == tokens.TOK_AND         { 010; }
+    else if cur_tok == tokens.TOK_OR          { 010; }
+    else if cur_tok == tokens.TOK_PLUS        { 020; }
     else if cur_tok == tokens.TOK_MINUS       { 020; }
     else if cur_tok == tokens.TOK_STAR        { 040; }
     else if cur_tok == tokens.TOK_FSLASH      { 040; }
@@ -130,6 +149,8 @@ def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
             else if binop == tokens.TOK_STAR        { ast.TAG_MULTIPLY; }
             else if binop == tokens.TOK_FSLASH      { ast.TAG_DIVIDE; }
             else if binop == tokens.TOK_PERCENT     { ast.TAG_MODULO; }
+            else if binop == tokens.TOK_AND         { ast.TAG_LOGICAL_AND; }
+            else if binop == tokens.TOK_OR          { ast.TAG_LOGICAL_OR; }
             else { 0; };  # Cannot happen.
 
         # Merge LHS/RHS into a binary expression node.
@@ -186,7 +207,7 @@ def parse_unary_expr() -> ast.Node {
 
 # Primary expression
 # -----------------------------------------------------------------------------
-# primary_expr = integer_expr
+# primary_expr = integer_expr | paren_expr | boolean_expr
 # -----------------------------------------------------------------------------
 def parse_primary_expr() -> ast.Node {
     if cur_tok == tokens.TOK_BIN_INTEGER
@@ -194,6 +215,8 @@ def parse_primary_expr() -> ast.Node {
             or cur_tok == tokens.TOK_DEC_INTEGER
             or cur_tok == tokens.TOK_HEX_INTEGER {
         parse_integer_expr();
+    } else if cur_tok == tokens.TOK_TRUE or cur_tok == tokens.TOK_FALSE {
+        parse_bool_expr();
     } else if cur_tok == tokens.TOK_LPAREN {
         parse_paren_expr();
     } else {

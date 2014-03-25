@@ -13,8 +13,11 @@ let TAG_MODULO          : int =  6;             # ModuloExpr
 let TAG_PROMOTE         : int =  7;             # NumericPromoteExpr
 let TAG_NUMERIC_NEGATE  : int =  8;             # NumericNegateExpr
 let TAG_LOGICAL_NEGATE  : int =  9;             # LogicalNegateExpr
-let TAG_MODULE          : int = 10;             # ModuleDecl
-let TAG_NODES           : int = 11;             # Nodes
+let TAG_LOGICAL_AND     : int = 10;             # LogicalAndExpr
+let TAG_LOGICAL_OR      : int = 11;             # LogicalOrExpr
+let TAG_MODULE          : int = 12;             # ModuleDecl
+let TAG_NODES           : int = 13;             # Nodes
+let TAG_BOOLEAN         : int = 14;             # BooleanExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -30,6 +33,9 @@ type NodesIterator { current: ^Nodes }
 
 # Expression type for integral literals with a distinct base like "2321".
 type IntegerExpr { base: int8, text: arena.Store }
+
+# Expression type for a boolean literal
+type BooleanExpr { value: bool }
 
 # "Generic" binary expression type.
 type BinaryExpr { lhs: Node, rhs: Node }
@@ -51,7 +57,9 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_SUBTRACT
            or tag == TAG_MULTIPLY
            or tag == TAG_DIVIDE
-           or tag == TAG_MODULO {
+           or tag == TAG_MODULO
+           or tag == TAG_LOGICAL_AND
+           or tag == TAG_LOGICAL_OR {
         let tmp: BinaryExpr;
         ((&tmp + 1) - &tmp);
    } else if tag == TAG_PROMOTE
@@ -59,15 +67,12 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_LOGICAL_NEGATE {
         let tmp: UnaryExpr;
         ((&tmp + 1) - &tmp);
-   } else if tag == TAG_MODULE {
-        let tmp: ModuleDecl;
-        ((&tmp + 1) - &tmp);
-   } else if tag == TAG_NODES {
-        let tmp: Nodes;
-        ((&tmp + 1) - &tmp);
-   } else {
-        0;
    }
+   else if tag == TAG_MODULE { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
+   else if tag == TAG_NODES { let tmp: Nodes; ((&tmp + 1) - &tmp); }
+   else if tag == TAG_NODES { let tmp: Nodes; ((&tmp + 1) - &tmp); }
+   else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
+   else { 0; }
 }
 
 # make -- Allocate space for a node in the AST
@@ -167,12 +172,13 @@ def iter_next(&mut iter: NodesIterator) -> Node {
 
 # dump -- Dump a textual representation of the node to stdout.
 # -----------------------------------------------------------------------------
-let mut dump_table: def(^Node)[22];
+let mut dump_table: def(^Node)[100];
 let mut dump_indent: int = 0;
 let mut dump_initialized: bool = false;
 def dump(&node: Node) {
     if not dump_initialized {
         dump_table[TAG_INTEGER] = dump_integer_expr;
+        dump_table[TAG_BOOLEAN] = dump_boolean_expr;
         dump_table[TAG_ADD] = dump_binop_expr;
         dump_table[TAG_SUBTRACT] = dump_binop_expr;
         dump_table[TAG_MULTIPLY] = dump_binop_expr;
@@ -182,6 +188,8 @@ def dump(&node: Node) {
         dump_table[TAG_PROMOTE] = dump_unary_expr;
         dump_table[TAG_NUMERIC_NEGATE] = dump_unary_expr;
         dump_table[TAG_LOGICAL_NEGATE] = dump_unary_expr;
+        dump_table[TAG_LOGICAL_AND] = dump_binop_expr;
+        dump_table[TAG_LOGICAL_OR] = dump_binop_expr;
         dump_initialized = true;
     }
 
@@ -194,6 +202,13 @@ def dump(&node: Node) {
     let dump_fn: def(^Node) = dump_table[node.tag];
     let node_ptr: ^Node = &node;
     dump_fn(node_ptr);
+}
+
+# dump_boolean_expr
+# -----------------------------------------------------------------------------
+def dump_boolean_expr(node: ^Node) {
+    let x: ^BooleanExpr = unwrap(node^) as ^BooleanExpr;
+    printf("BooleanExpr <?> %s\n" as ^int8, "true" if x.value else "false");
 }
 
 # dump_integer_expr
@@ -218,6 +233,10 @@ def dump_binop_expr(node: ^Node) {
         printf("DivideExpr <?>\n" as ^int8);
     } else if node.tag == TAG_MODULO {
         printf("ModuloExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_LOGICAL_AND {
+        printf("LogicalAndExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_LOGICAL_OR {
+        printf("LogicalOrExpr <?>\n" as ^int8);
     }
     dump_indent = dump_indent + 1;
     dump(x.lhs);

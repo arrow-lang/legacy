@@ -19,16 +19,17 @@
  - [ ] REPL (complete)
  - [ ] Front-end (complete); eg. flags, etc.
  - [ ] Strong unit / regression test suite (match all error cases)
-
-# 0.0.2
  - [ ] Ternary expression -- a if condition else b
  - [ ] Postfix selection statement -- a if condition
+ - [ ] Tuple unpacking -- (x, y) = (32, 32)
+ - [ ] Tuple type expression
+ - [ ] Pattern slot declaration -- let (x: int, y: int) = (3, 32);
+ - [ ] Module declaration -- module name { ... }
+
+# 0.0.2
  - [ ] Structure declaration -- struct Point{x: int, y: int}
  - [ ] Structure expression -- Point{x: 0, y: 32}
- - [ ] Tuple type expression
  - [ ] "New" type declaration -- type Point = (int, int);
- - [ ] Multiple slot declaration -- let (x: int, y: int) = (3, 32);
- - [ ] Tuple unpacking -- (x, y) = (32, 32)
  - [ ] Structure unpacking -- {x, y} = point
  - [ ] Iteration statement -- while condition { ... } / loop { ...}
  - [ ] Break / continue statements

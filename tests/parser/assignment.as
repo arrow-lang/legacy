@@ -9,3 +9,11 @@ let mut y: int;
 y = 432;
 y = 43;
 y = 8293;
+
+# Augmented assignment.
+let mut z: int = 20;
+z *= 31;
+z /= 5;
+z += 2;
+z -= 494;
+z %= 11;

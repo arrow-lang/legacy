@@ -96,6 +96,11 @@ def parse_expr() -> ast.Node {
 # -----------------------------------------------------------------------------
 def get_binop_tok_precedence() -> int {
          if cur_tok == tokens.TOK_EQ             { 005; }  # =
+    else if cur_tok == tokens.TOK_PLUS_EQ        { 005; }  # +=
+    else if cur_tok == tokens.TOK_MINUS_EQ       { 005; }  # -=
+    else if cur_tok == tokens.TOK_STAR_EQ        { 005; }  # *=
+    else if cur_tok == tokens.TOK_FSLASH_EQ      { 005; }  # /=
+    else if cur_tok == tokens.TOK_PERCENT_EQ     { 005; }  # %=
     else if cur_tok == tokens.TOK_COLON_EQ       { 005; }  # :=
     else if cur_tok == tokens.TOK_AND            { 010; }  # and
     else if cur_tok == tokens.TOK_OR             { 010; }  # or
@@ -119,8 +124,9 @@ def get_binop_tok_precedence() -> int {
 # Binary expression RHS
 # -----------------------------------------------------------------------------
 # binop_rhs = { binop unary }
-# binop = "+" | "-" | "*"  | "/"  | "%" | "and" | "or" | "==" | "<>"
-#       | ">" | "<" | "<=" | ">=" | "=" | ":="
+# binop = "+"  | "-"  | "*"  | "/"  | "%" | "and" | "or" | "==" | "<>"
+#       | ">"  | "<"  | "<=" | ">=" | "=" | ":="  | "+=" | "-=" | "*="
+#       | "/=" | "%="
 # -----------------------------------------------------------------------------
 def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
     loop {
@@ -163,6 +169,11 @@ def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
             else if binop == tokens.TOK_RCARET         { ast.TAG_GT; }
             else if binop == tokens.TOK_RCARET_EQ      { ast.TAG_GE; }
             else if binop == tokens.TOK_EQ             { ast.TAG_ASSIGN; }
+            else if binop == tokens.TOK_PLUS_EQ        { ast.TAG_ASSIGN_ADD; }
+            else if binop == tokens.TOK_MINUS_EQ       { ast.TAG_ASSIGN_SUB; }
+            else if binop == tokens.TOK_STAR_EQ        { ast.TAG_ASSIGN_MULT; }
+            else if binop == tokens.TOK_FSLASH_EQ      { ast.TAG_ASSIGN_DIV; }
+            else if binop == tokens.TOK_PERCENT_EQ     { ast.TAG_ASSIGN_MOD; }
             else { 0; };
 
         if tag <> 0 {

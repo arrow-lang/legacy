@@ -24,6 +24,7 @@ def configure(ctx):
 
     # Check for the llvm compiler.
     ctx.find_program('llc', var='LLC')
+    ctx.find_program('opt', var='OPT')
 
     # Check for gcc.
     # NOTE: We only depend on this for the linking phase.
@@ -35,9 +36,14 @@ def build(ctx):
         source="src/tokenizer.as",
         target="tokenizer.ll")
 
+    # Optimize the tokenizer.
+    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
+        source="tokenizer.ll",
+        target="tokenizer.opt.ll")
+
     # Compile the tokenizer from llvm IL into native object code.
     ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
-        source="tokenizer.ll",
+        source="tokenizer.opt.ll",
         target="tokenizer.o")
 
     # Link the tokenizer into a final executable.
@@ -50,9 +56,14 @@ def build(ctx):
         source="src/parser.as",
         target="parser.ll")
 
+    # Optimize the parser.
+    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
+        source="parser.ll",
+        target="parser.opt.ll")
+
     # Compile the parser from llvm IL into native object code.
     ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
-        source="parser.ll",
+        source="parser.opt.ll",
         target="parser.o")
 
     # Link the parser into a final executable.

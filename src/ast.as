@@ -28,6 +28,11 @@ let TAG_STATIC_SLOT     : int = 21;             # StaticSlotDecl
 let TAG_LOCAL_SLOT      : int = 22;             # LocalSlotDecl
 let TAG_IDENT           : int = 23;             # Ident
 let TAG_ASSIGN          : int = 24;             # AssignExpr
+let TAG_ASSIGN_ADD      : int = 25;             # AssignAddExpr
+let TAG_ASSIGN_SUB      : int = 26;             # AssignSubtractExpr
+let TAG_ASSIGN_MULT     : int = 27;             # AssignMultiplyExpr
+let TAG_ASSIGN_DIV      : int = 28;             # AssignDivideExpr
+let TAG_ASSIGN_MOD      : int = 29;             # AssignModuloExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -95,7 +100,12 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_LE
            or tag == TAG_GT
            or tag == TAG_GE
-           or tag == TAG_ASSIGN {
+           or tag == TAG_ASSIGN
+           or tag == TAG_ASSIGN_ADD
+           or tag == TAG_ASSIGN_SUB
+           or tag == TAG_ASSIGN_MULT
+           or tag == TAG_ASSIGN_DIV
+           or tag == TAG_ASSIGN_MOD {
         let tmp: BinaryExpr;
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_PROMOTE
@@ -241,6 +251,11 @@ def dump(&node: Node) {
         dump_table[TAG_GT] = dump_binop_expr;
         dump_table[TAG_GE] = dump_binop_expr;
         dump_table[TAG_ASSIGN] = dump_binop_expr;
+        dump_table[TAG_ASSIGN_ADD] = dump_binop_expr;
+        dump_table[TAG_ASSIGN_SUB] = dump_binop_expr;
+        dump_table[TAG_ASSIGN_MULT] = dump_binop_expr;
+        dump_table[TAG_ASSIGN_DIV] = dump_binop_expr;
+        dump_table[TAG_ASSIGN_MOD] = dump_binop_expr;
         dump_table[TAG_STATIC_SLOT] = dump_static_slot;
         dump_table[TAG_LOCAL_SLOT] = dump_local_slot;
         dump_table[TAG_IDENT] = dump_ident;
@@ -305,6 +320,16 @@ def dump_binop_expr(node: ^Node) {
         printf("GEExpr <?>\n" as ^int8);
     } else if node.tag == TAG_ASSIGN {
         printf("AssignExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_ASSIGN_ADD {
+        printf("AssignAddExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_ASSIGN_SUB {
+        printf("AssignSubtractExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_ASSIGN_MULT {
+        printf("AssignMultiplyExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_ASSIGN_DIV {
+        printf("AssignDivideExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_ASSIGN_MOD {
+        printf("AssignModuloExpr <?>\n" as ^int8);
     }
     dump_indent = dump_indent + 1;
     dump(x.lhs);

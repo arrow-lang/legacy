@@ -36,6 +36,10 @@ function-declaration =
   "def" identifier "(" [ parameter { "," parameter } [ "," ] ] ")" [ "->" type ] "{" { statement } "}" ;
 ;
 
+parameter =
+  [ "&" ] [ "mut" ] identifier ":" type [ "=" expression ]
+;
+
 selection-statement =
   "if" expression "{" statement "}"
   "if" expression "{" statement "}" "else" statement
@@ -139,9 +143,12 @@ expression =
  * on the stack). Nested functions do NOT inherit their parent's local
  * declarations (but nested closures can).
  *)
+local-declaration-member = [ "mut" ] identifier
 local-declaration =
-  "let" [ "mut" ] identifier [ ":" type ] [ "=" expression ]
-| [ "mut" ] identifier ":" "=" expression
+  "let" local-declaration-member [ ":" type ] [ "=" expression ]
+| "let" [ "mut" ] "(" local-declaration-member { "," local-declaration-member } ")" [ ":" type ] [ "=" expression ]
+| [ "mut" ] local-declaration-member ":" "=" expression
+| [ "mut" ] "(" local-declaration-member { "," local-declaration-member } ")" ":" "=" expression
 ;
 
 (* A static declaration declares a slot that is globally allocated (normally

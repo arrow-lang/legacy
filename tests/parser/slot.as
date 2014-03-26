@@ -50,6 +50,8 @@ k := k * 21;
 # let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
 # let (x, y, z, w): (int, bool, float64, str);
 # let mut (x, y, z, w): (int, bool, float64, str);
+# let mut (x, y, z, w) = (32, false, 243.5, "sg");
+# let (x, y, z, w) = (32, false, 243.5, "sg");
 # let (x, y, z, w);
 # let mut (x, y, z, w);
 # (x, y, z, w) := (32, false, 243.5, "sg");

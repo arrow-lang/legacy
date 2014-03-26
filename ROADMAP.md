@@ -8,11 +8,11 @@
  - [P] Binary expressions
  - [P] Relational and logical expressions
  - [P] Mixed mode arithmetic (allow 32.2 + 32, etc.)
- - [.] "Safe" cast expressions
+ - [ ] "Safe" cast expressions
  - [ ] Selection statement (if x { ... } else { ... })
  - [P] Mutable slot declaration (static and local)
  - [P] Slot assignment: =
- - [.] Augmented assignment: += -= /= *= %=
+ - [P] Augmented assignment: += -= /= *= %=
  - [P] Type inference (declaration)
  - [P] Type inference (usage)
  - [ ] Location span information (for error messages)

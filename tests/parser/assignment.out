@@ -13,6 +13,16 @@ ModuleDecl <?>
   AssignExpr <?>
     Ident <?> y
     IntegerExpr <?> 'int' 8293 (10)
+  LocalSlotDecl <?> a 'int'
+  LocalSlotDecl <?> b 'int'
+  LocalSlotDecl <?> c 'int'
+  AssignExpr <?>
+    Ident <?> a
+    AssignExpr <?>
+      Ident <?> b
+      AssignExpr <?>
+        Ident <?> c
+        IntegerExpr <?> 'int' 00 (10)
   LocalSlotDecl <?> mut z 'int'
     IntegerExpr <?> 'int' 20 (10)
   AssignMultiplyExpr <?>

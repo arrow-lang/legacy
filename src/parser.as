@@ -89,7 +89,7 @@ def parse_expr() -> ast.Node {
     let result: ast.Node = parse_unary_expr();
     if ast.isnull(result) { return result; }
 
-    return parse_binop_rhs(0, result);
+    return parse_binop_rhs(0, 0, result);
 }
 
 # Binary operator token precedence
@@ -121,6 +121,37 @@ def get_binop_tok_precedence() -> int {
     }
 }
 
+# Binary operator token associativity
+# -----------------------------------------------------------------------------
+let ASSOC_RIGHT: int = 1;
+let ASSOC_LEFT: int = 2;
+def get_binop_tok_associativity() -> int {
+         if cur_tok == tokens.TOK_EQ             { ASSOC_RIGHT; }  # =
+    else if cur_tok == tokens.TOK_PLUS_EQ        { ASSOC_RIGHT; }  # +=
+    else if cur_tok == tokens.TOK_MINUS_EQ       { ASSOC_RIGHT; }  # -=
+    else if cur_tok == tokens.TOK_STAR_EQ        { ASSOC_RIGHT; }  # *=
+    else if cur_tok == tokens.TOK_FSLASH_EQ      { ASSOC_RIGHT; }  # /=
+    else if cur_tok == tokens.TOK_PERCENT_EQ     { ASSOC_RIGHT; }  # %=
+    else if cur_tok == tokens.TOK_COLON_EQ       { ASSOC_RIGHT; }  # :=
+    else if cur_tok == tokens.TOK_AND            { ASSOC_LEFT; }  # and
+    else if cur_tok == tokens.TOK_OR             { ASSOC_LEFT; }  # or
+    else if cur_tok == tokens.TOK_EQ_EQ          { ASSOC_LEFT; }  # ==
+    else if cur_tok == tokens.TOK_LCARET_RCARET  { ASSOC_LEFT; }  # <>
+    else if cur_tok == tokens.TOK_LCARET         { ASSOC_LEFT; }  # <
+    else if cur_tok == tokens.TOK_LCARET_EQ      { ASSOC_LEFT; }  # <=
+    else if cur_tok == tokens.TOK_RCARET         { ASSOC_LEFT; }  # >
+    else if cur_tok == tokens.TOK_RCARET_EQ      { ASSOC_LEFT; }  # >=
+    else if cur_tok == tokens.TOK_PLUS           { ASSOC_LEFT; }  # +
+    else if cur_tok == tokens.TOK_MINUS          { ASSOC_LEFT; }  # -
+    else if cur_tok == tokens.TOK_STAR           { ASSOC_LEFT; }  # *
+    else if cur_tok == tokens.TOK_FSLASH         { ASSOC_LEFT; }  # /
+    else if cur_tok == tokens.TOK_PERCENT        { ASSOC_LEFT; }  # %
+    else {
+        # Not a binary operator.
+        -1;
+    }
+}
+
 # Binary expression RHS
 # -----------------------------------------------------------------------------
 # binop_rhs = { binop unary }
@@ -128,14 +159,16 @@ def get_binop_tok_precedence() -> int {
 #       | ">"  | "<"  | "<=" | ">=" | "=" | ":="  | "+=" | "-=" | "*="
 #       | "/=" | "%="
 # -----------------------------------------------------------------------------
-def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
+def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> ast.Node {
     loop {
         # Get the token precedence (if it is a binary operator token).
         let tok_prec: int = get_binop_tok_precedence();
+        let tok_assoc: int = get_binop_tok_associativity();
 
         # If this is a binop that binds at least as tightly as the
         # current binop, consume it, otherwise we are done.
-        if tok_prec < expr_prec { return lhs; }
+        if tok_prec == -1 { return lhs; }
+        if tok_prec < expr_prec and expr_assoc <> ASSOC_RIGHT { return lhs; }
 
         # Okay; this is a binary operator token; consume and move on.
         let binop: int = cur_tok;
@@ -148,8 +181,9 @@ def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
         # If binop binds less tightly with RHS than the operator after
         # RHS, let the pending operator take RHS as its LHS.
         let next_prec: int = get_binop_tok_precedence();
-        if tok_prec < next_prec {
-            rhs = parse_binop_rhs(tok_prec + 1, rhs);
+        if tok_prec < next_prec or (
+                tok_assoc == ASSOC_RIGHT and tok_prec == next_prec) {
+            rhs = parse_binop_rhs(tok_prec + 1, tok_assoc, rhs);
             if ast.isnull(rhs) { return ast.null(); }
         }
 
@@ -251,6 +285,9 @@ def parse_unary_expr() -> ast.Node {
     let node: ast.Node = ast.make(tag);
     let expr: ^ast.UnaryExpr = ast.unwrap(node) as ^ast.UnaryExpr;
     expr.operand = operand;
+
+    # # Consume our token.
+    # bump_token();
 
     # Return our constructed node.
     node;

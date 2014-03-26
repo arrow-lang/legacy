@@ -10,6 +10,12 @@ y = 432;
 y = 43;
 y = 8293;
 
+# Chained assignment.
+let a: int;
+let b: int;
+let c: int;
+a = b = c = 0;
+
 # Augmented assignment.
 let mut z: int = 20;
 z *= 31;

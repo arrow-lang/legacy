@@ -1,0 +1,15 @@
+ModuleDecl <?>
+  LocalSlotDecl <?> x
+  AssignExpr <?>
+    Ident <?> x
+    IntegerExpr <?> 'int' 423 (10)
+  LocalSlotDecl <?> mut y 'int'
+  AssignExpr <?>
+    Ident <?> y
+    IntegerExpr <?> 'int' 432 (10)
+  AssignExpr <?>
+    Ident <?> y
+    IntegerExpr <?> 'int' 43 (10)
+  AssignExpr <?>
+    Ident <?> y
+    IntegerExpr <?> 'int' 8293 (10)

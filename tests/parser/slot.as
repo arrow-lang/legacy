@@ -35,11 +35,11 @@ let mut i: int;
 let mut j: int = 26;
 
 # Local slot declaration short-hand. Initializer is required in this case and
-# no explicit type annotation can be given.
+# no explicit type annotation can be given. Futhermore declarations of this
+# kind cannot be made mutable.
 k := 42;
-
-# Local mutable slot declaration short-hand.
-mut l := 0;
+k := k + 32;
+k := k * 21;
 
 # Multiple local slot declarations. The way it works / is implemented is that
 # a local slot declaration can use a pattern to match the right-hand
@@ -47,14 +47,9 @@ mut l := 0;
 # TODO: Below requires tuples to be understood by the parser.
 # let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
 # let mut (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
-# let (x, mut y, z, mut w): (int, bool, float64, str) = (32, false, 243.5, "sg");
 # let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
 # let (x, y, z, w): (int, bool, float64, str);
-# let (x, y, mut z, w): (int, bool, float64, str);
 # let mut (x, y, z, w): (int, bool, float64, str);
 # let (x, y, z, w);
-# let (mut x, y, z, w);
 # let mut (x, y, z, w);
 # (x, y, z, w) := (32, false, 243.5, "sg");
-# (x, y, z, mut w) := (32, false, 243.5, "sg");
-# mut (x, y, z, w) := (32, false, 243.5, "sg");

@@ -27,6 +27,7 @@ let TAG_BOOLEAN         : int = 20;             # BooleanExpr
 let TAG_STATIC_SLOT     : int = 21;             # StaticSlotDecl
 let TAG_LOCAL_SLOT      : int = 22;             # LocalSlotDecl
 let TAG_IDENT           : int = 23;             # Ident
+let TAG_ASSIGN          : int = 24;             # AssignExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -93,7 +94,8 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_LT
            or tag == TAG_LE
            or tag == TAG_GT
-           or tag == TAG_GE {
+           or tag == TAG_GE
+           or tag == TAG_ASSIGN {
         let tmp: BinaryExpr;
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_PROMOTE
@@ -238,8 +240,10 @@ def dump(&node: Node) {
         dump_table[TAG_LE] = dump_binop_expr;
         dump_table[TAG_GT] = dump_binop_expr;
         dump_table[TAG_GE] = dump_binop_expr;
+        dump_table[TAG_ASSIGN] = dump_binop_expr;
         dump_table[TAG_STATIC_SLOT] = dump_static_slot;
         dump_table[TAG_LOCAL_SLOT] = dump_local_slot;
+        dump_table[TAG_IDENT] = dump_ident;
         dump_initialized = true;
     }
 
@@ -299,6 +303,8 @@ def dump_binop_expr(node: ^Node) {
         printf("GTExpr <?>\n" as ^int8);
     } else if node.tag == TAG_GE {
         printf("GEExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_ASSIGN {
+        printf("AssignExpr <?>\n" as ^int8);
     }
     dump_indent = dump_indent + 1;
     dump(x.lhs);
@@ -346,6 +352,14 @@ def dump_type(node: ^Node) {
         let xs: arena.Store = x.name;
         printf("%s" as ^int8, xs._data);
     }
+}
+
+# dump_ident
+# -----------------------------------------------------------------------------
+def dump_ident(node: ^Node) {
+    let x: ^Ident = unwrap(node^) as ^Ident;
+    let xs: arena.Store = x.name;
+    printf("Ident <?> %s\n" as ^int8, xs._data);
 }
 
 # dump_static_slot

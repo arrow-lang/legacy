@@ -1,0 +1,29 @@
+ModuleDecl <?>
+  StaticSlotDecl <?> a 'int'
+  StaticSlotDecl <?> b 'int'
+    IntegerExpr <?> 'int' 320 (10)
+  StaticSlotDecl <?> mut c 'int'
+  StaticSlotDecl <?> mut c 'int'
+    MultiplyExpr <?>
+      IntegerExpr <?> 'int' 23 (10)
+      IntegerExpr <?> 'int' 3209 (10)
+  LocalSlotDecl <?> d 'int'
+  LocalSlotDecl <?> e 'int'
+    IntegerExpr <?> 'int' 3402 (10)
+  LocalSlotDecl <?> f
+  LocalSlotDecl <?> g
+    IntegerExpr <?> 'int' 42 (10)
+  LocalSlotDecl <?> mut h
+  LocalSlotDecl <?> mut i 'int'
+  LocalSlotDecl <?> mut j 'int'
+    IntegerExpr <?> 'int' 26 (10)
+  LocalSlotDecl <?> k
+    IntegerExpr <?> 'int' 42 (10)
+  LocalSlotDecl <?> k
+    AddExpr <?>
+      Ident <?> k
+      IntegerExpr <?> 'int' 32 (10)
+  LocalSlotDecl <?> k
+    MultiplyExpr <?>
+      Ident <?> k
+      IntegerExpr <?> 'int' 21 (10)

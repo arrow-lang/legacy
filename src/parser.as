@@ -95,7 +95,9 @@ def parse_expr() -> ast.Node {
 # Binary operator token precedence
 # -----------------------------------------------------------------------------
 def get_binop_tok_precedence() -> int {
-         if cur_tok == tokens.TOK_AND            { 010; }  # and
+         if cur_tok == tokens.TOK_EQ             { 005; }  # =
+    else if cur_tok == tokens.TOK_COLON_EQ       { 005; }  # :=
+    else if cur_tok == tokens.TOK_AND            { 010; }  # and
     else if cur_tok == tokens.TOK_OR             { 010; }  # or
     else if cur_tok == tokens.TOK_EQ_EQ          { 020; }  # ==
     else if cur_tok == tokens.TOK_LCARET_RCARET  { 020; }  # <>
@@ -117,8 +119,8 @@ def get_binop_tok_precedence() -> int {
 # Binary expression RHS
 # -----------------------------------------------------------------------------
 # binop_rhs = { binop unary }
-# binop = "+" | "-" | "*" | "/" | "%" | "and" | "or" | "==" | "<>"
-#       | ">" | "<" | "<=" | ">="
+# binop = "+" | "-" | "*"  | "/"  | "%" | "and" | "or" | "==" | "<>"
+#       | ">" | "<" | "<=" | ">=" | "=" | ":="
 # -----------------------------------------------------------------------------
 def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
     loop {
@@ -160,14 +162,43 @@ def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
             else if binop == tokens.TOK_LCARET_EQ      { ast.TAG_LE; }
             else if binop == tokens.TOK_RCARET         { ast.TAG_GT; }
             else if binop == tokens.TOK_RCARET_EQ      { ast.TAG_GE; }
-            else { 0; };  # Cannot happen.
+            else if binop == tokens.TOK_EQ             { ast.TAG_ASSIGN; }
+            else { 0; };
 
-        # Merge LHS/RHS into a binary expression node.
-        let node: ast.Node = ast.make(tag);
-        let expr: ^ast.BinaryExpr = ast.unwrap(node) as ^ast.BinaryExpr;
-        expr.lhs = lhs;
-        expr.rhs = rhs;
-        lhs = node;
+        if tag <> 0 {
+            # Merge LHS/RHS into a binary expression node.
+            let node: ast.Node = ast.make(tag);
+            let expr: ^ast.BinaryExpr = ast.unwrap(node) as ^ast.BinaryExpr;
+            expr.lhs = lhs;
+            expr.rhs = rhs;
+            lhs = node;
+        } else if binop == tokens.TOK_COLON_EQ {
+            # This is a special binary operator. The LHS may only be an
+            # identifier or a tuple and places expecting. Meaning this is
+            # not chainable. It is not valid inside function calls however
+            # function calls will reject it not us (as we don't know where
+            # we are being used).
+            let node: ast.Node = ast.make(ast.TAG_LOCAL_SLOT);
+            let decl: ^ast.LocalSlotDecl =
+                ast.unwrap(node) as ^ast.LocalSlotDecl;
+
+            if lhs.tag <> ast.TAG_IDENT {
+                # FIXME: Throw a nice error for this later.
+                return ast.null();
+            }
+
+            # Set the id.
+            decl.id = lhs;
+
+            # We are not mutable.
+            decl.mutable = false;
+
+            # Set the rhs as the initializer.
+            decl.initializer = rhs;
+
+            # Return our node.
+            return node;
+        }
     }
 
     # Unreachable code.
@@ -228,6 +259,8 @@ def parse_primary_expr() -> ast.Node {
         parse_bool_expr();
     } else if cur_tok == tokens.TOK_LPAREN {
         parse_paren_expr();
+    } else if cur_tok == tokens.TOK_IDENTIFIER {
+        parse_ident();
     } else {
         # Not sure what we have.
         ast.null();
@@ -313,7 +346,7 @@ def parse_static_decl() -> ast.Node {
         return ast.null();
     }
 
-    # There can be an "=" next to indicate the start of the initialzier
+    # There can be an "=" next to indicate the start of the initializer
     # for this static slot.
     if cur_tok == tokens.TOK_EQ {
         # Consume the "=" and parse the initializer expression.

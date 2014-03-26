@@ -366,7 +366,6 @@ def scan_punctuator() -> int {
     else if lchar == asciz.ord('{') { bump(); return tokens.TOK_LBRACE; }
     else if lchar == asciz.ord('}') { bump(); return tokens.TOK_RBRACE; }
     else if lchar == asciz.ord(';') { bump(); return tokens.TOK_SEMICOLON; }
-    else if lchar == asciz.ord(':') { bump(); return tokens.TOK_COLON; }
     else if lchar == asciz.ord(',') { bump(); return tokens.TOK_COMMA; }
     else if lchar == asciz.ord('.') { bump(); return tokens.TOK_DOT; }
     else if lchar == asciz.ord('^') { bump(); return tokens.TOK_HAT; }
@@ -374,40 +373,44 @@ def scan_punctuator() -> int {
 
     # Next take a peek at the next character and disambiguate the following
     # punctuators.
-    if lchar == 0x2B {
+    if lchar == asciz.ord('+') {
         bump();
-        if lchar == 0x3D { bump(); return tokens.TOK_PLUS_EQ; }
+        if lchar == asciz.ord('=') { bump(); return tokens.TOK_PLUS_EQ; }
         return tokens.TOK_PLUS;
-    } else if lchar == 0x2D {
+    } else if lchar == asciz.ord('-') {
         bump();
-        if lchar == 0x3D { bump(); return tokens.TOK_MINUS_EQ; }
-        if lchar == 0x3C { bump(); return tokens.TOK_RARROW; }
+        if lchar == asciz.ord('=') { bump(); return tokens.TOK_MINUS_EQ; }
+        if lchar == asciz.ord('>') { bump(); return tokens.TOK_RARROW; }
         return tokens.TOK_MINUS;
-    } else if lchar == 0x2A {
+    } else if lchar == asciz.ord('*') {
         bump();
-        if lchar == 0x3D { bump(); return tokens.TOK_STAR_EQ; }
+        if lchar == asciz.ord('=') { bump(); return tokens.TOK_STAR_EQ; }
         return tokens.TOK_STAR;
-    } else if lchar == 0x2F {
+    } else if lchar == asciz.ord('/') {
         bump();
-        if lchar == 0x3D { bump(); return tokens.TOK_FSLASH_EQ; }
+        if lchar == asciz.ord('=') { bump(); return tokens.TOK_FSLASH_EQ; }
         return tokens.TOK_FSLASH;
-    } else if lchar == 0x25 {
+    } else if lchar == asciz.ord('%') {
         bump();
-        if lchar == 0x3D { bump(); return tokens.TOK_PERCENT_EQ; }
+        if lchar == asciz.ord('=') { bump(); return tokens.TOK_PERCENT_EQ; }
         return tokens.TOK_PERCENT;
-    } else if lchar == 0x3C {
+    } else if lchar == asciz.ord('<') {
         bump();
-        if lchar == 0x3D { bump(); return tokens.TOK_LCARET_EQ; }
-        if lchar == 0x3E { bump(); return tokens.TOK_LCARET_RCARET; }
+        if lchar == asciz.ord('=') { bump(); return tokens.TOK_LCARET_EQ; }
+        if lchar == asciz.ord('>') { bump(); return tokens.TOK_LCARET_RCARET; }
         return tokens.TOK_LCARET;
-    } else if lchar == 0x3E {
+    } else if lchar == asciz.ord('>') {
         bump();
-        if lchar == 0x3D { bump(); return tokens.TOK_RCARET_EQ; }
+        if lchar == asciz.ord('=') { bump(); return tokens.TOK_RCARET_EQ; }
         return tokens.TOK_RCARET;
-    } else if lchar == 0x3D {
+    } else if lchar == asciz.ord('=') {
         bump();
-        if lchar == 0x3D { bump(); return tokens.TOK_EQ_EQ; }
+        if lchar == asciz.ord('=') { bump(); return tokens.TOK_EQ_EQ; }
         return tokens.TOK_EQ;
+    } else if lchar == asciz.ord(':') {
+        bump();
+        if lchar == asciz.ord('=') { bump(); return tokens.TOK_COLON_EQ; }
+        return tokens.TOK_COLON;
     }
 
     # Didn't match a punctuator token.
@@ -566,6 +569,8 @@ def println_token(token: int) {
         printf("<punctuator> '/='\n" as ^int8);
     } else if token == tokens.TOK_PERCENT_EQ {
         printf("<punctuator> '%='\n" as ^int8);
+    } else if token == tokens.TOK_COLON_EQ {
+        printf("<punctuator> ':='\n" as ^int8);
     }
 }
 

@@ -13,7 +13,7 @@ def bump_token() -> int {
 
 # Boolean expression
 # -----------------------------------------------------------------------------
-# boolean_expr = <true> | <false>
+# boolean_expr = "true" | "false"
 # -----------------------------------------------------------------------------
 def parse_bool_expr() -> ast.Node {
     # Allocate space for the boolean expression.
@@ -117,11 +117,8 @@ def get_binop_tok_precedence() -> int {
 # Binary expression RHS
 # -----------------------------------------------------------------------------
 # binop_rhs = { binop unary }
-# binop = <plus>
-#       | <minus>
-#       | <fslash>
-#       | <star>
-#       | <percent>
+# binop = "+" | "-" | "*" | "/" | "%" | "and" | "or" | "==" | "<>"
+#       | ">" | "<" | "<=" | ">="
 # -----------------------------------------------------------------------------
 def parse_binop_rhs(mut expr_prec: int, mut lhs: ast.Node) -> ast.Node {
     loop {
@@ -237,6 +234,177 @@ def parse_primary_expr() -> ast.Node {
     }
 }
 
+# Identifier
+# -----------------------------------------------------------------------------
+# ident = <ident>
+# -----------------------------------------------------------------------------
+def parse_ident() -> ast.Node {
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_IDENT);
+    let decl: ^ast.Ident = ast.unwrap(node) as ^ast.Ident;
+
+    # Store the text for the identifier.
+    decl.name = ast.arena.alloc(tokenizer.current_id.size + 1);
+    let xs: &ast.arena.Store = decl.name;
+    tokenizer.asciz.memcpy(
+        xs._data as ^void,
+        &tokenizer.current_id.buffer[0] as ^void,
+        tokenizer.current_id.size);
+
+    # Consume the "ident" token.
+    bump_token();
+
+    # Return our constructed node.
+    node;
+}
+
+# Type expression
+# -----------------------------------------------------------------------------
+# type_expr = ident
+# -----------------------------------------------------------------------------
+def parse_type_expr() -> ast.Node {
+    if cur_tok == tokens.TOK_IDENTIFIER {
+        # A simple typename.
+        parse_ident();
+    } else {
+        # Currently don't parse fancy types.
+        ast.null();
+    }
+}
+
+# Static slot declaration
+# -----------------------------------------------------------------------------
+# static_declaration_member = [ "mut" ] identifier
+# static_decl = "static" local_declaration_member ":" type [ "=" expression ]
+# -----------------------------------------------------------------------------
+def parse_static_decl() -> ast.Node {
+    # Declare the static decl node.
+    let node: ast.Node = ast.make(ast.TAG_STATIC_SLOT);
+    let decl: ^ast.StaticSlotDecl = ast.unwrap(node) as ^ast.StaticSlotDecl;
+
+    # Consume the "static" token.
+    bump_token();
+
+    # Check if we are mutable.
+    decl.mutable = cur_tok == tokens.TOK_MUT;
+
+    # If we are then consume the "mut" token.
+    if decl.mutable { bump_token(); }
+
+    # There should be an identifier next.
+    if cur_tok == tokens.TOK_IDENTIFIER {
+        decl.id = parse_ident();
+        if ast.isnull(decl.id) { return ast.null(); }
+    }
+
+    # There must be a ":" next to start the type annotation.
+    if cur_tok <> tokens.TOK_COLON {
+        # FIXME: Report a nice error message.
+        return ast.null();
+    }
+
+    # Consume the ":" token.
+    bump_token();
+
+    # There should be a type expression next.
+    decl.type_ = parse_type_expr();
+    if ast.isnull(decl.type_) {
+        # FIXME: Report a nice error message.
+        return ast.null();
+    }
+
+    # There can be an "=" next to indicate the start of the initialzier
+    # for this static slot.
+    if cur_tok == tokens.TOK_EQ {
+        # Consume the "=" and parse the initializer expression.
+        bump_token();
+        decl.initializer = parse_expr();
+        if ast.isnull(decl.initializer) {
+            # FIXME: Report a nice error message.
+            return ast.null();
+        }
+    } else {
+        # There is no initializer.
+        decl.initializer = ast.null();
+    }
+
+    # Return our constructed declaration.
+    node;
+}
+
+# Local slot declaration
+# -----------------------------------------------------------------------------
+# local_declaration_member = [ "mut" ] identifier
+# local_decl = "let" local_declaration_member [ ":" type ] [ "=" expression ]
+# -----------------------------------------------------------------------------
+def parse_local_decl() -> ast.Node {
+    # Declare the static decl node.
+    let node: ast.Node = ast.make(ast.TAG_LOCAL_SLOT);
+    let decl: ^ast.LocalSlotDecl = ast.unwrap(node) as ^ast.LocalSlotDecl;
+
+    # Consume the "let" token.
+    bump_token();
+
+    # Check if we are mutable.
+    decl.mutable = cur_tok == tokens.TOK_MUT;
+
+    # If we are then consume the "mut" token.
+    if decl.mutable { bump_token(); }
+
+    # There should be an identifier next.
+    if cur_tok == tokens.TOK_IDENTIFIER {
+        decl.id = parse_ident();
+        if ast.isnull(decl.id) { return ast.null(); }
+    }
+
+    # There can be a ":" next to start the type annotation.
+    if cur_tok == tokens.TOK_COLON {
+        # Consume the ":" token.
+        bump_token();
+
+        # There should be a type expression next.
+        decl.type_ = parse_type_expr();
+        if ast.isnull(decl.type_) {
+            # FIXME: Report a nice error message.
+            return ast.null();
+        }
+    }
+
+    # There can be an "=" next to indicate the start of the initialzier
+    # for this static slot.
+    if cur_tok == tokens.TOK_EQ {
+        # Consume the "=" and parse the initializer expression.
+        bump_token();
+        decl.initializer = parse_expr();
+        if ast.isnull(decl.initializer) {
+            # FIXME: Report a nice error message.
+            return ast.null();
+        }
+    } else {
+        # There is no initializer.
+        decl.initializer = ast.null();
+    }
+
+    # Return our constructed declaration.
+    node;
+}
+
+# Statements
+# -----------------------------------------------------------------------------
+# statement = primary_expr
+#           | slot_decl
+# -----------------------------------------------------------------------------
+def parse_statement() -> ast.Node {
+    if cur_tok == tokens.TOK_STATIC {
+        parse_static_decl();
+    } else if cur_tok == tokens.TOK_LET {
+        parse_local_decl();
+    } else {
+        # Maybe we have an expression.
+        parse_expr();
+    }
+}
+
 # Module
 # -----------------------------------------------------------------------------
 # module = { primary_expr <semicolon> }
@@ -251,7 +419,7 @@ def parse_module() -> ast.Node {
     let mut matched: ast.Node;
     loop {
         # Attempt to parse an expression.
-        matched = parse_expr();
+        matched = parse_statement();
         if ast.isnull(matched) {
             # Didn't match anything.
             break;

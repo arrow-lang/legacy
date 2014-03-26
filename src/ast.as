@@ -24,6 +24,9 @@ let TAG_GE              : int = 17;             # GEExpr
 let TAG_MODULE          : int = 18;             # ModuleDecl
 let TAG_NODES           : int = 19;             # Nodes
 let TAG_BOOLEAN         : int = 20;             # BooleanExpr
+let TAG_STATIC_SLOT     : int = 21;             # StaticSlotDecl
+let TAG_LOCAL_SLOT      : int = 22;             # LocalSlotDecl
+let TAG_IDENT           : int = 23;             # Ident
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -52,6 +55,25 @@ type UnaryExpr { operand: Node }
 # Module declaration that contains a sequence of nodes.
 type ModuleDecl { nodes: Nodes }
 
+# Static slot declaration.
+type StaticSlotDecl {
+    id: Node,
+    type_: Node,
+    mutable: bool,
+    initializer: Node
+}
+
+# Local slot declaration.
+type LocalSlotDecl {
+    id: Node,
+    type_: Node,
+    mutable: bool,
+    initializer: Node
+}
+
+# Identifier.
+type Ident { name: arena.Store }
+
 # sizeof -- Get the size required for a specific node tag.
 # -----------------------------------------------------------------------------
 # FIXME: Replace this monster with type(T).size as soon as humanely possible
@@ -74,17 +96,25 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_GE {
         let tmp: BinaryExpr;
         ((&tmp + 1) - &tmp);
-   } else if tag == TAG_PROMOTE
+    } else if tag == TAG_PROMOTE
            or tag == TAG_NUMERIC_NEGATE
            or tag == TAG_LOGICAL_NEGATE {
         let tmp: UnaryExpr;
         ((&tmp + 1) - &tmp);
-   }
-   else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
-   else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
-   else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
-   else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
-   else { 0; }
+    }
+    else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_STATIC_SLOT {
+        let tmp: StaticSlotDecl;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_LOCAL_SLOT {
+        let tmp: LocalSlotDecl;
+        ((&tmp + 1) - &tmp);
+    }
+    else { 0; }
 }
 
 # make -- Allocate space for a node in the AST
@@ -208,6 +238,8 @@ def dump(&node: Node) {
         dump_table[TAG_LE] = dump_binop_expr;
         dump_table[TAG_GT] = dump_binop_expr;
         dump_table[TAG_GE] = dump_binop_expr;
+        dump_table[TAG_STATIC_SLOT] = dump_static_slot;
+        dump_table[TAG_LOCAL_SLOT] = dump_local_slot;
         dump_initialized = true;
     }
 
@@ -303,5 +335,54 @@ def dump_module(node: ^Node) {
         let node: Node = iter_next(iter);
         dump(node);
     }
+    dump_indent = dump_indent - 1;
+}
+
+# dump_type
+# -----------------------------------------------------------------------------
+def dump_type(node: ^Node) {
+    if node.tag == TAG_IDENT {
+        let x: ^Ident = unwrap(node^) as ^Ident;
+        let xs: arena.Store = x.name;
+        printf("%s" as ^int8, xs._data);
+    }
+}
+
+# dump_static_slot
+# -----------------------------------------------------------------------------
+def dump_static_slot(node: ^Node) {
+    let x: ^StaticSlotDecl = unwrap(node^) as ^StaticSlotDecl;
+    printf("StaticSlotDecl <?> " as ^int8);
+    if x.mutable { printf("mut " as ^int8); }
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    let xs: arena.Store = id.name;
+    printf("%s" as ^int8, xs._data);
+    printf(" '" as ^int8);
+    dump_type(&x.type_);
+    printf("'\n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.initializer) { dump(x.initializer); }
+    dump_indent = dump_indent - 1;
+}
+
+# dump_local_slot
+# -----------------------------------------------------------------------------
+def dump_local_slot(node: ^Node) {
+    let x: ^LocalSlotDecl = unwrap(node^) as ^LocalSlotDecl;
+    printf("LocalSlotDecl <?> " as ^int8);
+    if x.mutable { printf("mut " as ^int8); }
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    let xs: arena.Store = id.name;
+    printf("%s" as ^int8, xs._data);
+    if not isnull(x.type_) {
+        printf(" '" as ^int8);
+        dump_type(&x.type_);
+        printf("'" as ^int8);
+    }
+    printf("\n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.initializer) { dump(x.initializer); }
     dump_indent = dump_indent - 1;
 }

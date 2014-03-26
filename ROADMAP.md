@@ -32,7 +32,7 @@
  - [ ] Structure unpacking -- {x, y} = point
  - [ ] Iteration statement -- while condition { ... } / loop { ...}
  - [ ] Break / continue statements
- - [ ] Parameter callling convention-less (eg. point optimization)
+ - [ ] Parameter calling convention-less (eg. point optimization)
  - [ ] Array type declaration -- let x: int[3]
 
 # 0.0.3

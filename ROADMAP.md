@@ -2,8 +2,8 @@
  - [ ] Function declarations (nested)
  - [ ] Basic types (bool, int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64)
  - [ ] Function call expression
- - [ ] Local slot declaration
- - [ ] Static slot declaration
+ - [P] Local slot declaration
+ - [P] Static slot declaration
  - [P] Unary expressions
  - [P] Binary expressions
  - [P] Relational and logical expressions

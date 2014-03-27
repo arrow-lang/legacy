@@ -9,7 +9,6 @@
  - [P] Relational and logical expressions
  - [P] Mixed mode arithmetic (allow 32.2 + 32, etc.)
  - [ ] "Safe" cast expressions
- - [ ] Selection statement (if x { ... } else { ... })
  - [P] Mutable slot declaration (static and local)
  - [P] Slot assignment: =
  - [P] Augmented assignment: += -= /= *= %=
@@ -19,10 +18,11 @@
  - [ ] REPL (complete)
  - [ ] Front-end (complete); eg. flags, etc.
  - [ ] Strong unit / regression test suite (match all error cases)
+ - [ ] Selection statement (if x { ... } else { ... })
  - [ ] Ternary expression -- a if condition else b
  - [ ] Postfix selection statement -- a if condition
- - [ ] Tuple unpacking -- (x, y) = (32, 32)
  - [ ] Tuple type expression
+ - [ ] Tuple unpacking -- (x, y) = (32, 32)
  - [ ] Pattern slot declaration -- let (x: int, y: int) = (3, 32);
  - [ ] Module declaration -- module name { ... }
 

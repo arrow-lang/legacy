@@ -470,6 +470,17 @@ def parse_local_decl() -> ast.Node {
     node;
 }
 
+# Selection expression
+# -----------------------------------------------------------------------------
+# ...
+# -----------------------------------------------------------------------------
+def parse_selection_expr() -> ast.Node {
+    # Declare the selection expr node.
+    let node: ast.Node = ast.make(ast.TAG_SELECT);
+    let mod: ^ast.ModuleDecl = ast.unwrap(node) as ^ast.ModuleDecl;
+
+}
+
 # Statements
 # -----------------------------------------------------------------------------
 # statement = primary_expr

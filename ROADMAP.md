@@ -1,14 +1,22 @@
 # 0.0.1
- - [ ] Function declarations (nested)
- - [P] Basic types (bool, int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64)
+ - [ ] Functions
+ - [ ] References
  - [ ] Function call expression
+ - [ ] Tuple type expression
+ - [ ] Tuple unpacking -- (x, y) = (32, 32)
+ - [ ] "Safe" cast expressions
+ - [ ] Pattern slot declaration -- let (x: int, y: int) = (3, 32);
+ - [ ] Module declaration -- module name { ... }
+ - [ ] Structure declaration -- struct Point{x: int, y: int}
+ - [ ] Structure expression -- Point{x: 0, y: 32}
+ - [ ] Pointers
+ - [P] Basic types (bool, int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64)
  - [P] Local slot declaration
  - [P] Static slot declaration
  - [P] Unary expressions
  - [P] Binary expressions
  - [P] Relational and logical expressions
  - [P] Mixed mode arithmetic (allow 32.2 + 32, etc.)
- - [ ] "Safe" cast expressions
  - [P] Mutable slot declaration (static and local)
  - [P] Slot assignment: =
  - [P] Augmented assignment: += -= /= *= %=
@@ -18,17 +26,11 @@
  - [ ] REPL (complete)
  - [ ] Front-end (complete); eg. flags, etc.
  - [ ] Strong unit / regression test suite (match all error cases)
- - [ ] Selection statement (if x { ... } else { ... })
- - [ ] Ternary expression -- a if condition else b
- - [ ] Postfix selection statement -- a if condition
- - [ ] Tuple type expression
- - [ ] Tuple unpacking -- (x, y) = (32, 32)
- - [ ] Pattern slot declaration -- let (x: int, y: int) = (3, 32);
- - [ ] Module declaration -- module name { ... }
+ - [P] Selection statement (if x { ... } else { ... })
+ - [P] Ternary expression -- a if condition else b
+ - [P] Postfix selection statement -- a if condition
 
 # 0.0.2
- - [ ] Structure declaration -- struct Point{x: int, y: int}
- - [ ] Structure expression -- Point{x: 0, y: 32}
  - [ ] "New" type declaration -- type Point = (int, int);
  - [ ] Structure unpacking -- {x, y} = point
  - [ ] Iteration statement -- while condition { ... } / loop { ...}

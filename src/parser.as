@@ -470,44 +470,151 @@ def parse_local_decl() -> ast.Node {
     node;
 }
 
-# Selection expression
+# Selection expression branch
 # -----------------------------------------------------------------------------
-# ...
+# select-branch = expr "{" { statement } "}"
 # -----------------------------------------------------------------------------
-def parse_selection_expr() -> ast.Node {
-    # Declare the selection expr node.
-    let node: ast.Node = ast.make(ast.TAG_SELECT);
-    let mod: ^ast.ModuleDecl = ast.unwrap(node) as ^ast.ModuleDecl;
+def parse_select_branch(condition: bool) -> ast.Node {
+    # Declare the branch node.
+    let node: ast.Node = ast.make(ast.TAG_SELECT_BRANCH);
+    let mut branch: ^ast.SelectBranch = ast.unwrap(node) as ^ast.SelectBranch;
 
+    if condition {
+        # Expect and parse the condition expression.
+        branch.condition = parse_expr();
+        if ast.isnull(branch.condition) {
+            # FIXME: Report a nice error message.
+            return ast.null();
+        }
+    }
+
+    # There must be a "{" next to start the block.
+    if cur_tok <> tokens.TOK_LBRACE {
+        # FIXME: Report a nice error message.
+        return ast.null();
+    }
+
+    # Parse the block.
+    parse_block(branch.nodes);
+
+    # Return our parsed node.
+    node;
 }
 
-# Statements
+# Selection expression
 # -----------------------------------------------------------------------------
-# statement = primary_expr
-#           | slot_decl
+# select-expr = "if" select-branch
+# -----------------------------------------------------------------------------
+def parse_select_expr() -> ast.Node {
+    # Declare the selection expr node.
+    let node: ast.Node = ast.make(ast.TAG_SELECT);
+    let select: ^ast.SelectExpr = ast.unwrap(node) as ^ast.SelectExpr;
+    let have_else: bool = false;
+    let branch: ast.Node;
+
+    loop {
+        # Consume the "if" token.
+        bump_token();
+
+        # Parse the branch.
+        branch = parse_select_branch(true);
+        if ast.isnull(branch) { return ast.null(); }
+
+        # Append the branch to the selection expression.
+        ast.push(select.branches, branch);
+
+        # Check for an "else" branch.
+        if cur_tok == tokens.TOK_ELSE {
+            have_else = true;
+
+            # Consume the "else" token.
+            bump_token();
+
+            # Check for an adjacent "if" token (which would make this
+            # an "else if" and part of this selection expression).
+            if cur_tok == tokens.TOK_IF {
+                have_else = false;
+
+                # Loop back and parse another branch.
+                continue;
+            }
+        }
+
+        # We're done here.
+        break;
+    }
+
+    # Parse the trailing "else" (if we have one).
+    if have_else {
+        # Parse the condition-less branch.
+        branch = parse_select_branch(false);
+        if ast.isnull(branch) { return ast.null(); }
+
+        # Append the branch to the selection expression.
+        ast.push(select.branches, branch);
+    }
+
+    # Return the parsed node.
+    node;
+}
+
+# Statement
+# -----------------------------------------------------------------------------
+# statement = primary_expr ";"
+#           | slot_decl ";"
 # -----------------------------------------------------------------------------
 def parse_statement() -> ast.Node {
     if cur_tok == tokens.TOK_STATIC {
         parse_static_decl();
     } else if cur_tok == tokens.TOK_LET {
         parse_local_decl();
+    } else if cur_tok == tokens.TOK_IF {
+        parse_select_expr();
+    } else if cur_tok == tokens.TOK_SEMICOLON {
+        bump_token();       # consume the semicolon
+        parse_statement();  # and parse again
     } else {
         # Maybe we have an expression.
         parse_expr();
     }
 }
 
+# Block
+# -----------------------------------------------------------------------------
+# block = "{" { statement } "}"
+# -----------------------------------------------------------------------------
+def parse_block(&mut nodes: ast.Nodes) {
+    # Consume the "{" token.
+    bump_token();
+
+    # Iterate and attempt to match statements until the block is closed.
+    let mut matched: ast.Node;
+    while cur_tok <> tokens.TOK_RBRACE {
+        # Attempt to parse an expression.
+        matched = parse_statement();
+        if ast.isnull(matched) {
+            # Didn't match anything.
+            continue;
+        }
+
+        # Matched the full sub-rule; append the node to the module.
+        ast.push(nodes, matched);
+    }
+
+    # Consume the "}" token.
+    bump_token();
+}
+
 # Module
 # -----------------------------------------------------------------------------
-# module = { primary_expr <semicolon> }
+# module = { statement }
 # -----------------------------------------------------------------------------
 def parse_module() -> ast.Node {
     # Declare the module decl node.
     let node: ast.Node = ast.make(ast.TAG_MODULE);
     let mod: ^ast.ModuleDecl = ast.unwrap(node) as ^ast.ModuleDecl;
 
-    # Iterate and attempt to match a primary expression followed
-    # by a semicolon.
+    # Iterate and attempt to match statements.
     let mut matched: ast.Node;
     loop {
         # Attempt to parse an expression.
@@ -516,15 +623,6 @@ def parse_module() -> ast.Node {
             # Didn't match anything.
             break;
         }
-
-        # Look for a semicolon to terminate the expression.
-        if cur_tok <> tokens.TOK_SEMICOLON {
-            printf("error: expected ';'\n");
-            return node;
-        }
-
-        # Consume the semicolon.
-        bump_token();
 
         # Matched the full sub-rule; append the node to the module.
         ast.push(mod.nodes, matched);

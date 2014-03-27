@@ -1,42 +1,43 @@
 ModuleDecl <?>
-  LocalSlotDecl <?> x
-  AssignExpr <?>
-    Ident <?> x
-    IntegerExpr <?> 'int' 423 (10)
-  LocalSlotDecl <?> mut y 'int'
-  AssignExpr <?>
-    Ident <?> y
-    IntegerExpr <?> 'int' 432 (10)
-  AssignExpr <?>
-    Ident <?> y
-    IntegerExpr <?> 'int' 43 (10)
-  AssignExpr <?>
-    Ident <?> y
-    IntegerExpr <?> 'int' 8293 (10)
-  LocalSlotDecl <?> a 'int'
-  LocalSlotDecl <?> b 'int'
-  LocalSlotDecl <?> c 'int'
-  AssignExpr <?>
-    Ident <?> a
+  Nodes <?> 
+    LocalSlotDecl <?> x
     AssignExpr <?>
-      Ident <?> b
+      Ident <?> x
+      IntegerExpr <?> 'int' 423 (10)
+    LocalSlotDecl <?> mut y 'int'
+    AssignExpr <?>
+      Ident <?> y
+      IntegerExpr <?> 'int' 432 (10)
+    AssignExpr <?>
+      Ident <?> y
+      IntegerExpr <?> 'int' 43 (10)
+    AssignExpr <?>
+      Ident <?> y
+      IntegerExpr <?> 'int' 8293 (10)
+    LocalSlotDecl <?> a 'int'
+    LocalSlotDecl <?> b 'int'
+    LocalSlotDecl <?> c 'int'
+    AssignExpr <?>
+      Ident <?> a
       AssignExpr <?>
-        Ident <?> c
-        IntegerExpr <?> 'int' 00 (10)
-  LocalSlotDecl <?> mut z 'int'
-    IntegerExpr <?> 'int' 20 (10)
-  AssignMultiplyExpr <?>
-    Ident <?> z
-    IntegerExpr <?> 'int' 31 (10)
-  AssignDivideExpr <?>
-    Ident <?> z
-    IntegerExpr <?> 'int' 5 (10)
-  AssignAddExpr <?>
-    Ident <?> z
-    IntegerExpr <?> 'int' 2 (10)
-  AssignSubtractExpr <?>
-    Ident <?> z
-    IntegerExpr <?> 'int' 494 (10)
-  AssignModuloExpr <?>
-    Ident <?> z
-    IntegerExpr <?> 'int' 11 (10)
+        Ident <?> b
+        AssignExpr <?>
+          Ident <?> c
+          IntegerExpr <?> 'int' 00 (10)
+    LocalSlotDecl <?> mut z 'int'
+      IntegerExpr <?> 'int' 20 (10)
+    AssignMultiplyExpr <?>
+      Ident <?> z
+      IntegerExpr <?> 'int' 31 (10)
+    AssignDivideExpr <?>
+      Ident <?> z
+      IntegerExpr <?> 'int' 5 (10)
+    AssignAddExpr <?>
+      Ident <?> z
+      IntegerExpr <?> 'int' 2 (10)
+    AssignSubtractExpr <?>
+      Ident <?> z
+      IntegerExpr <?> 'int' 494 (10)
+    AssignModuloExpr <?>
+      Ident <?> z
+      IntegerExpr <?> 'int' 11 (10)

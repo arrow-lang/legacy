@@ -1,9 +1,10 @@
 ModuleDecl <?>
-  Ident <?> A
-  Ident <?> B
-  Ident <?> BAdsgdsgndsjgi
-  Ident <?> HelloWorld
-  Ident <?> H3902
-  Ident <?> __dsgjis
-  Ident <?> _init_
-  Ident <?> ___init___
+  Nodes <?> 
+    Ident <?> A
+    Ident <?> B
+    Ident <?> BAdsgdsgndsjgi
+    Ident <?> HelloWorld
+    Ident <?> H3902
+    Ident <?> __dsgjis
+    Ident <?> _init_
+    Ident <?> ___init___

@@ -40,9 +40,14 @@ parameter =
   [ "&" ] [ "mut" ] identifier ":" type [ "=" expression ]
 ;
 
-selection-statement =
+selection-expression =
   "if" expression "{" statement "}"
   "if" expression "{" statement "}" "else" statement
+;
+
+selection-statement =
+  selection-expression
+| statement "if" expression ";"
 ;
 
 iteration-statement =
@@ -136,7 +141,7 @@ conditional-expression =
 
 expression =
   conditional-expression
-| selection-statement
+| selection-expression
 ;
 
 (* A local declaration declares a slot that is locally allocated (normally

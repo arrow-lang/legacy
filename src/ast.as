@@ -33,6 +33,8 @@ let TAG_ASSIGN_SUB      : int = 26;             # AssignSubtractExpr
 let TAG_ASSIGN_MULT     : int = 27;             # AssignMultiplyExpr
 let TAG_ASSIGN_DIV      : int = 28;             # AssignDivideExpr
 let TAG_ASSIGN_MOD      : int = 29;             # AssignModuloExpr
+let TAG_SELECT          : int = 30;             # SelectExpr
+let TAG_SELECT_BRANCH   : int = 31;             # SelectBranch
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -60,6 +62,12 @@ type UnaryExpr { operand: Node }
 
 # Module declaration that contains a sequence of nodes.
 type ModuleDecl { nodes: Nodes }
+
+# Selection expression.
+type SelectExpr { branches: Nodes }
+
+# Selection branch.
+type SelectBranch { condition: Node, mut nodes: Nodes }
 
 # Static slot declaration.
 type StaticSlotDecl {
@@ -124,6 +132,12 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_LOCAL_SLOT {
         let tmp: LocalSlotDecl;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_SELECT {
+        let tmp: SelectExpr;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_SELECT_BRANCH {
+        let tmp: SelectBranch;
         ((&tmp + 1) - &tmp);
     }
     else { 0; }
@@ -259,18 +273,25 @@ def dump(&node: Node) {
         dump_table[TAG_STATIC_SLOT] = dump_static_slot;
         dump_table[TAG_LOCAL_SLOT] = dump_local_slot;
         dump_table[TAG_IDENT] = dump_ident;
+        dump_table[TAG_SELECT] = dump_select_expr;
+        dump_table[TAG_SELECT_BRANCH] = dump_select_branch;
         dump_initialized = true;
     }
 
+    print_indent();
+    let dump_fn: def(^Node) = dump_table[node.tag];
+    let node_ptr: ^Node = &node;
+    dump_fn(node_ptr);
+}
+
+# print_indent
+# -----------------------------------------------------------------------------
+def print_indent() {
     let mut dump_indent_i: int = 0;
     while dump_indent > dump_indent_i {
         printf("  " as ^int8);
         dump_indent_i = dump_indent_i + 1;
     }
-
-    let dump_fn: def(^Node) = dump_table[node.tag];
-    let node_ptr: ^Node = &node;
-    dump_fn(node_ptr);
 }
 
 # dump_boolean_expr
@@ -359,13 +380,8 @@ def dump_module(node: ^Node) {
     let x: ^ModuleDecl = unwrap(node^) as ^ModuleDecl;
     printf("ModuleDecl <?>\n" as ^int8);
 
-    # Enumerate through each node in the module.
     dump_indent = dump_indent + 1;
-    let mut iter: NodesIterator = iter_nodes(x.nodes);
-    while not iter_empty(iter) {
-        let node: Node = iter_next(iter);
-        dump(node);
-    }
+    dump_nodes("Nodes", x.nodes);
     dump_indent = dump_indent - 1;
 }
 
@@ -423,5 +439,44 @@ def dump_local_slot(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     if not isnull(x.initializer) { dump(x.initializer); }
+    dump_indent = dump_indent - 1;
+}
+
+# dump_nodes
+# -----------------------------------------------------------------------------
+def dump_nodes(name: str, &nodes: Nodes) {
+    print_indent();
+    printf("%s <?> \n" as ^int8, name);
+
+    # Enumerate through each node.
+    dump_indent = dump_indent + 1;
+    let mut iter: NodesIterator = iter_nodes(nodes);
+    while not iter_empty(iter) {
+        let node: Node = iter_next(iter);
+        dump(node);
+    }
+    dump_indent = dump_indent - 1;
+}
+
+# dump_select_expr
+# -----------------------------------------------------------------------------
+def dump_select_expr(node: ^Node) {
+    let x: ^SelectExpr = unwrap(node^) as ^SelectExpr;
+    printf("SelectExpr <?> \n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    dump_nodes("Branches", x.branches);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_select_branch
+# -----------------------------------------------------------------------------
+def dump_select_branch(node: ^Node) {
+    let x: ^SelectBranch = unwrap(node^) as ^SelectBranch;
+    printf("SelectBranch <?> \n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.condition) { dump(x.condition); }
+    dump_nodes("Nodes", x.nodes);
     dump_indent = dump_indent - 1;
 }

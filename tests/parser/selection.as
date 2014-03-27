@@ -16,7 +16,7 @@ else             {  }
 let y: int;
 y = 320 if some_condition;
 
-# # Postfixed selection statements are right-associative. The following:
+# # Postfixed selection statements are evaluated left-to-right. The following:
 z = 420 if some if some_else;
 
 # Translates to:

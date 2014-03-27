@@ -95,26 +95,27 @@ def parse_expr() -> ast.Node {
 # Binary operator token precedence
 # -----------------------------------------------------------------------------
 def get_binop_tok_precedence() -> int {
-         if cur_tok == tokens.TOK_EQ             { 005; }  # =
-    else if cur_tok == tokens.TOK_PLUS_EQ        { 005; }  # +=
-    else if cur_tok == tokens.TOK_MINUS_EQ       { 005; }  # -=
-    else if cur_tok == tokens.TOK_STAR_EQ        { 005; }  # *=
-    else if cur_tok == tokens.TOK_FSLASH_EQ      { 005; }  # /=
-    else if cur_tok == tokens.TOK_PERCENT_EQ     { 005; }  # %=
-    else if cur_tok == tokens.TOK_COLON_EQ       { 005; }  # :=
-    else if cur_tok == tokens.TOK_AND            { 010; }  # and
-    else if cur_tok == tokens.TOK_OR             { 010; }  # or
-    else if cur_tok == tokens.TOK_EQ_EQ          { 020; }  # ==
-    else if cur_tok == tokens.TOK_LCARET_RCARET  { 020; }  # <>
-    else if cur_tok == tokens.TOK_LCARET         { 020; }  # <
-    else if cur_tok == tokens.TOK_LCARET_EQ      { 020; }  # <=
-    else if cur_tok == tokens.TOK_RCARET         { 020; }  # >
-    else if cur_tok == tokens.TOK_RCARET_EQ      { 020; }  # >=
-    else if cur_tok == tokens.TOK_PLUS           { 040; }  # +
-    else if cur_tok == tokens.TOK_MINUS          { 040; }  # -
-    else if cur_tok == tokens.TOK_STAR           { 060; }  # *
-    else if cur_tok == tokens.TOK_FSLASH         { 060; }  # /
-    else if cur_tok == tokens.TOK_PERCENT        { 060; }  # %
+         if cur_tok == tokens.TOK_IF             { 005; }  # if
+    else if cur_tok == tokens.TOK_EQ             { 030; }  # =
+    else if cur_tok == tokens.TOK_PLUS_EQ        { 030; }  # +=
+    else if cur_tok == tokens.TOK_MINUS_EQ       { 030; }  # -=
+    else if cur_tok == tokens.TOK_STAR_EQ        { 030; }  # *=
+    else if cur_tok == tokens.TOK_FSLASH_EQ      { 030; }  # /=
+    else if cur_tok == tokens.TOK_PERCENT_EQ     { 030; }  # %=
+    else if cur_tok == tokens.TOK_COLON_EQ       { 030; }  # :=
+    else if cur_tok == tokens.TOK_AND            { 060; }  # and
+    else if cur_tok == tokens.TOK_OR             { 060; }  # or
+    else if cur_tok == tokens.TOK_EQ_EQ          { 090; }  # ==
+    else if cur_tok == tokens.TOK_LCARET_RCARET  { 090; }  # <>
+    else if cur_tok == tokens.TOK_LCARET         { 090; }  # <
+    else if cur_tok == tokens.TOK_LCARET_EQ      { 090; }  # <=
+    else if cur_tok == tokens.TOK_RCARET         { 090; }  # >
+    else if cur_tok == tokens.TOK_RCARET_EQ      { 090; }  # >=
+    else if cur_tok == tokens.TOK_PLUS           { 120; }  # +
+    else if cur_tok == tokens.TOK_MINUS          { 120; }  # -
+    else if cur_tok == tokens.TOK_STAR           { 150; }  # *
+    else if cur_tok == tokens.TOK_FSLASH         { 150; }  # /
+    else if cur_tok == tokens.TOK_PERCENT        { 150; }  # %
     else {
         # Not a binary operator.
         -1;
@@ -126,26 +127,27 @@ def get_binop_tok_precedence() -> int {
 let ASSOC_RIGHT: int = 1;
 let ASSOC_LEFT: int = 2;
 def get_binop_tok_associativity() -> int {
-         if cur_tok == tokens.TOK_EQ             { ASSOC_RIGHT; }  # =
+         if cur_tok == tokens.TOK_IF             { ASSOC_LEFT; }   # if
+    else if cur_tok == tokens.TOK_EQ             { ASSOC_RIGHT; }  # =
     else if cur_tok == tokens.TOK_PLUS_EQ        { ASSOC_RIGHT; }  # +=
     else if cur_tok == tokens.TOK_MINUS_EQ       { ASSOC_RIGHT; }  # -=
     else if cur_tok == tokens.TOK_STAR_EQ        { ASSOC_RIGHT; }  # *=
     else if cur_tok == tokens.TOK_FSLASH_EQ      { ASSOC_RIGHT; }  # /=
     else if cur_tok == tokens.TOK_PERCENT_EQ     { ASSOC_RIGHT; }  # %=
     else if cur_tok == tokens.TOK_COLON_EQ       { ASSOC_RIGHT; }  # :=
-    else if cur_tok == tokens.TOK_AND            { ASSOC_LEFT; }  # and
-    else if cur_tok == tokens.TOK_OR             { ASSOC_LEFT; }  # or
-    else if cur_tok == tokens.TOK_EQ_EQ          { ASSOC_LEFT; }  # ==
-    else if cur_tok == tokens.TOK_LCARET_RCARET  { ASSOC_LEFT; }  # <>
-    else if cur_tok == tokens.TOK_LCARET         { ASSOC_LEFT; }  # <
-    else if cur_tok == tokens.TOK_LCARET_EQ      { ASSOC_LEFT; }  # <=
-    else if cur_tok == tokens.TOK_RCARET         { ASSOC_LEFT; }  # >
-    else if cur_tok == tokens.TOK_RCARET_EQ      { ASSOC_LEFT; }  # >=
-    else if cur_tok == tokens.TOK_PLUS           { ASSOC_LEFT; }  # +
-    else if cur_tok == tokens.TOK_MINUS          { ASSOC_LEFT; }  # -
-    else if cur_tok == tokens.TOK_STAR           { ASSOC_LEFT; }  # *
-    else if cur_tok == tokens.TOK_FSLASH         { ASSOC_LEFT; }  # /
-    else if cur_tok == tokens.TOK_PERCENT        { ASSOC_LEFT; }  # %
+    else if cur_tok == tokens.TOK_AND            { ASSOC_LEFT; }   # and
+    else if cur_tok == tokens.TOK_OR             { ASSOC_LEFT; }   # or
+    else if cur_tok == tokens.TOK_EQ_EQ          { ASSOC_LEFT; }   # ==
+    else if cur_tok == tokens.TOK_LCARET_RCARET  { ASSOC_LEFT; }   # <>
+    else if cur_tok == tokens.TOK_LCARET         { ASSOC_LEFT; }   # <
+    else if cur_tok == tokens.TOK_LCARET_EQ      { ASSOC_LEFT; }   # <=
+    else if cur_tok == tokens.TOK_RCARET         { ASSOC_LEFT; }   # >
+    else if cur_tok == tokens.TOK_RCARET_EQ      { ASSOC_LEFT; }   # >=
+    else if cur_tok == tokens.TOK_PLUS           { ASSOC_LEFT; }   # +
+    else if cur_tok == tokens.TOK_MINUS          { ASSOC_LEFT; }   # -
+    else if cur_tok == tokens.TOK_STAR           { ASSOC_LEFT; }   # *
+    else if cur_tok == tokens.TOK_FSLASH         { ASSOC_LEFT; }   # /
+    else if cur_tok == tokens.TOK_PERCENT        { ASSOC_LEFT; }   # %
     else {
         # Not a binary operator.
         -1;
@@ -157,7 +159,7 @@ def get_binop_tok_associativity() -> int {
 # binop_rhs = { binop unary }
 # binop = "+"  | "-"  | "*"  | "/"  | "%" | "and" | "or" | "==" | "<>"
 #       | ">"  | "<"  | "<=" | ">=" | "=" | ":="  | "+=" | "-=" | "*="
-#       | "/=" | "%="
+#       | "/=" | "%=" | "if"
 # -----------------------------------------------------------------------------
 def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> ast.Node {
     loop {
@@ -208,9 +210,29 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
             else if binop == tokens.TOK_STAR_EQ        { ast.TAG_ASSIGN_MULT; }
             else if binop == tokens.TOK_FSLASH_EQ      { ast.TAG_ASSIGN_DIV; }
             else if binop == tokens.TOK_PERCENT_EQ     { ast.TAG_ASSIGN_MOD; }
+            else if binop == tokens.TOK_IF             { ast.TAG_SELECT_OP; }
             else { 0; };
 
-        if tag <> 0 {
+        if tag == ast.TAG_SELECT_OP and cur_tok == tokens.TOK_ELSE {
+            # If we matched an <expr> "if" <expr> check to see if
+            # there is an "else" adjacent. If so this turns into a
+            # conditional expression.
+            let node: ast.Node = ast.make(ast.TAG_CONDITIONAL);
+            let expr: ^ast.ConditionalExpr =
+                ast.unwrap(node) as ^ast.ConditionalExpr;
+
+            expr.lhs = lhs;
+            expr.condition = rhs;
+
+            # Consume the "else" token.
+            bump_token();
+
+            # Parse the expression for the RHS.
+            expr.rhs = parse_expr();
+            if ast.isnull(expr.rhs) { return ast.null(); }
+
+            lhs = node;
+        } else if tag <> 0 {
             # Merge LHS/RHS into a binary expression node.
             let node: ast.Node = ast.make(tag);
             let expr: ^ast.BinaryExpr = ast.unwrap(node) as ^ast.BinaryExpr;
@@ -309,6 +331,8 @@ def parse_primary_expr() -> ast.Node {
         parse_paren_expr();
     } else if cur_tok == tokens.TOK_IDENTIFIER {
         parse_ident();
+    } else if cur_tok == tokens.TOK_IF {
+        parse_select_expr();
     } else {
         # Not sure what we have.
         ast.null();
@@ -568,8 +592,8 @@ def parse_statement() -> ast.Node {
         parse_static_decl();
     } else if cur_tok == tokens.TOK_LET {
         parse_local_decl();
-    } else if cur_tok == tokens.TOK_IF {
-        parse_select_expr();
+    # } else if cur_tok == tokens.TOK_IF {
+        # parse_select_expr();
     } else if cur_tok == tokens.TOK_SEMICOLON {
         bump_token();       # consume the semicolon
         parse_statement();  # and parse again

@@ -1,0 +1,109 @@
+ModuleDecl <?>
+  Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          BooleanExpr <?> true
+          Nodes <?> 
+            AssignExpr <?>
+              Ident <?> x
+              IntegerExpr <?> 'int' 42 (10)
+    LocalSlotDecl <?> x
+      IntegerExpr <?> 'int' 2 (10)
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          LTExpr <?>
+            Ident <?> x
+            IntegerExpr <?> 'int' 10 (10)
+          Nodes <?> 
+        SelectBranch <?> 
+          LTExpr <?>
+            Ident <?> x
+            IntegerExpr <?> 'int' 100 (10)
+          Nodes <?> 
+        SelectBranch <?> 
+          LTExpr <?>
+            Ident <?> x
+            IntegerExpr <?> 'int' 1000 (10)
+          Nodes <?> 
+        SelectBranch <?> 
+          Nodes <?> 
+    LocalSlotDecl <?> y 'int'
+    SelectOpExpr <?>
+      AssignExpr <?>
+        Ident <?> y
+        IntegerExpr <?> 'int' 320 (10)
+      Ident <?> some_condition
+    SelectOpExpr <?>
+      SelectOpExpr <?>
+        AssignExpr <?>
+          Ident <?> z
+          IntegerExpr <?> 'int' 420 (10)
+        Ident <?> some
+      Ident <?> some_else
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          Ident <?> some_else
+          Nodes <?> 
+            SelectExpr <?> 
+              Branches <?> 
+                SelectBranch <?> 
+                  Ident <?> some
+                  Nodes <?> 
+                    AssignExpr <?>
+                      Ident <?> z
+                      IntegerExpr <?> 'int' 420 (10)
+    ConditionalExpr <?> 
+      Ident <?> some_condition
+      IntegerExpr <?> 'int' 42 (10)
+      IntegerExpr <?> 'int' 83 (10)
+    ConditionalExpr <?> 
+      Ident <?> some_condition
+      SelectExpr <?> 
+        Branches <?> 
+          SelectBranch <?> 
+            GEExpr <?>
+              Ident <?> x
+              IntegerExpr <?> 'int' 1 (10)
+            Nodes <?> 
+      SelectOpExpr <?>
+        SelectExpr <?> 
+          Branches <?> 
+            SelectBranch <?> 
+              GEExpr <?>
+                Ident <?> x
+                IntegerExpr <?> 'int' 6 (10)
+              Nodes <?> 
+            SelectBranch <?> 
+              Nodes <?> 
+        Ident <?> condition
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          Ident <?> some_condition
+          Nodes <?> 
+            SelectExpr <?> 
+              Branches <?> 
+                SelectBranch <?> 
+                  GEExpr <?>
+                    Ident <?> x
+                    IntegerExpr <?> 'int' 1 (10)
+                  Nodes <?> 
+        SelectBranch <?> 
+          Nodes <?> 
+            SelectExpr <?> 
+              Branches <?> 
+                SelectBranch <?> 
+                  Ident <?> condition
+                  Nodes <?> 
+                    SelectExpr <?> 
+                      Branches <?> 
+                        SelectBranch <?> 
+                          GEExpr <?>
+                            Ident <?> x
+                            IntegerExpr <?> 'int' 6 (10)
+                          Nodes <?> 
+                        SelectBranch <?> 
+                          Nodes <?> 

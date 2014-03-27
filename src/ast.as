@@ -35,6 +35,8 @@ let TAG_ASSIGN_DIV      : int = 28;             # AssignDivideExpr
 let TAG_ASSIGN_MOD      : int = 29;             # AssignModuloExpr
 let TAG_SELECT          : int = 30;             # SelectExpr
 let TAG_SELECT_BRANCH   : int = 31;             # SelectBranch
+let TAG_SELECT_OP       : int = 32;             # SelectOpExpr
+let TAG_CONDITIONAL     : int = 33;             # ConditionalExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -56,6 +58,9 @@ type BooleanExpr { value: bool }
 
 # "Generic" binary expression type.
 type BinaryExpr { lhs: Node, rhs: Node }
+
+# Conditional expression.
+type ConditionalExpr { lhs: Node, rhs: Node, condition: Node }
 
 # "Generic" unary expression type.
 type UnaryExpr { operand: Node }
@@ -113,8 +118,12 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_ASSIGN_SUB
            or tag == TAG_ASSIGN_MULT
            or tag == TAG_ASSIGN_DIV
-           or tag == TAG_ASSIGN_MOD {
+           or tag == TAG_ASSIGN_MOD
+           or tag == TAG_SELECT_OP {
         let tmp: BinaryExpr;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_CONDITIONAL {
+        let tmp: ConditionalExpr;
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_PROMOTE
            or tag == TAG_NUMERIC_NEGATE
@@ -270,11 +279,13 @@ def dump(&node: Node) {
         dump_table[TAG_ASSIGN_MULT] = dump_binop_expr;
         dump_table[TAG_ASSIGN_DIV] = dump_binop_expr;
         dump_table[TAG_ASSIGN_MOD] = dump_binop_expr;
+        dump_table[TAG_SELECT_OP] = dump_binop_expr;
         dump_table[TAG_STATIC_SLOT] = dump_static_slot;
         dump_table[TAG_LOCAL_SLOT] = dump_local_slot;
         dump_table[TAG_IDENT] = dump_ident;
         dump_table[TAG_SELECT] = dump_select_expr;
         dump_table[TAG_SELECT_BRANCH] = dump_select_branch;
+        dump_table[TAG_CONDITIONAL] = dump_conditional_expr;
         dump_initialized = true;
     }
 
@@ -351,6 +362,8 @@ def dump_binop_expr(node: ^Node) {
         printf("AssignDivideExpr <?>\n" as ^int8);
     } else if node.tag == TAG_ASSIGN_MOD {
         printf("AssignModuloExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_SELECT_OP {
+        printf("SelectOpExpr <?>\n" as ^int8);
     }
     dump_indent = dump_indent + 1;
     dump(x.lhs);
@@ -478,5 +491,18 @@ def dump_select_branch(node: ^Node) {
     dump_indent = dump_indent + 1;
     if not isnull(x.condition) { dump(x.condition); }
     dump_nodes("Nodes", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_conditional_expr
+# -----------------------------------------------------------------------------
+def dump_conditional_expr(node: ^Node) {
+    let x: ^ConditionalExpr = unwrap(node^) as ^ConditionalExpr;
+    printf("ConditionalExpr <?> \n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    dump(x.condition);
+    dump(x.lhs);
+    dump(x.rhs);
     dump_indent = dump_indent - 1;
 }

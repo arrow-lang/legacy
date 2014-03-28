@@ -45,13 +45,13 @@ k := k * 21;
 # a local slot declaration can use a pattern to match the right-hand
 # expression. Note that this is not possible for static slot declarations.
 # TODO: Below requires tuples to be understood by the parser.
-# let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
-# let mut (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
-# let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
-# let (x, y, z, w): (int, bool, float64, str);
-# let mut (x, y, z, w): (int, bool, float64, str);
-# let mut (x, y, z, w) = (32, false, 243.5, "sg");
-# let (x, y, z, w) = (32, false, 243.5, "sg");
-# let (x, y, z, w);
-# let mut (x, y, z, w);
-# (x, y, z, w) := (32, false, 243.5, "sg");
+let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
+let mut (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
+let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
+let (x, y, z, w): (int, bool, float64, str);
+let mut (x, y, z, w): (int, bool, float64, str);
+let mut (x, y, z, w) = (32, false, 243.5, "sg");
+let (x, y, z, w) = (32, false, 243.5, "sg");
+let (x, y, z, w);
+let mut (x, y, z, w);
+(x, y, z, w) := (32, false, 243.5, "sg");

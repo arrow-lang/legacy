@@ -28,6 +28,7 @@ def read() -> int { }
 # Any non top-level statements may be present in the function block.
 def some() -> bool {
     # Declare a couple slots.
+    static y: int = 32;
     let x: int = 43;
     let y: int;
     y = 436;
@@ -39,10 +40,16 @@ def some() -> bool {
     true;
 }
 
+# Statics in functions may be accessed.
+some.y == 32;
+
 # Functions may be nested in other functions.
 def main() {
     def nested() -> int { 432; }
 }
+
+# Invoking nested functions.
+main.nested();
 
 # Functions are first-class objects and are a valid type for a
 # slot declaration.
@@ -67,6 +74,6 @@ let anon_fn_type_inferred = def(x: int, y: bool) { };
 anon_fn_type := def(x, y) { x + y; };
 int_fn := def(x) { x; };
 fn_fn_named(int_fn)(32) == 32;
-fn_fn_named(def(x) { x; })(32) == 32;
 fn_fn_named(def(x: int) { x; })(32) == 32;
 fn_fn_named(def(x: int) -> int { x; })(32) == 32;
+fn_fn_named(def(x) { x; })(32) == 32;

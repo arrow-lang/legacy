@@ -1,15 +1,17 @@
 # 0.0.1
- - [ ] Functions
- - [ ] References
- - [ ] Function call expression
- - [ ] Tuple type expression
- - [ ] Tuple unpacking -- (x, y) = (32, 32)
- - [ ] "Safe" cast expressions
- - [ ] Pattern slot declaration -- let (x: int, y: int) = (3, 32);
- - [ ] Module declaration -- module name { ... }
- - [ ] Structure declaration -- struct Point{x: int, y: int}
- - [ ] Structure expression -- Point{x: 0, y: 32}
+ - [.] Functions
+ - [.] Function call expression
+ - [.] References
+ - [.] Parameter calling convention-less (eg. point optimization)
+ - [.] Tuple type expression
+ - [.] Tuple unpacking -- (x, y) = (32, 32)
+ - [.] "Safe" cast expressions
+ - [.] Pattern slot declaration -- let (x: int, y: int) = (3, 32);
+ - [.] Module declaration -- module name { ... }
+ - [.] Structure declaration -- struct Point{x: int, y: int}
+ - [.] Structure expression -- Point{x: 0, y: 32}
  - [ ] Pointers
+ - [ ] "New" type declaration -- type Point = (int, int);
  - [P] Basic types (bool, int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64)
  - [P] Local slot declaration
  - [P] Static slot declaration
@@ -31,11 +33,9 @@
  - [P] Postfix selection statement -- a if condition
 
 # 0.0.2
- - [ ] "New" type declaration -- type Point = (int, int);
  - [ ] Structure unpacking -- {x, y} = point
  - [ ] Iteration statement -- while condition { ... } / loop { ...}
  - [ ] Break / continue statements
- - [ ] Parameter calling convention-less (eg. point optimization)
  - [ ] Array type declaration -- let x: int[3]
 
 # 0.0.3
@@ -48,6 +48,8 @@
  - [ ] Traits (and added functionality to implement)
  - [ ] Trait-bounded slots
  - [ ] Dynamic dispatch
+ - [ ] Common operations should use built-in traits (for eg. operator "overloading")
+ - [ ] Destructors (using a built-in trait)
 
 # 0.0.5
  - [ ] Parametric types

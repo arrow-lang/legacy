@@ -191,7 +191,7 @@ type-declaration = "type" identifier "=" type ;
  * to a struct declaration in "C".
  *)
 struct-declaration = "struct" identifier "{" [ struct-member { "," struct-member } [ "," ] ] "}" ;
-struct-member = [ "static" ] identifier ":" type ;
+struct-member = [ "static" ] [ "&" ] [ "mut" ] identifier ":" type ;
 
 (* An enum declaration declares a new "sum" type. For a "sum" type "T" (also
  * known as a "tagged union") declares a set of type "constructors" for which

@@ -37,6 +37,8 @@ let TAG_SELECT          : int = 30;             # SelectExpr
 let TAG_SELECT_BRANCH   : int = 31;             # SelectBranch
 let TAG_SELECT_OP       : int = 32;             # SelectOpExpr
 let TAG_CONDITIONAL     : int = 33;             # ConditionalExpr
+let TAG_FUNC_DECL       : int = 34;             # FuncDecl
+let TAG_FUNC_PARAM      : int = 35;             # FuncParam
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -73,6 +75,22 @@ type SelectExpr { branches: Nodes }
 
 # Selection branch.
 type SelectBranch { condition: Node, mut nodes: Nodes }
+
+# Function declaration.
+type FuncDecl {
+    id: Node,
+    return_type: Node,
+    mut params: Nodes,
+    mut nodes: Nodes
+}
+
+# Function parameter.
+type FuncParam {
+    id: Node,
+    type_: Node,
+    mutable: bool,
+    default: Node
+}
 
 # Static slot declaration.
 type StaticSlotDecl {
@@ -146,6 +164,12 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_SELECT_BRANCH {
         let tmp: SelectBranch;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_FUNC_DECL {
+        let tmp: FuncDecl;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_FUNC_PARAM {
+        let tmp: FuncParam;
         ((&tmp + 1) - &tmp);
     }
     else { 0; }
@@ -285,6 +309,8 @@ def dump(&node: Node) {
         dump_table[TAG_SELECT] = dump_select_expr;
         dump_table[TAG_SELECT_BRANCH] = dump_select_branch;
         dump_table[TAG_CONDITIONAL] = dump_conditional_expr;
+        dump_table[TAG_FUNC_DECL] = dump_func_decl;
+        dump_table[TAG_FUNC_PARAM] = dump_func_param;
         dump_initialized = true;
     }
 
@@ -503,5 +529,45 @@ def dump_conditional_expr(node: ^Node) {
     dump(x.condition);
     dump(x.lhs);
     dump(x.rhs);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_func_decl
+# -----------------------------------------------------------------------------
+def dump_func_decl(node: ^Node) {
+    let x: ^FuncDecl = unwrap(node^) as ^FuncDecl;
+    printf("FuncDecl <?> " as ^int8);
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    let xs: arena.Store = id.name;
+    printf("%s" as ^int8, xs._data);
+    if not isnull(x.return_type) {
+        printf(" '" as ^int8);
+        dump_type(&x.return_type);
+        printf("'\n" as ^int8);
+    } else {
+        printf("\n" as ^int8);
+    }
+
+    dump_indent = dump_indent + 1;
+    dump_nodes("Parameters", x.params);
+    dump_nodes("Nodes", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_func_param
+# -----------------------------------------------------------------------------
+def dump_func_param(node: ^Node) {
+    let x: ^FuncParam = unwrap(node^) as ^FuncParam;
+    printf("FuncParam <?> " as ^int8);
+    if x.mutable { printf("mut " as ^int8); }
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    let xs: arena.Store = id.name;
+    printf("%s" as ^int8, xs._data);
+    printf(" '" as ^int8);
+    dump_type(&x.type_);
+    printf("'\n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.default) { dump(x.default); }
     dump_indent = dump_indent - 1;
 }

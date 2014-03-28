@@ -514,14 +514,8 @@ def parse_select_branch(condition: bool) -> ast.Node {
         }
     }
 
-    # There must be a "{" next to start the block.
-    if cur_tok <> tokens.TOK_LBRACE {
-        # FIXME: Report a nice error message.
-        return ast.null();
-    }
-
     # Parse the block.
-    parse_block(branch.nodes);
+    if not parse_block(branch.nodes) { return ast.null(); }
 
     # Return our parsed node.
     node;
@@ -584,19 +578,70 @@ def parse_select_expr() -> ast.Node {
     node;
 }
 
+# Function parameter
+# -----------------------------------------------------------------------------
+# param = [ "mut" ] ident ":" type
+# -----------------------------------------------------------------------------
+def parse_param() -> ast.Node {
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_FUNC_PARAM);
+    let param: ^ast.FuncParam = ast.unwrap(node) as ^ast.FuncParam;
+
+    # Check if we are mutable.
+    param.mutable = cur_tok == tokens.TOK_MUT;
+
+    # If we are then consume the "mut" token.
+    if param.mutable { bump_token(); }
+
+    # There should be an identifier next.
+    if cur_tok == tokens.TOK_IDENTIFIER {
+        param.id = parse_ident();
+        if ast.isnull(param.id) { return ast.null(); }
+    }
+
+    # There must be a ":" next to start the type annotation.
+    if cur_tok <> tokens.TOK_COLON {
+        # FIXME: Report a nice error message.
+        return ast.null();
+    }
+
+    # Consume the ":" token.
+    bump_token();
+
+    # There should be a type expression next.
+    param.type_ = parse_type_expr();
+    if ast.isnull(param.type_) {
+        # FIXME: Report a nice error message.
+        return ast.null();
+    }
+
+    # There can be an "=" next to indicate the start of the default.
+    if cur_tok == tokens.TOK_EQ {
+        # Consume the "=" and parse the default expression.
+        bump_token();
+        param.default = parse_expr();
+        if ast.isnull(param.default) {
+            # FIXME: Report a nice error message.
+            return ast.null();
+        }
+    } else {
+        # There is no default.
+        param.default = ast.null();
+    }
+
+    # Return the parsed node.
+    node;
+}
+
 # Function parameters
 # -----------------------------------------------------------------------------
 # params = "(" [ param { "," param } ] ")"
 # -----------------------------------------------------------------------------
-def parse_params() -> ast.Node {
-    # Declare the selection expr node.
-    let node: ast.Node = ast.make(ast.TAG_NODES);
-    let params: ^ast.Nodes = ast.unwrap(node) as ^ast.Nodes;
-
+def parse_params(&mut params: ast.Nodes) -> bool {
     # There must be a "(" next to start the parameter list.
     if cur_tok <> tokens.TOK_LPAREN {
         # FIXME: Report a nice error message.
-        return ast.null();
+        return false;
     }
 
     # Consume the "(" token.
@@ -605,14 +650,13 @@ def parse_params() -> ast.Node {
     while cur_tok <> tokens.TOK_RPAREN {
         # Parse the param.
         let param: ast.Node = parse_param();
-        if ast.isnull(param) { return ast.null(); }
+        if ast.isnull(param) { return false; }
 
         # Append the branch to the selection expression.
         ast.push(params, param);
 
         # Is there a "," to continue the parameter list.
-        let have_comma: bool = cur_tok == tokens.TOK_COMMA;
-        if have_comma {
+        if cur_tok == tokens.TOK_COMMA {
             # Consume the "comma" token.
             bump_token();
         }
@@ -621,14 +665,14 @@ def parse_params() -> ast.Node {
     # There must be a ")" next to start the parameter list.
     if cur_tok <> tokens.TOK_RPAREN {
         # FIXME: Report a nice error message.
-        return ast.null();
+        return false;
     }
 
     # Consume the ")" token.
     bump_token();
 
-    # Return the constructed node.
-    node;
+    # Everything looks good.
+    true;
 }
 
 # Function Declaration
@@ -636,9 +680,9 @@ def parse_params() -> ast.Node {
 # function-decl = "def" ident params [ "->" type ] block
 # -----------------------------------------------------------------------------
 def parse_function_decl() -> ast.Node {
-    # Declare the selection expr node.
-    let node: ast.Node = ast.make(ast.TAG_SELECT);
-    let func: ^ast.FunctionDecl = ast.unwrap(node) as ^ast.FunctionDecl;
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_FUNC_DECL);
+    let mut func: ^ast.FuncDecl = ast.unwrap(node) as ^ast.FuncDecl;
 
     # Consume the "def" token.
     bump_token();
@@ -647,11 +691,30 @@ def parse_function_decl() -> ast.Node {
     if cur_tok == tokens.TOK_IDENTIFIER {
         func.id = parse_ident();
         if ast.isnull(func.id) { return ast.null(); }
+    } else {
+        # FIXME: Error message.
+        return ast.null();
     }
 
     # There should be a parameter list next.
-    func.params = parse_params();
-    if ast.isnull(func.params) { return ast.null(); }
+    if not parse_params(func.params) { return ast.null(); }
+
+    # There can be a "->" next to indicate the start of the return type.
+    if cur_tok == tokens.TOK_RARROW {
+        # Consume the "->" and parse the return type expression.
+        bump_token();
+        func.return_type = parse_type_expr();
+        if ast.isnull(func.return_type) {
+            # FIXME: Report a nice error message.
+            return ast.null();
+        }
+    } else {
+        # There is no return type.
+        func.return_type = ast.null();
+    }
+
+    # Parse the function block.
+    if not parse_block(func.nodes) { return ast.null(); }
 
     # Return the constructed node.
     node;
@@ -686,7 +749,13 @@ def parse_statement() -> ast.Node {
 # -----------------------------------------------------------------------------
 # block = "{" { statement } "}"
 # -----------------------------------------------------------------------------
-def parse_block(&mut nodes: ast.Nodes) {
+def parse_block(&mut nodes: ast.Nodes) -> bool {
+    # There must be a "{" next to start the block.
+    if cur_tok <> tokens.TOK_LBRACE {
+        # FIXME: Report a nice error message.
+        return false;
+    }
+
     # Consume the "{" token.
     bump_token();
 
@@ -704,8 +773,18 @@ def parse_block(&mut nodes: ast.Nodes) {
         ast.push(nodes, matched);
     }
 
-    # Consume the "}" token.
-    bump_token();
+    # There must be a "}" next to start the block.
+    if cur_tok <> tokens.TOK_RBRACE {
+        # FIXME: Report a nice error message.
+        false;
+    } else {
+        # Consume the "}" token.
+        bump_token();
+
+        # Everything looks fine.
+        true;
+    }
+
 }
 
 # Module

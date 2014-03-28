@@ -182,10 +182,7 @@ def scan_numeric() -> int {
                 0;
             };
 
-        if current_tok == 0 {
-            # We are not dealing with a base_prefixed numeric.
-            asciz.push(current_num, lchar);
-        } else if current_tok == tokens.TOK_BIN_INTEGER {
+        if current_tok == tokens.TOK_BIN_INTEGER {
             # Scan for the remainder of this binary numeric.
             # TODO: This could probably be reduced into a single
             #   loop that uses a function pointer taken from an anon function

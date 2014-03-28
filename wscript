@@ -94,6 +94,13 @@ def _check_expected_stdout(filename, stdout):
 
     return expected == stdout
 
+def _check_expected_stderr(filename, stderr):
+    expected = _read_suffix(filename, ".err")
+    if stderr == b'' and expected == None:
+        return True
+
+    return expected == stderr
+
 _passed = 0
 _failed = 0
 
@@ -112,7 +119,7 @@ def _report(filename, status):
 def _test_tokenizer(ctx):
     # Enumerate through the test directory and run the command sequence,
     # checking against the expected output.
-    for fixture in glob("tests/tokenizer/*.as"):
+    for fixture in glob("tests/tokenize/*.as"):
         # Run the tokenizer over our fixture.
         returncode, stdout, stderr = _run(fixture, 'tokenizer', [])
 
@@ -125,32 +132,32 @@ def _test_tokenizer(ctx):
         # Report our status.
         _report(fixture, status)
 
-def _test_tokenizer_self(ctx):
-    # Check the tokenizer against itself.
-    returncode, stdout, stderr = _run("src/tokenizer.as", 'tokenizer', [])
-
-    # Check the output against the expected.
-    # FIXME: Check the returncode
-    status = True
-    # status = returncode == 0
-    status = status and _check_expected_stdout(
-        "tests/tokenizer/tokenizer.as", stdout)
-
-    # Report our status.
-    _report("src/tokenizer.as", status)
-
 def _test_parser(ctx):
     # Enumerate through the test directory and run the command sequence,
     # checking against the expected output.
-    for fixture in glob("tests/parser/*.as"):
+    for fixture in glob("tests/parse/*.as"):
         # Run the parser over our fixture.
         returncode, stdout, stderr = _run(fixture, 'parser', [])
 
         # Check the output against the expected.
-        # FIXME: Check the returncode
         status = True
-        # status = returncode == 0
+        status = returncode == 0
         status = status and _check_expected_stdout(fixture, stdout)
+
+        # Report our status.
+        _report(fixture, status)
+
+def _test_parser_fail(ctx):
+    # Enumerate through the test directory and run the command sequence,
+    # checking against the expected output.
+    for fixture in glob("tests/parse-fail/*.as"):
+        # Run the parser over our fixture.
+        returncode, stdout, stderr = _run(fixture, 'parser', [])
+
+        # Check the output against the expected.
+        status = True
+        status = returncode == 255
+        status = status and _check_expected_stderr(fixture, stderr)
 
         # Report our status.
         _report(fixture, status)
@@ -180,9 +187,10 @@ def _sep(text, char="=", size=80):
 
 def test(ctx):
     print(_sep("test session starts", "="))
-    print(_sep("tokenizer", "-"))
+    print(_sep("tokenize", "-"))
     _test_tokenizer(ctx)
-    _test_tokenizer_self(ctx)
-    print(_sep("parser", "-"))
-    _test_parser(ctx)
+    # print(_sep("parse", "-"))
+    # _test_parser(ctx)
+    print(_sep("parse-fail", "-"))
+    _test_parser_fail(ctx)
     _print_report()

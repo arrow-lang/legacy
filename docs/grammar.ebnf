@@ -163,7 +163,7 @@ local-declaration =
  * NOTE: It is considered "unsafe" to mutate static slots.
  *)
 static-declaration =
-  "static" [ "mut" ] identifier [ ":" type ] [ "=" expression ] ;
+  "static" [ "mut" ] identifier ":" type "=" expression ;
 
 (* An import statement attempts to find the named module (
  * replacing "." with the system defined path separator) and "import" it

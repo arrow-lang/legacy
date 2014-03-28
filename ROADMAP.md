@@ -1,5 +1,6 @@
 # 0.0.1
- - [.] Functions
+ - [P] Function declarations
+ - [.] Function expressions
  - [.] Function call expression
  - [.] References
  - [.] Parameter calling convention-less (eg. point optimization)

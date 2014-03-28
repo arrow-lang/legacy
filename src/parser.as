@@ -2,6 +2,7 @@ foreign "C" import "stdlib.h";
 import tokenizer;
 import tokens;
 import ast;
+import errors;
 
 # Token buffer -- cur_tok is the current token the parser is looking at.
 # -----------------------------------------------------------------------------
@@ -75,7 +76,10 @@ def parse_paren_expr() -> ast.Node {
     if ast.isnull(result) { return result; }
 
     if cur_tok <> tokens.TOK_RPAREN {
-        printf("error: expected ')'\n");
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected `)`" as ^int8);
+        errors.end();
+
         return ast.null();
     }
 
@@ -252,7 +256,11 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
                 ast.unwrap(node) as ^ast.LocalSlotDecl;
 
             if lhs.tag <> ast.TAG_IDENT {
-                # FIXME: Throw a nice error for this later.
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "expected identifier" as ^int8);
+                errors.end();
+
                 return ast.null();
             }
 
@@ -309,9 +317,6 @@ def parse_unary_expr() -> ast.Node {
     let node: ast.Node = ast.make(tag);
     let expr: ^ast.UnaryExpr = ast.unwrap(node) as ^ast.UnaryExpr;
     expr.operand = operand;
-
-    # # Consume our token.
-    # bump_token();
 
     # Return our constructed node.
     node;
@@ -406,7 +411,11 @@ def parse_static_decl() -> ast.Node {
 
     # There must be a ":" next to start the type annotation.
     if cur_tok <> tokens.TOK_COLON {
-        # FIXME: Report a nice error message.
+        error_consume();
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected `:` (static slots must have a type annotation)" as ^int8);
+        errors.end();
+
         return ast.null();
     }
 
@@ -420,19 +429,20 @@ def parse_static_decl() -> ast.Node {
         return ast.null();
     }
 
-    # There can be an "=" next to indicate the start of the initializer
+    # There must be an "=" next to indicate the start of the initializer
     # for this static slot.
     if cur_tok == tokens.TOK_EQ {
         # Consume the "=" and parse the initializer expression.
         bump_token();
         decl.initializer = parse_expr();
-        if ast.isnull(decl.initializer) {
-            # FIXME: Report a nice error message.
-            return ast.null();
-        }
+        if ast.isnull(decl.initializer) { return ast.null(); }
     } else {
-        # There is no initializer.
-        decl.initializer = ast.null();
+        error_consume();
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected `=` (static slots must have an initializer)" as ^int8);
+        errors.end();
+
+        return ast.null();
     }
 
     # Return our constructed declaration.
@@ -471,10 +481,7 @@ def parse_local_decl() -> ast.Node {
 
         # There should be a type expression next.
         decl.type_ = parse_type_expr();
-        if ast.isnull(decl.type_) {
-            # FIXME: Report a nice error message.
-            return ast.null();
-        }
+        if ast.isnull(decl.type_) { return ast.null(); }
     }
 
     # There can be an "=" next to indicate the start of the initialzier
@@ -483,10 +490,7 @@ def parse_local_decl() -> ast.Node {
         # Consume the "=" and parse the initializer expression.
         bump_token();
         decl.initializer = parse_expr();
-        if ast.isnull(decl.initializer) {
-            # FIXME: Report a nice error message.
-            return ast.null();
-        }
+        if ast.isnull(decl.initializer) { return ast.null(); }
     } else {
         # There is no initializer.
         decl.initializer = ast.null();
@@ -508,10 +512,7 @@ def parse_select_branch(condition: bool) -> ast.Node {
     if condition {
         # Expect and parse the condition expression.
         branch.condition = parse_expr();
-        if ast.isnull(branch.condition) {
-            # FIXME: Report a nice error message.
-            return ast.null();
-        }
+        if ast.isnull(branch.condition) { return ast.null(); }
     }
 
     # Parse the block.
@@ -638,16 +639,15 @@ def parse_param() -> ast.Node {
 # params = "(" [ param { "," param } ] ")"
 # -----------------------------------------------------------------------------
 def parse_params(&mut params: ast.Nodes) -> bool {
-    # There must be a "(" next to start the parameter list.
-    if cur_tok <> tokens.TOK_LPAREN {
-        # FIXME: Report a nice error message.
-        return false;
-    }
-
     # Consume the "(" token.
     bump_token();
 
-    while cur_tok <> tokens.TOK_RPAREN {
+    while       cur_tok <> tokens.TOK_RPAREN
+            and cur_tok <> tokens.TOK_LBRACE
+            and cur_tok <> tokens.TOK_RARROW
+            and cur_tok <> tokens.TOK_SEMICOLON
+            and cur_tok <> tokens.TOK_DEF
+            and cur_tok <> tokens.TOK_END {
         # Parse the param.
         let param: ast.Node = parse_param();
         if ast.isnull(param) { return false; }
@@ -659,12 +659,35 @@ def parse_params(&mut params: ast.Nodes) -> bool {
         if cur_tok == tokens.TOK_COMMA {
             # Consume the "comma" token.
             bump_token();
+
+            # Is there another comma?
+            if cur_tok == tokens.TOK_COMMA {
+                # Consume the errorenous comma.
+                bump_token();
+                error_consume();
+
+                errors.begin_error();
+                errors.fprintf(errors.stderr, "unexpected `,`" as ^int8);
+                errors.end();
+
+                return false;
+            }
+
+            # Continue looking for parameters.
+            continue;
         }
+
+        # We're done.
+        break;
     }
 
     # There must be a ")" next to start the parameter list.
     if cur_tok <> tokens.TOK_RPAREN {
-        # FIXME: Report a nice error message.
+        error_consume();
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected `)`" as ^int8);
+        errors.end();
+
         return false;
     }
 
@@ -688,13 +711,7 @@ def parse_function_decl() -> ast.Node {
     bump_token();
 
     # There should be an identifier next.
-    if cur_tok == tokens.TOK_IDENTIFIER {
-        func.id = parse_ident();
-        if ast.isnull(func.id) { return ast.null(); }
-    } else {
-        # FIXME: Error message.
-        return ast.null();
-    }
+    func.id = parse_ident();
 
     # There should be a parameter list next.
     if not parse_params(func.params) { return ast.null(); }
@@ -704,10 +721,7 @@ def parse_function_decl() -> ast.Node {
         # Consume the "->" and parse the return type expression.
         bump_token();
         func.return_type = parse_type_expr();
-        if ast.isnull(func.return_type) {
-            # FIXME: Report a nice error message.
-            return ast.null();
-        }
+        if ast.isnull(func.return_type) { return ast.null(); }
     } else {
         # There is no return type.
         func.return_type = ast.null();
@@ -745,6 +759,16 @@ def parse_statement() -> ast.Node {
     parse_expr();
 }
 
+# error_consume -- Consume errorneous tokens / nodes as much as possible.
+# -----------------------------------------------------------------------------
+def error_consume() {
+    while       cur_tok <> tokens.TOK_END
+            and cur_tok <> tokens.TOK_SEMICOLON
+            and cur_tok <> tokens.TOK_DEF {
+        bump_token();
+    }
+}
+
 # Block
 # -----------------------------------------------------------------------------
 # block = "{" { statement } "}"
@@ -752,7 +776,11 @@ def parse_statement() -> ast.Node {
 def parse_block(&mut nodes: ast.Nodes) -> bool {
     # There must be a "{" next to start the block.
     if cur_tok <> tokens.TOK_LBRACE {
-        # FIXME: Report a nice error message.
+        error_consume();
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected `{`" as ^int8);
+        errors.end();
+
         return false;
     }
 
@@ -761,11 +789,12 @@ def parse_block(&mut nodes: ast.Nodes) -> bool {
 
     # Iterate and attempt to match statements until the block is closed.
     let mut matched: ast.Node;
-    while cur_tok <> tokens.TOK_RBRACE {
+    while       cur_tok <> tokens.TOK_RBRACE
+            and cur_tok <> tokens.TOK_END {
         # Attempt to parse an expression.
         matched = parse_statement();
         if ast.isnull(matched) {
-            # Didn't match anything.
+            # Error'd out; attempt to consume the expression.
             continue;
         }
 
@@ -775,7 +804,11 @@ def parse_block(&mut nodes: ast.Nodes) -> bool {
 
     # There must be a "}" next to start the block.
     if cur_tok <> tokens.TOK_RBRACE {
-        # FIXME: Report a nice error message.
+        error_consume();
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected `}`" as ^int8);
+        errors.end();
+
         false;
     } else {
         # Consume the "}" token.
@@ -799,11 +832,17 @@ def parse_module() -> ast.Node {
     # Iterate and attempt to match statements.
     let mut matched: ast.Node;
     loop {
+        # Are we at the end?
+        if cur_tok == tokens.TOK_END {
+            # We're done here.
+            break;
+        }
+
         # Attempt to parse an expression.
         matched = parse_statement();
         if ast.isnull(matched) {
-            # Didn't match anything.
-            break;
+            # Error'd out; attempt to consume the expression.
+            continue;
         }
 
         # Matched the full sub-rule; append the node to the module.
@@ -823,9 +862,14 @@ def main() {
     # Parse the top-level module.
     let node: ast.Node = parse_module();
 
-    # Dump the top-level module.
-    ast.dump(node);
+    if errors.count == 0 {
+        # Dump the top-level module.
+        ast.dump(node);
 
-    # Exit and return success.
-    exit(0);
+        # Exit and return success.
+        exit(0);
+    } else {
+        # Return failure.
+        exit(-1);
+    }
 }

@@ -5,9 +5,11 @@ import ast;
 
 # Token buffer -- cur_tok is the current token the parser is looking at.
 # -----------------------------------------------------------------------------
-let mut cur_tok: int;
+let mut cur_tok: int = tokens.TOK_SEMICOLON;
+let mut next_tok: int = tokens.TOK_SEMICOLON;
 def bump_token() -> int {
-    cur_tok = tokenizer.get_next_token();
+    cur_tok = next_tok;
+    next_tok = tokenizer.get_next_token();
     cur_tok;
 }
 
@@ -582,25 +584,104 @@ def parse_select_expr() -> ast.Node {
     node;
 }
 
+# Function parameters
+# -----------------------------------------------------------------------------
+# params = "(" [ param { "," param } ] ")"
+# -----------------------------------------------------------------------------
+def parse_params() -> ast.Node {
+    # Declare the selection expr node.
+    let node: ast.Node = ast.make(ast.TAG_SELECT);
+    let params: ^ast.Params = ast.unwrap(node) as ^ast.Params;
+
+    # There must be a "(" next to start the parameter list.
+    if cur_tok <> tokens.TOK_LPAREN {
+        # FIXME: Report a nice error message.
+        return ast.null();
+    }
+
+    # Consume the "(" token.
+    bump_token();
+
+    loop {
+        # Parse the param.
+        param = parse_param();
+        if ast.isnull(param) { return ast.null(); }
+
+        # Append the branch to the selection expression.
+        ast.push(params.nodes, branch);
+
+        # Is there a "," to continue the parameter list.
+        let have_comma: bool = cur_tok == tokens.TOK_COMMA;
+
+        # There can be a ")" to end the parameter list.
+        if cur_tok == tokens.TOK_RPAREN { break; }
+
+        # Consume the "if" token.
+        bump_token();
+    }
+
+    # There must be a ")" next to start the parameter list.
+    if cur_tok <> tokens.TOK_RPAREN {
+        # FIXME: Report a nice error message.
+        return ast.null();
+    }
+
+    # Consume the ")" token.
+    bump_token();
+
+    # Return the constructed node.
+    node;
+}
+
+# Function Declaration
+# -----------------------------------------------------------------------------
+# function-decl = "def" ident params [ "->" type ] block
+# -----------------------------------------------------------------------------
+def parse_function_decl() -> ast.Node {
+    # Declare the selection expr node.
+    let node: ast.Node = ast.make(ast.TAG_SELECT);
+    let func: ^ast.FunctionDecl = ast.unwrap(node) as ^ast.FunctionDecl;
+
+    # Consume the "def" token.
+    bump_token();
+
+    # There should be an identifier next.
+    if cur_tok == tokens.TOK_IDENTIFIER {
+        func.id = parse_ident();
+        if ast.isnull(func.id) { return ast.null(); }
+    }
+
+    # There should be a parameter list next.
+    parse_params(func.params);
+    if ast.isnull(func.params) { return ast.null(); }
+
+    # Return the constructed node.
+    node;
+}
+
 # Statement
 # -----------------------------------------------------------------------------
 # statement = primary_expr ";"
 #           | slot_decl ";"
 # -----------------------------------------------------------------------------
 def parse_statement() -> ast.Node {
-    if cur_tok == tokens.TOK_STATIC {
-        parse_static_decl();
-    } else if cur_tok == tokens.TOK_LET {
-        parse_local_decl();
-    # } else if cur_tok == tokens.TOK_IF {
-        # parse_select_expr();
-    } else if cur_tok == tokens.TOK_SEMICOLON {
-        bump_token();       # consume the semicolon
-        parse_statement();  # and parse again
-    } else {
-        # Maybe we have an expression.
-        parse_expr();
+    if cur_tok == tokens.TOK_STATIC { return parse_static_decl(); }
+    if cur_tok == tokens.TOK_LET    { return parse_local_decl(); }
+
+    if cur_tok == tokens.TOK_SEMICOLON {
+        bump_token();              # consume the semicolon
+        return parse_statement();  # and parse again
     }
+
+    if cur_tok == tokens.TOK_DEF {
+        # Functions are only declarations if they are named.
+        if next_tok == tokens.TOK_IDENTIFIER {
+            return parse_function_decl();
+        }
+    }
+
+    # Maybe we have an expression.
+    parse_expr();
 }
 
 # Block

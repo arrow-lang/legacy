@@ -133,7 +133,6 @@ def _sizeof(tag: int) -> uint {
     }
     else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
     else if tag == TAG_STATIC_SLOT {

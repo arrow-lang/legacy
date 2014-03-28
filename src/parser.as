@@ -590,8 +590,8 @@ def parse_select_expr() -> ast.Node {
 # -----------------------------------------------------------------------------
 def parse_params() -> ast.Node {
     # Declare the selection expr node.
-    let node: ast.Node = ast.make(ast.TAG_SELECT);
-    let params: ^ast.Params = ast.unwrap(node) as ^ast.Params;
+    let node: ast.Node = ast.make(ast.TAG_NODES);
+    let params: ^ast.Nodes = ast.unwrap(node) as ^ast.Nodes;
 
     # There must be a "(" next to start the parameter list.
     if cur_tok <> tokens.TOK_LPAREN {
@@ -602,22 +602,20 @@ def parse_params() -> ast.Node {
     # Consume the "(" token.
     bump_token();
 
-    loop {
+    while cur_tok <> tokens.TOK_RPAREN {
         # Parse the param.
-        param = parse_param();
+        let param: ast.Node = parse_param();
         if ast.isnull(param) { return ast.null(); }
 
         # Append the branch to the selection expression.
-        ast.push(params.nodes, branch);
+        ast.push(params, param);
 
         # Is there a "," to continue the parameter list.
         let have_comma: bool = cur_tok == tokens.TOK_COMMA;
-
-        # There can be a ")" to end the parameter list.
-        if cur_tok == tokens.TOK_RPAREN { break; }
-
-        # Consume the "if" token.
-        bump_token();
+        if have_comma {
+            # Consume the "comma" token.
+            bump_token();
+        }
     }
 
     # There must be a ")" next to start the parameter list.
@@ -652,7 +650,7 @@ def parse_function_decl() -> ast.Node {
     }
 
     # There should be a parameter list next.
-    parse_params(func.params);
+    func.params = parse_params();
     if ast.isnull(func.params) { return ast.null(); }
 
     # Return the constructed node.

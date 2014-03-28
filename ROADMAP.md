@@ -10,8 +10,8 @@
  - [.] Module declaration -- module name { ... }
  - [.] Structure declaration -- struct Point{x: int, y: int}
  - [.] Structure expression -- Point{x: 0, y: 32}
+ - [ ] Type alias -- use Point = (int, int)
  - [ ] Pointers
- - [ ] "New" type declaration -- type Point = (int, int);
  - [P] Basic types (bool, int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64)
  - [P] Local slot declaration
  - [P] Static slot declaration
@@ -35,6 +35,7 @@
 # 0.0.2
  - [ ] Structure unpacking -- {x, y} = point
  - [ ] Iteration statement -- while condition { ... } / loop { ...}
+ - [ ] "New" type declaration -- type Point = (int, int);
  - [ ] Break / continue statements
  - [ ] Array type declaration -- let x: int[3]
 

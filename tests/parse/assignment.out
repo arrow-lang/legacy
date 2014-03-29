@@ -1,4 +1,4 @@
-ModuleDecl <?>
+ModuleDecl <?> _
   Nodes <?> 
     LocalSlotDecl <?> x
     AssignExpr <?>
@@ -23,7 +23,7 @@ ModuleDecl <?>
         Ident <?> b
         AssignExpr <?>
           Ident <?> c
-          IntegerExpr <?> 'int' 00 (10)
+          IntegerExpr <?> 'int' 0 (10)
     LocalSlotDecl <?> mut z 'int'
       IntegerExpr <?> 'int' 20 (10)
     AssignMultiplyExpr <?>

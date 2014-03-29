@@ -39,6 +39,8 @@ let TAG_SELECT_OP       : int = 32;             # SelectOpExpr
 let TAG_CONDITIONAL     : int = 33;             # ConditionalExpr
 let TAG_FUNC_DECL       : int = 34;             # FuncDecl
 let TAG_FUNC_PARAM      : int = 35;             # FuncParam
+let TAG_FLOAT           : int = 36;             # Float
+let TAG_UNSAFE          : int = 37;             # UnsafeBlock
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -55,6 +57,9 @@ type NodesIterator { current: ^Nodes }
 # Expression type for integral literals with a distinct base like "2321".
 type IntegerExpr { base: int8, text: arena.Store }
 
+# Expression type for float literals.
+type FloatExpr { text: arena.Store }
+
 # Expression type for a boolean literal
 type BooleanExpr { value: bool }
 
@@ -68,7 +73,10 @@ type ConditionalExpr { lhs: Node, rhs: Node, condition: Node }
 type UnaryExpr { operand: Node }
 
 # Module declaration that contains a sequence of nodes.
-type ModuleDecl { nodes: Nodes }
+type ModuleDecl { id: Node, mut nodes: Nodes }
+
+# Unsafe block.
+type UnsafeBlock { mut nodes: Nodes }
 
 # Selection expression.
 type SelectExpr { branches: Nodes }
@@ -118,6 +126,9 @@ def _sizeof(tag: int) -> uint {
     if tag == TAG_INTEGER {
         let tmp: IntegerExpr;
         ((&tmp + 1) - &tmp);
+    } else if tag == TAG_FLOAT {
+        let tmp: FloatExpr;
+        ((&tmp + 1) - &tmp);
     } else if tag == TAG_ADD
            or tag == TAG_SUBTRACT
            or tag == TAG_MULTIPLY
@@ -150,6 +161,7 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     }
     else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_UNSAFE  { let tmp: UnsafeBlock; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
@@ -278,6 +290,7 @@ let mut dump_initialized: bool = false;
 def dump(&node: Node) {
     if not dump_initialized {
         dump_table[TAG_INTEGER] = dump_integer_expr;
+        dump_table[TAG_FLOAT] = dump_float_expr;
         dump_table[TAG_BOOLEAN] = dump_boolean_expr;
         dump_table[TAG_ADD] = dump_binop_expr;
         dump_table[TAG_SUBTRACT] = dump_binop_expr;
@@ -311,6 +324,7 @@ def dump(&node: Node) {
         dump_table[TAG_CONDITIONAL] = dump_conditional_expr;
         dump_table[TAG_FUNC_DECL] = dump_func_decl;
         dump_table[TAG_FUNC_PARAM] = dump_func_param;
+        dump_table[TAG_UNSAFE] = dump_unsafe_block;
         dump_initialized = true;
     }
 
@@ -343,6 +357,14 @@ def dump_integer_expr(node: ^Node) {
     let x: ^IntegerExpr = unwrap(node^) as ^IntegerExpr;
     let xs: arena.Store = x.text;
     printf("IntegerExpr <?> 'int' %s (%d)\n" as ^int8, xs._data, x.base);
+}
+
+# dump_float_expr
+# -----------------------------------------------------------------------------
+def dump_float_expr(node: ^Node) {
+    let x: ^FloatExpr = unwrap(node^) as ^FloatExpr;
+    let xs: arena.Store = x.text;
+    printf("FloatExpr <?> 'int' %s\n" as ^int8, xs._data);
 }
 
 # dump_binop_expr
@@ -416,7 +438,22 @@ def dump_unary_expr(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_module(node: ^Node) {
     let x: ^ModuleDecl = unwrap(node^) as ^ModuleDecl;
-    printf("ModuleDecl <?>\n" as ^int8);
+    printf("ModuleDecl <?> " as ^int8);
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    let xs: arena.Store = id.name;
+    printf("%s" as ^int8, xs._data);
+    printf("\n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    dump_nodes("Nodes", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_unsafe_block
+# -----------------------------------------------------------------------------
+def dump_unsafe_block(node: ^Node) {
+    let x: ^UnsafeBlock = unwrap(node^) as ^UnsafeBlock;
+    printf("UnsafeBlock <?>\n" as ^int8);
 
     dump_indent = dump_indent + 1;
     dump_nodes("Nodes", x.nodes);

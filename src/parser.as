@@ -66,6 +66,30 @@ def parse_integer_expr() -> ast.Node {
     node;
 }
 
+# Float expression
+# -----------------------------------------------------------------------------
+# float_expr = <float>
+# -----------------------------------------------------------------------------
+def parse_float_expr() -> ast.Node {
+    # Allocate space for the float expression literal.
+    let node: ast.Node = ast.make(ast.TAG_FLOAT);
+    let expr: ^ast.FloatExpr = ast.unwrap(node) as ^ast.FloatExpr;
+
+    # Store the text for the float literal.
+    expr.text = ast.arena.alloc(tokenizer.current_num.size + 1);
+    let xs: &ast.arena.Store = expr.text;
+    tokenizer.asciz.memcpy(
+        xs._data as ^void,
+        &tokenizer.current_num.buffer[0] as ^void,
+        tokenizer.current_num.size);
+
+    # Consume our token.
+    bump_token();
+
+    # Return our node.
+    node;
+}
+
 # Parenthesized expression
 # -----------------------------------------------------------------------------
 # paren_expr = '(' expr ')'
@@ -332,6 +356,8 @@ def parse_primary_expr() -> ast.Node {
             or cur_tok == tokens.TOK_DEC_INTEGER
             or cur_tok == tokens.TOK_HEX_INTEGER {
         parse_integer_expr();
+    } else if cur_tok == tokens.TOK_FLOAT {
+        parse_float_expr();
     } else if cur_tok == tokens.TOK_TRUE or cur_tok == tokens.TOK_FALSE {
         parse_bool_expr();
     } else if cur_tok == tokens.TOK_LPAREN {
@@ -341,7 +367,6 @@ def parse_primary_expr() -> ast.Node {
     } else if cur_tok == tokens.TOK_IF {
         parse_select_expr();
     } else {
-        # Not sure what we have.
         ast.null();
     }
 }
@@ -424,10 +449,7 @@ def parse_static_decl() -> ast.Node {
 
     # There should be a type expression next.
     decl.type_ = parse_type_expr();
-    if ast.isnull(decl.type_) {
-        # FIXME: Report a nice error message.
-        return ast.null();
-    }
+    if ast.isnull(decl.type_) { return ast.null(); }
 
     # There must be an "=" next to indicate the start of the initializer
     # for this static slot.
@@ -734,6 +756,25 @@ def parse_function_decl() -> ast.Node {
     node;
 }
 
+# Unsafe block
+# -----------------------------------------------------------------------------
+# unsafe-block = "unsafe" block
+# -----------------------------------------------------------------------------
+def parse_unsafe_block() -> ast.Node {
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_UNSAFE);
+    let mut unsafe_: ^ast.UnsafeBlock = ast.unwrap(node) as ^ast.UnsafeBlock;
+
+    # Consume the "unsafe" token.
+    bump_token();
+
+    # Parse the unsafe block.
+    if not parse_block(unsafe_.nodes) { return ast.null(); }
+
+    # Return the constructed node.
+    node;
+}
+
 # Statement
 # -----------------------------------------------------------------------------
 # statement = primary_expr ";"
@@ -742,6 +783,8 @@ def parse_function_decl() -> ast.Node {
 def parse_statement() -> ast.Node {
     if cur_tok == tokens.TOK_STATIC { return parse_static_decl(); }
     if cur_tok == tokens.TOK_LET    { return parse_local_decl(); }
+    if cur_tok == tokens.TOK_UNSAFE { return parse_unsafe_block(); }
+    if cur_tok == tokens.TOK_MODULE { return parse_module(); }
 
     if cur_tok == tokens.TOK_SEMICOLON {
         bump_token();              # consume the semicolon
@@ -822,12 +865,51 @@ def parse_block(&mut nodes: ast.Nodes) -> bool {
 
 # Module
 # -----------------------------------------------------------------------------
-# module = { statement }
+# module = "module" ident "{" { statement } "}"
 # -----------------------------------------------------------------------------
 def parse_module() -> ast.Node {
     # Declare the module decl node.
     let node: ast.Node = ast.make(ast.TAG_MODULE);
     let mod: ^ast.ModuleDecl = ast.unwrap(node) as ^ast.ModuleDecl;
+
+    # Consume the "module" token.
+    bump_token();
+
+    # Check for and attempt to consume an identifier.
+    if cur_tok == tokens.TOK_IDENTIFIER {
+        mod.id = parse_ident();
+        if ast.isnull(mod.id) { return ast.null(); }
+    } else {
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected identifier" as ^int8);
+        errors.end();
+
+        return ast.null();
+    }
+
+    # Iterate and attempt to match statements.
+    if not parse_block(mod.nodes) { return ast.null(); }
+
+    # Return our node.
+    node;
+}
+
+# Top
+# -----------------------------------------------------------------------------
+# top = { statement }
+# -----------------------------------------------------------------------------
+def parse_top() -> ast.Node {
+    # Declare the module decl node.
+    let node: ast.Node = ast.make(ast.TAG_MODULE);
+    let mod: ^ast.ModuleDecl = ast.unwrap(node) as ^ast.ModuleDecl;
+
+    # FIXME: Set the name of the module to the basename of the file.
+    mod.id = ast.make(ast.TAG_IDENT);
+    let id_decl: ^ast.Ident = ast.unwrap(mod.id) as ^ast.Ident;
+    id_decl.name = ast.arena.alloc(
+        tokenizer.asciz.strlen("_" as ^int8) + 1);
+    let id_xs: &ast.arena.Store = id_decl.name;
+    tokenizer.asciz.strcpy(id_xs._data as ^int8, "_" as ^int8);
 
     # Iterate and attempt to match statements.
     let mut matched: ast.Node;
@@ -860,7 +942,7 @@ def main() {
     bump_token();
 
     # Parse the top-level module.
-    let node: ast.Node = parse_module();
+    let node: ast.Node = parse_top();
 
     if errors.count == 0 {
         # Dump the top-level module.

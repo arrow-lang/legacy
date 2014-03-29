@@ -7,7 +7,7 @@ let mut count: uint = 0;
 # print_location
 # -----------------------------------------------------------------------------
 def print_location() {
-    fprintf(stderr, "<stdin>:" as ^int8);
+    fprintf(stderr, "_:" as ^int8);
 }
 
 # begin

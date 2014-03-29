@@ -1,9 +1,11 @@
-ModuleDecl <?>
+ModuleDecl <?> _
   Nodes <?> 
     StaticSlotDecl <?> a 'int'
+      IntegerExpr <?> 'int' 0 (10)
     StaticSlotDecl <?> b 'int'
       IntegerExpr <?> 'int' 320 (10)
     StaticSlotDecl <?> mut c 'int'
+      IntegerExpr <?> 'int' 0 (10)
     StaticSlotDecl <?> mut c 'int'
       MultiplyExpr <?>
         IntegerExpr <?> 'int' 23 (10)

@@ -1,18 +1,15 @@
 # Static slot declaration declares a slot with a static storage duration.
 # Static slots are inherited in the scope of nested functions.
-static a: int;
+static a: int = 0;
+static b: int = 320;
 
 # Perhaps allow a thread-local directive like this in the future?
 # @thread_local static x: int;
 
-# Static slot declaration with an initializer (by default statics
-# are zero-initialized).
-static b: int = 320;
-
 # Static slots can be declared *mutable* which allows further modification
 # of the value at the slot. Looking at or updating the value of a *mutable*
 # static slot is considered "unsafe".
-static mut c: int;
+static mut c: int = 0;
 static mut c: int = (23 * 3209);
 
 # Local slot declaration declares a slot in the local space of a function.

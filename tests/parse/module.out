@@ -1,0 +1,17 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    ModuleDecl <?> math
+      Nodes <?> 
+        StaticSlotDecl <?> a 'int'
+          IntegerExpr <?> 'int' 23 (10)
+        LocalSlotDecl <?> b 'float64'
+          FloatExpr <?> 'int' 42.2
+        LocalSlotDecl <?> mut o 'Point'
+        FuncDecl <?> pow 'float64'
+          Parameters <?> 
+            FuncParam <?> a 'float64'
+            FuncParam <?> mut i 'uint'
+          Nodes <?> 
+    FuncDecl <?> main
+      Parameters <?> 
+      Nodes <?> 

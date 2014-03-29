@@ -1,4 +1,4 @@
-ModuleDecl <?>
+ModuleDecl <?> _
   Nodes <?> 
     GTExpr <?>
       IntegerExpr <?> 'int' 10 (10)
@@ -14,7 +14,7 @@ ModuleDecl <?>
       IntegerExpr <?> 'int' 302 (10)
     LTExpr <?>
       LogicalNegateExpr <?>
-        IntegerExpr <?> 'int' 0023 (10)
+        IntegerExpr <?> 'int' 023 (10)
       IntegerExpr <?> 'int' 302 (10)
     GTExpr <?>
       IntegerExpr <?> 'int' 40 (10)

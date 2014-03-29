@@ -225,8 +225,12 @@ def scan_numeric() -> int {
     current_tok = tokens.TOK_DEC_INTEGER;
 
     # Scan for the remainder of the integral part of the numeric.
-    while is_numeric(lchar) {
-        asciz.push(current_num, lchar);
+    loop {
+        if is_numeric(lchar) {
+            asciz.push(current_num, lchar);
+        } else if lchar <> asciz.ord('_') {
+            break;
+        }
         bump();
     }
 

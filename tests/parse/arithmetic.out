@@ -1,4 +1,4 @@
-ModuleDecl <?>
+ModuleDecl <?> _
   Nodes <?> 
     NumericPromoteExpr <?>
       IntegerExpr <?> 'int' 4 (10)

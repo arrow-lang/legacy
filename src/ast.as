@@ -43,6 +43,7 @@ let TAG_FLOAT           : int = 36;             # Float
 let TAG_UNSAFE          : int = 37;             # UnsafeBlock
 let TAG_RETURN          : int = 38;             # ReturnExpr
 let TAG_BLOCK           : int = 39;             # Block
+let TAG_MEMBER          : int = 40;             # MemberExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -156,7 +157,8 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_ASSIGN_MULT
            or tag == TAG_ASSIGN_DIV
            or tag == TAG_ASSIGN_MOD
-           or tag == TAG_SELECT_OP {
+           or tag == TAG_SELECT_OP
+           or tag == TAG_MEMBER {
         let tmp: BinaryExpr;
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_CONDITIONAL {
@@ -339,6 +341,7 @@ def dump(&node: Node) {
         dump_table[TAG_UNSAFE] = dump_unsafe_block;
         dump_table[TAG_BLOCK] = dump_block_expr;
         dump_table[TAG_RETURN] = dump_return_expr;
+        dump_table[TAG_MEMBER] = dump_binop_expr;
         dump_initialized = true;
     }
 
@@ -425,6 +428,8 @@ def dump_binop_expr(node: ^Node) {
         printf("AssignModuloExpr <?>\n" as ^int8);
     } else if node.tag == TAG_SELECT_OP {
         printf("SelectOpExpr <?>\n" as ^int8);
+    } else if node.tag == TAG_MEMBER {
+        printf("MemberExpr <?>\n" as ^int8);
     }
     dump_indent = dump_indent + 1;
     dump(x.lhs);

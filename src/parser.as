@@ -125,7 +125,8 @@ def parse_expr() -> ast.Node {
 # Binary operator token precedence
 # -----------------------------------------------------------------------------
 def get_binop_tok_precedence() -> int {
-         if cur_tok == tokens.TOK_IF             { 005; }  # if
+         if cur_tok == tokens.TOK_DOT            { 005; }  # .
+    else if cur_tok == tokens.TOK_IF             { 015; }  # if
     else if cur_tok == tokens.TOK_EQ             { 030; }  # =
     else if cur_tok == tokens.TOK_PLUS_EQ        { 030; }  # +=
     else if cur_tok == tokens.TOK_MINUS_EQ       { 030; }  # -=
@@ -158,7 +159,8 @@ def get_binop_tok_precedence() -> int {
 let ASSOC_RIGHT: int = 1;
 let ASSOC_LEFT: int = 2;
 def get_binop_tok_associativity() -> int {
-         if cur_tok == tokens.TOK_IF             { ASSOC_LEFT; }   # if
+         if cur_tok == tokens.TOK_DOT            { ASSOC_LEFT; }   # .
+    else if cur_tok == tokens.TOK_IF             { ASSOC_LEFT; }   # if
     else if cur_tok == tokens.TOK_EQ             { ASSOC_RIGHT; }  # =
     else if cur_tok == tokens.TOK_PLUS_EQ        { ASSOC_RIGHT; }  # +=
     else if cur_tok == tokens.TOK_MINUS_EQ       { ASSOC_RIGHT; }  # -=
@@ -190,7 +192,7 @@ def get_binop_tok_associativity() -> int {
 # binop_rhs = { binop unary }
 # binop = "+"  | "-"  | "*"  | "/"  | "%" | "and" | "or" | "==" | "<>"
 #       | ">"  | "<"  | "<=" | ">=" | "=" | ":="  | "+=" | "-=" | "*="
-#       | "/=" | "%=" | "if"
+#       | "/=" | "%=" | "if" | "."
 # -----------------------------------------------------------------------------
 def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> ast.Node {
     loop {
@@ -242,6 +244,7 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
             else if binop == tokens.TOK_FSLASH_EQ      { ast.TAG_ASSIGN_DIV; }
             else if binop == tokens.TOK_PERCENT_EQ     { ast.TAG_ASSIGN_MOD; }
             else if binop == tokens.TOK_IF             { ast.TAG_SELECT_OP; }
+            else if binop == tokens.TOK_DOT            { ast.TAG_MEMBER; }
             else { 0; };
 
         if tag == ast.TAG_SELECT_OP and cur_tok == tokens.TOK_ELSE {

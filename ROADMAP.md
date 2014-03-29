@@ -8,7 +8,7 @@
  - [.] Tuple unpacking -- (x, y) = (32, 32)
  - [.] "Safe" cast expressions
  - [.] Pattern slot declaration -- let (x: int, y: int) = (3, 32);
- - [.] Module declaration -- module name { ... }
+ - [P] Module declaration -- module name { ... }
  - [.] Structure declaration -- struct Point{x: int, y: int}
  - [.] Structure expression -- Point{x: 0, y: 32}
  - [ ] Type alias -- use Point = (int, int)

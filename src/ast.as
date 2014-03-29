@@ -41,6 +41,8 @@ let TAG_FUNC_DECL       : int = 34;             # FuncDecl
 let TAG_FUNC_PARAM      : int = 35;             # FuncParam
 let TAG_FLOAT           : int = 36;             # Float
 let TAG_UNSAFE          : int = 37;             # UnsafeBlock
+let TAG_RETURN          : int = 38;             # ReturnExpr
+let TAG_BLOCK           : int = 39;             # Block
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -77,6 +79,12 @@ type ModuleDecl { id: Node, mut nodes: Nodes }
 
 # Unsafe block.
 type UnsafeBlock { mut nodes: Nodes }
+
+# Block.
+type Block { mut nodes: Nodes }
+
+# Return expression.
+type ReturnExpr { expression: Node }
 
 # Selection expression.
 type SelectExpr { branches: Nodes }
@@ -162,6 +170,7 @@ def _sizeof(tag: int) -> uint {
     }
     else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
     else if tag == TAG_UNSAFE  { let tmp: UnsafeBlock; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_BLOCK   { let tmp: Block; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
@@ -182,6 +191,9 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_FUNC_PARAM {
         let tmp: FuncParam;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_RETURN {
+        let tmp: ReturnExpr;
         ((&tmp + 1) - &tmp);
     }
     else { 0; }
@@ -325,6 +337,8 @@ def dump(&node: Node) {
         dump_table[TAG_FUNC_DECL] = dump_func_decl;
         dump_table[TAG_FUNC_PARAM] = dump_func_param;
         dump_table[TAG_UNSAFE] = dump_unsafe_block;
+        dump_table[TAG_BLOCK] = dump_block_expr;
+        dump_table[TAG_RETURN] = dump_return_expr;
         dump_initialized = true;
     }
 
@@ -454,6 +468,17 @@ def dump_module(node: ^Node) {
 def dump_unsafe_block(node: ^Node) {
     let x: ^UnsafeBlock = unwrap(node^) as ^UnsafeBlock;
     printf("UnsafeBlock <?>\n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    dump_nodes("Nodes", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_block_expr
+# -----------------------------------------------------------------------------
+def dump_block_expr(node: ^Node) {
+    let x: ^Block = unwrap(node^) as ^Block;
+    printf("Block <?>\n" as ^int8);
 
     dump_indent = dump_indent + 1;
     dump_nodes("Nodes", x.nodes);
@@ -606,5 +631,16 @@ def dump_func_param(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     if not isnull(x.default) { dump(x.default); }
+    dump_indent = dump_indent - 1;
+}
+
+# dump_return_expr
+# -----------------------------------------------------------------------------
+def dump_return_expr(node: ^Node) {
+    let x: ^ReturnExpr = unwrap(node^) as ^ReturnExpr;
+    printf("ReturnExpr <?> \n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.expression) { dump(x.expression); }
     dump_indent = dump_indent - 1;
 }

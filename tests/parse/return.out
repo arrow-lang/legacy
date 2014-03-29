@@ -1,0 +1,11 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    FuncDecl <?> main
+      Parameters <?> 
+      Nodes <?> 
+        ReturnExpr <?> 
+    FuncDecl <?> some 'int'
+      Parameters <?> 
+      Nodes <?> 
+        ReturnExpr <?> 
+          IntegerExpr <?> 'int' 4 (10)

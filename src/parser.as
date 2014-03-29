@@ -133,6 +133,7 @@ def get_binop_tok_precedence() -> int {
     else if cur_tok == tokens.TOK_FSLASH_EQ      { 030; }  # /=
     else if cur_tok == tokens.TOK_PERCENT_EQ     { 030; }  # %=
     else if cur_tok == tokens.TOK_COLON_EQ       { 030; }  # :=
+    else if cur_tok == tokens.TOK_RETURN         { 040; }  # return
     else if cur_tok == tokens.TOK_AND            { 060; }  # and
     else if cur_tok == tokens.TOK_OR             { 060; }  # or
     else if cur_tok == tokens.TOK_EQ_EQ          { 090; }  # ==
@@ -367,6 +368,13 @@ def parse_primary_expr() -> ast.Node {
     } else if cur_tok == tokens.TOK_IF {
         parse_select_expr();
     } else {
+        if cur_tok == tokens.TOK_RETURN {
+            bump_token();
+            errors.begin_error();
+            errors.fprintf(errors.stderr, "unexpected `return`" as ^int8);
+            errors.end();
+        }
+
         ast.null();
     }
 }
@@ -530,6 +538,7 @@ def parse_select_branch(condition: bool) -> ast.Node {
     # Declare the branch node.
     let node: ast.Node = ast.make(ast.TAG_SELECT_BRANCH);
     let mut branch: ^ast.SelectBranch = ast.unwrap(node) as ^ast.SelectBranch;
+    let mut failed: bool = false;
 
     if condition {
         # Expect and parse the condition expression.
@@ -775,6 +784,38 @@ def parse_unsafe_block() -> ast.Node {
     node;
 }
 
+# Return expression
+# -----------------------------------------------------------------------------
+# return-expr = "return" [ expr ] ";"
+# -----------------------------------------------------------------------------
+def parse_return_expr() -> ast.Node {
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_RETURN);
+    let mut ret: ^ast.ReturnExpr = ast.unwrap(node) as ^ast.ReturnExpr;
+
+    # Capture the prec of the `return` token.
+    let return_prec: int = get_binop_tok_precedence();
+
+    # Consume the "return" token.
+    bump_token();
+
+    # Continue the return expression.
+    if cur_tok <> tokens.TOK_SEMICOLON {
+        ret.expression = parse_primary_expr();
+        if ast.isnull(ret.expression) { return ast.null(); }
+
+        # Parse the remainder of the `return` value expression.
+        ret.expression = parse_binop_rhs(return_prec, 0, ret.expression);
+
+        # Parse the remainder of the `return` expression (capturing those
+        # now allowed binary operators like `if`).
+        node = parse_binop_rhs(0, 0, node);
+    }
+
+    # Return the constructed node.
+    node;
+}
+
 # Statement
 # -----------------------------------------------------------------------------
 # statement = primary_expr ";"
@@ -785,6 +826,7 @@ def parse_statement() -> ast.Node {
     if cur_tok == tokens.TOK_LET    { return parse_local_decl(); }
     if cur_tok == tokens.TOK_UNSAFE { return parse_unsafe_block(); }
     if cur_tok == tokens.TOK_MODULE { return parse_module(); }
+    if cur_tok == tokens.TOK_RETURN { return parse_return_expr(); }
 
     if cur_tok == tokens.TOK_SEMICOLON {
         bump_token();              # consume the semicolon
@@ -796,6 +838,11 @@ def parse_statement() -> ast.Node {
         if next_tok == tokens.TOK_IDENTIFIER {
             return parse_function_decl();
         }
+    }
+
+    if cur_tok == tokens.TOK_LBRACE {
+        # Parse a random block expression.
+        return parse_block_expr();
     }
 
     # Maybe we have an expression.
@@ -810,6 +857,22 @@ def error_consume() {
             and cur_tok <> tokens.TOK_DEF {
         bump_token();
     }
+}
+
+# Block expression
+# -----------------------------------------------------------------------------
+# block-expr = block
+# -----------------------------------------------------------------------------
+def parse_block_expr() -> ast.Node {
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_BLOCK);
+    let mut block: ^ast.Block = ast.unwrap(node) as ^ast.Block;
+
+    # Parse the unsafe block.
+    if not parse_block(block.nodes) { return ast.null(); }
+
+    # Return the constructed node.
+    node;
 }
 
 # Block

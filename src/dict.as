@@ -26,9 +26,6 @@ type Dictionary {
     size: uint,
     capacity: uint,
     buckets: ^Bucket,
-    block_size: uint,
-    block_pos: uint,
-    blocks: ^^Bucket
 }
 
 let BUCKET_SIZE: uint = (((0 as ^Bucket) + 1) - (0 as ^Bucket));
@@ -153,19 +150,17 @@ implement Dictionary {
     }
 }
 
-def make(size: uint, block_size: uint) -> Dictionary {
+def make(size: uint) -> Dictionary {
     let table: Dictionary;
     table.buckets = libc.calloc(size, BUCKET_SIZE) as ^Bucket;
     table.capacity = size;
-    table.block_pos = block_size;
-    table.block_size = block_size;
     table.size = 0;
     table;
 }
 
 def main() {
     # Allocate a new table.
-    let mut m: Dictionary = make(65536, 256);
+    let mut m: Dictionary = make(65536);
     m.set_int8("apple", 43);
     m.set_int8("orange", 43);
     m.set_int8("blue", 43);

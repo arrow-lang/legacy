@@ -25,7 +25,7 @@ type Bucket {
 type Dictionary {
     size: uint,
     capacity: uint,
-    buckets: ^Bucket,
+    buckets: ^Bucket
 }
 
 let BUCKET_SIZE: uint = (((0 as ^Bucket) + 1) - (0 as ^Bucket));

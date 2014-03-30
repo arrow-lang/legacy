@@ -34,11 +34,15 @@
  - [P] Postfix selection statement -- a if condition
 
 # 0.0.2
+ - [ ] Change pointer symbol to "*"
+ - [ ] Introduce bitwise operators -- "!" (not), "^" (xor), "|" (or), "&" (and)
+ - [ ] Change not-equal-to symbol to "!="
  - [ ] Structure unpacking -- {x, y} = point
  - [ ] Iteration statement -- while condition { ... } / loop { ...}
  - [ ] "New" type declaration -- type Point = (int, int);
  - [ ] Break / continue statements
  - [ ] Array type declaration -- let x: int[3]
+ - [ ] Typesafe variadic functions
 
 # 0.0.3
  - [ ] Enumeration declaration

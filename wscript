@@ -12,7 +12,16 @@ def options(ctx):
     # process.
     ctx.add_option("--with-arrow", action='store', dest='arrow')
 
+    # Add a --with-llvm-config option to specify what binary to use here
+    # instead of the standard `llvm-config`.
+    ctx.add_option(
+        '--with-llvm-config', action='store', default='llvm-config',
+        dest='llvm_config')
+
 def configure(ctx):
+    # Load preconfigured tools.
+    ctx.load('c_config')
+
     # Ensure that we receive a path to an existing arrow compiler.
     if not ctx.options.arrow:
         ctx.fatal("An existing arrow compiler is needed for the "
@@ -29,6 +38,11 @@ def configure(ctx):
     # Check for gcc.
     # NOTE: We only depend on this for the linking phase.
     ctx.find_program('gcc', var='GCC')
+    ctx.find_program('g++', var='GXX')
+
+    # Check for the LLVM libraries.
+    ctx.check_cfg(path=ctx.options.llvm_config, package='',
+                  args='--ldflags --libs all', uselib_store='LLVM')
 
 def build(ctx):
     # Compile the tokenizer to the llvm IL.
@@ -70,6 +84,27 @@ def build(ctx):
     ctx(rule="${GCC} -o${TGT} ${SRC}",
         source="parser.o",
         target="parser")
+
+    # Compile the generator to the llvm IL.
+    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
+        source="src/generator.as",
+        target="generator.ll")
+
+    # Optimize the generator.
+    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
+        source="generator.ll",
+        target="generator.opt.ll")
+
+    # Compile the generator from llvm IL into native object code.
+    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
+        source="generator.opt.ll",
+        target="generator.o")
+
+    # Link the generator into a final executable.
+    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
+    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
+        source="generator.o",
+        target="generator")
 
 def _run(filename, command, options):
     with open(filename) as stream:

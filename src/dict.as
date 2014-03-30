@@ -173,9 +173,9 @@ def main() {
     m.set_int8("good", 43);
     m.set_int8("cool", 43);
     m.set_int8("balloon", 43);
-    m.set_int8("balloon", 43);
+    m.set_int8("balloon", 73);
 
-    if (m.get_int8("balloon") <> 43) {
+    if (m.get_int8("balloon") <> 73) {
         libc.abort();
     }
 

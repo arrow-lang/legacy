@@ -12,9 +12,20 @@ module libc {
 import ast;
 import parser;
 import errors;
+import dict;
+import list;
 
+# Some process variables
 let mut _module: ^LLVMOpaqueModule;
 let mut _builder: ^LLVMOpaqueBuilder;
+let mut _global: dict.Dictionary = dict.make();
+
+# Termination cleanup.
+libc.atexit(dispose);
+def dispose() {
+    LLVMDisposeModule(_module);
+    _global.dispose();
+}
 
 def main() {
     # Parse the AST from the standard input.
@@ -32,9 +43,6 @@ def main() {
 
     # Output the generated LLVM IR.
     LLVMDumpModule(_module);
-
-    # Dispose of the consructed LLVM module.
-    LLVMDisposeModule(_module);
 
     # Return success back to the envrionment.
     libc.exit(0);
@@ -75,7 +83,7 @@ def generate(node: ^ast.Node) {
         gen_table[ast.TAG_SELECT_OP] = generate_nil;
         gen_table[ast.TAG_STATIC_SLOT] = generate_static_slot;
         gen_table[ast.TAG_LOCAL_SLOT] = generate_nil;
-        gen_table[ast.TAG_IDENT] = generate_nil;
+        gen_table[ast.TAG_IDENT] = generate_ident;
         gen_table[ast.TAG_SELECT] = generate_nil;
         gen_table[ast.TAG_SELECT_BRANCH] = generate_nil;
         gen_table[ast.TAG_CONDITIONAL] = generate_nil;
@@ -98,6 +106,22 @@ def generate(node: ^ast.Node) {
 def generate_nil(node: ^ast.Node) -> ^LLVMOpaqueValue {
     printf("generate %d\n", node.tag);
     0 as ^LLVMOpaqueValue;
+}
+
+# generate_ident
+# -----------------------------------------------------------------------------
+def generate_ident(node: ^ast.Node) -> ^LLVMOpaqueValue {
+    let x: ^ast.Ident = ast.unwrap(node^) as ^ast.Ident;
+
+    # Get the name for the identifier.
+    let name: ast.arena.Store = x.name;
+
+    # Check for the identifier in the `global` scope.
+    let handle: ^LLVMOpaqueValue;
+    handle = _global.get_ptr(name._data as str) as ^LLVMOpaqueValue;
+
+    # Create a load instruction to get at the value.
+    LLVMBuildLoad(_builder, handle, "" as ^int8);
 }
 
 # generate_integer_expr
@@ -144,7 +168,14 @@ def generate_static_slot(node: ^ast.Node) -> ^LLVMOpaqueValue {
     type_ = LLVMInt32Type();
 
     # Add the global slot declaration to the IR.
-    LLVMAddGlobal(_module, type_, name._data);
+    let handle: ^LLVMOpaqueValue;
+    handle = LLVMAddGlobal(_module, type_, name._data);
+
+    # Set us in the global scope.
+    _global.set_ptr(name._data as str, handle as ^void);
+
+    # Slot declarations return nothing.
+    0 as ^LLVMOpaqueValue;
 }
 
 # generate_func_decl
@@ -159,13 +190,20 @@ def generate_func_decl(node: ^ast.Node) -> ^LLVMOpaqueValue {
     # Resolve the function type.
     let type_: ^LLVMOpaqueType;
     type_ = LLVMFunctionType(LLVMVoidType(),
-                                  0 as ^^LLVMOpaqueType,
-                                  0,
-                                  0);
+                             0 as ^^LLVMOpaqueType,
+                             0,
+                             0);
 
     # Add the function declaration to the IR.
     let handle: ^LLVMOpaqueValue;
     handle = LLVMAddFunction(_module, name._data, type_);
+
+    # Create a basic block for the function definition.
+    let block_handle: ^LLVMOpaqueBasicBlock;
+    block_handle = LLVMAppendBasicBlock(handle, "" as ^int8);
+
+    # Set the insertion point.
+    LLVMPositionBuilderAtEnd(_builder, block_handle);
 
     # Generate each node in the function.
     generate_nodes(x.nodes);

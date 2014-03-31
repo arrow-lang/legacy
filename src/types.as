@@ -17,10 +17,11 @@ let U128: int = 10;      #  128-bit unsigned integer
 let F32:  int = 11;      #   32-bit floating-point
 let F64:  int = 12;      #   64-bit floating-point
 
-let STR:  int = 13;      #    pointer to 8-bit signed integer
+let STR:  int = 13;      #    managed pointer to 8-bit signed integer
 
 let UINT: int = 14;      #    machine unsigned integer
 let INT:  int = 15;      #    machine signed integer
+let PTR:  int = 16;      #    pointer (non-managed)
 
 # Gets if the type tag has individual memory that needs to be disposed.
 def is_disposable(tag: int) -> bool {
@@ -42,7 +43,7 @@ _sizes[U64] = 8;
 _sizes[U128] = 16;
 _sizes[F32] = 4;
 _sizes[F64] = 8;
-_sizes[STR] = 1;
+_sizes[STR] = ((0 as ^uint) + 1) - (0 as ^uint);
 _sizes[UINT] = ((0 as ^uint) + 1) - (0 as ^uint);
 _sizes[INT] = ((0 as ^int) + 1) - (0 as ^int);
 

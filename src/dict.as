@@ -6,6 +6,7 @@ import types;
 # An unordered hash-map that uses strings as keys and allows
 # any first-class type to be stored as a value.
 #
+# - [ ] Allow the dictionary to resize automatically
 # - [ ] Implement .erase("...")
 # - [ ] Implement .contains("...")
 # - [ ] Implement .iter()
@@ -15,7 +16,7 @@ import types;
 
 type Bucket {
     key: ^int8,
-    tag: uint,
+    tag: int,
     value: ^void,
     next: ^mut Bucket
 }
@@ -41,8 +42,13 @@ def hash_str(key: str) -> uint {
 implement Bucket {
 
     def _set_value(&mut self, tag: int, value: ^void) {
-        # Deallocate the existing space.
-        libc.free(self.value);
+        if tag <> types.PTR {
+            # Deallocate the existing space.
+            libc.free(self.value);
+        }
+
+        # Set the tag.
+        self.tag = tag;
 
         if tag == types.STR {
             # Allocate space for the value in the bucket.
@@ -50,6 +56,10 @@ implement Bucket {
 
             # Copy in the value.
             libc.strcpy(self.value as ^int8, value as ^int8);
+            0;
+        } else if tag == types.PTR {
+            # Set the value.
+            self.value = value;
             0;
         } else {
             # Allocate space for the value in the bucket.
@@ -63,9 +73,11 @@ implement Bucket {
     }
 
     def dispose(&mut self) {
-        # Deallocate existing space.
+        # Deallocate `key` space.
         libc.free(self.key as ^void);
-        libc.free(self.value);
+
+        # Deallocate `value` space.
+        if self.tag <> types.PTR { libc.free(self.value); }
     }
 
     def get(&self, key: str) -> ^void {
@@ -199,6 +211,10 @@ implement Dictionary {
         self.set(key, types.STR, &value as ^void);
     }
 
+    def set_ptr(&mut self, key: str, value: ^void) {
+        self.set(key, types.PTR, value as ^void);
+    }
+
     def get(&self, key: str) -> ^void {
         # Hash the string key.
         let hash: uint = hash_str(key) bitand (self.capacity - 1);
@@ -275,6 +291,11 @@ implement Dictionary {
     def get_uint(&mut self, key: str) -> uint {
         let p: ^uint = self.get(key) as ^uint;
         p^;
+    }
+
+    def get_ptr(&mut self, key: str) -> ^void {
+        let p: ^void = self.get(key) as ^void;
+        p;
     }
 
 }

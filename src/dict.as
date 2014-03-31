@@ -1,19 +1,17 @@
-module libc {
-    foreign "C" import "stdlib.h";
-    foreign "C" import "string.h";
-}
+import libc;
+import types;
 
 # Dictionary
 # -----------------------------------------------------------------------------
 # An unordered hash-map that uses strings as keys and allows
 # any first-class type to be stored as a value.
-
-let TAG_INT8: uint = 1;
-
-def _sizeof(tag: uint) -> uint {
-    if tag == TAG_INT8 { 1; }
-    else { 0; }
-}
+#
+# - [ ] Implement .erase("...")
+# - [ ] Implement .contains("...")
+# - [ ] Implement .iter()
+# - [ ] Implement .empty()
+# - [ ] Implement .size()
+# - [ ] Implement .clear()
 
 type Bucket {
     key: ^int8,
@@ -41,16 +39,27 @@ def hash_str(key: str) -> uint {
 }
 
 implement Bucket {
-    def _set_value(&mut self, tag: uint, value: ^void) {
+
+    def _set_value(&mut self, tag: int, value: ^void) {
         # Deallocate the existing space.
         libc.free(self.value);
 
-        # Allocate space for the value in the bucket.
-        let size: uint = _sizeof(tag);
-        self.value = libc.malloc(size);
+        if tag == types.STR {
+            # Allocate space for the value in the bucket.
+            self.value = libc.calloc(libc.strlen(value as ^int8) + 1, 1);
 
-        # Copy in the value.
-        libc.memcpy(self.value, value, size);
+            # Copy in the value.
+            libc.strcpy(self.value as ^int8, value as ^int8);
+            0;
+        } else {
+            # Allocate space for the value in the bucket.
+            let size: uint = types.sizeof(tag);
+            self.value = libc.malloc(size);
+
+            # Copy in the value.
+            libc.memcpy(self.value, value, size);
+            0;
+        }
     }
 
     def dispose(&mut self) {
@@ -78,7 +87,7 @@ implement Bucket {
         0 as ^void;
     }
 
-    def set(&mut self, key: str, tag: uint, value: ^void) {
+    def set(&mut self, key: str, tag: int, value: ^void) {
         # Check if this bucket is not empty.
         if self.key <> 0 as ^int8 {
             # Check if this _is_ the bucket in question.
@@ -107,9 +116,11 @@ implement Bucket {
         # Set the value.
         self._set_value(tag, value);
     }
+
 }
 
 implement Dictionary {
+
     def dispose(&mut self) {
         # Enumerate each bucket chain and free the key and values.
         let mut i: uint = 0;
@@ -124,7 +135,7 @@ implement Dictionary {
         libc.free(self.buckets as ^void);
     }
 
-    def set_int8(&mut self, key: str, value: int8) {
+    def set(&mut self, key: str, tag: int, value: ^void) {
         # Hash the string key.
         let hash: uint = hash_str(key) bitand (self.capacity - 1);
 
@@ -133,10 +144,62 @@ implement Dictionary {
         self.size = self.size + 1;
 
         # Set this in the bucket chain.
-        (b^).set(key, TAG_INT8, &value as ^void);
+        (b^).set(key, tag, value);
     }
 
-    def get_int8(&self, key: str) -> int8 {
+    def set_i8(&mut self, key: str, value: int8) {
+        self.set(key, types.I8, &value as ^void);
+    }
+
+    def set_i16(&mut self, key: str, value: int16) {
+        self.set(key, types.I16, &value as ^void);
+    }
+
+    def set_i32(&mut self, key: str, value: int32) {
+        self.set(key, types.I32, &value as ^void);
+    }
+
+    def set_i64(&mut self, key: str, value: int64) {
+        self.set(key, types.I64, &value as ^void);
+    }
+
+    def set_i128(&mut self, key: str, value: int128) {
+        self.set(key, types.I128, &value as ^void);
+    }
+
+    def set_u8(&mut self, key: str, value: int8) {
+        self.set(key, types.U8, &value as ^void);
+    }
+
+    def set_u16(&mut self, key: str, value: int16) {
+        self.set(key, types.U16, &value as ^void);
+    }
+
+    def set_u32(&mut self, key: str, value: int32) {
+        self.set(key, types.U32, &value as ^void);
+    }
+
+    def set_u64(&mut self, key: str, value: int64) {
+        self.set(key, types.U64, &value as ^void);
+    }
+
+    def set_u128(&mut self, key: str, value: int128) {
+        self.set(key, types.U128, &value as ^void);
+    }
+
+    def set_int(&mut self, key: str, value: int) {
+        self.set(key, types.INT, &value as ^void);
+    }
+
+    def set_uint(&mut self, key: str, value: uint) {
+        self.set(key, types.UINT, &value as ^void);
+    }
+
+    def set_str(&mut self, key: str, value: str) {
+        self.set(key, types.STR, &value as ^void);
+    }
+
+    def get(&self, key: str) -> ^void {
         # Hash the string key.
         let hash: uint = hash_str(key) bitand (self.capacity - 1);
 
@@ -145,39 +208,92 @@ implement Dictionary {
         self.size = self.size + 1;
 
         # Get this from the bucket chain.
-        let value: ^int8 = (b^).get(key) as ^int8;
-        value^;
+        let value: ^void = (b^).get(key) as ^void;
+        value;
     }
+
+    def get_i8(&self, key: str) -> int8 {
+        let p: ^int8 = self.get(key) as ^int8;
+        p^;
+    }
+
+    def get_i16(&mut self, key: str) -> int16 {
+        let p: ^int16 = self.get(key) as ^int16;
+        p^;
+    }
+
+    def get_i32(&mut self, key: str) -> int32 {
+        let p: ^int32 = self.get(key) as ^int32;
+        p^;
+    }
+
+    def get_i64(&mut self, key: str) -> int64 {
+        let p: ^int64 = self.get(key) as ^int64;
+        p^;
+    }
+
+    def get_i128(&mut self, key: str) -> int128 {
+        let p: ^int128 = self.get(key) as ^int128;
+        p^;
+    }
+
+    def get_u8(&mut self, key: str) -> uint8 {
+        let p: ^uint8 = self.get(key) as ^uint8;
+        p^;
+    }
+
+    def get_u16(&mut self, key: str) -> uint16 {
+        let p: ^uint16 = self.get(key) as ^uint16;
+        p^;
+    }
+
+    def get_u32(&mut self, key: str) -> uint32 {
+        let p: ^uint32 = self.get(key) as ^uint32;
+        p^;
+    }
+
+    def get_u64(&mut self, key: str) -> uint64 {
+        let p: ^uint64 = self.get(key) as ^uint64;
+        p^;
+    }
+
+    def get_u128(&mut self, key: str) -> uint128 {
+        let p: ^uint128 = self.get(key) as ^uint128;
+        p^;
+    }
+
+    def get_str(&mut self, key: str) -> str {
+        let p: ^str = self.get(key) as ^str;
+        p^;
+    }
+
+    def get_int(&mut self, key: str) -> int {
+        let p: ^int = self.get(key) as ^int;
+        p^;
+    }
+
+    def get_uint(&mut self, key: str) -> uint {
+        let p: ^uint = self.get(key) as ^uint;
+        p^;
+    }
+
 }
 
-def make(size: uint) -> Dictionary {
+def make() -> Dictionary {
     let table: Dictionary;
-    table.buckets = libc.calloc(size, BUCKET_SIZE) as ^Bucket;
-    table.capacity = size;
+    # FIXME: This is a fixed-size dictionary. Make it double in size
+    #        when it hits 60% full or something.
+    table.buckets = libc.calloc(65535, BUCKET_SIZE) as ^Bucket;
+    table.capacity = 65535;
     table.size = 0;
     table;
 }
 
 def main() {
     # Allocate a new table.
-    let mut m: Dictionary = make(65536);
-    m.set_int8("apple", 43);
-    m.set_int8("orange", 43);
-    m.set_int8("blue", 43);
-    m.set_int8("banana", 43);
-    m.set_int8("key", 43);
-    m.set_int8("value", 43);
-    m.set_int8("tomato", 43);
-    m.set_int8("word", 43);
-    m.set_int8("list", 43);
-    m.set_int8("good", 43);
-    m.set_int8("cool", 43);
-    m.set_int8("balloon", 43);
-    m.set_int8("balloon", 73);
-
-    if (m.get_int8("balloon") <> 73) {
-        libc.abort();
-    }
+    let mut m: Dictionary = make();
+    m.set_str("apple", "fruit");
+    printf("%s\n", m.get_str("apple"));
 
     # Dispose of the required resources for the table.
     m.dispose();

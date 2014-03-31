@@ -1,10 +1,23 @@
 import libc;
 import types;
 
+# List
+# -----------------------------------------------------------------------------
 # A pseudo-generic dynamic list that works for any type defined in `types.as`.
 #
 # NOTE: `.dispose` must be called a "used" list in order to deallocate
 #       any used memory.
+#
+# - [ ] Implement .erase(<index>)
+# - [ ] Implement .remove_*(<value>)
+# - [ ] Implement .contains_*(<value>)
+# - [ ] Implement .iter()
+# - [ ] Implement .empty()
+# - [ ] Implement .size()
+# - [ ] Implement .clear()
+# - [ ] Implement .front_*()
+# - [ ] Implement .back_*()
+# - [ ] Implement .insert_*(<index>, <value>)
 
 type List {
     mut tag: int,
@@ -89,7 +102,7 @@ implement List {
 
         # Allocate space in the container.
         let ref: ^^void = (self.elements + self.size) as ^^void;
-        ref^ = libc.malloc(libc.strlen(el as ^int8) + 1);
+        ref^ = libc.calloc(libc.strlen(el as ^int8) + 1, 1);
 
         # Move the element into the container.
         libc.memcpy(ref^, el as ^void, libc.strlen(el as ^int8));
@@ -166,13 +179,13 @@ implement List {
     }
 
     def at_int(&mut self, index: int) -> int {
-        let p: int = self.at(index) as int;
-        p;
+        let p: ^int = self.at(index) as ^int;
+        p^;
     }
 
     def at_uint(&mut self, index: int) -> uint {
-        let p: uint = self.at(index) as uint;
-        p;
+        let p: ^uint = self.at(index) as ^uint;
+        p^;
     }
 
 }

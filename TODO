@@ -6,3 +6,12 @@
     ☐ UTF-32 to UTF-8 conversions (tokenizer :: string tokens)
     ☐ Unicode methods (isalpha, isspace, etc.)
  ☐ handle /uXXXX and /UXXXXXXXX escapes in the string tokenizer (needs ICU)
+
+-------------------------------------------------------------------------------
+
+Data structures:
+ ☐ list (some kind of dynamic list; similar to python)
+
+Generation:
+ ☐ basic type resolution
+ ☐ namespaces

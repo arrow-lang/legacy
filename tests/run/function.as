@@ -15,3 +15,9 @@ def b() { }
 def x() { }
 def y() { }
 def z() { }
+
+# let mut x: *int = &32;
+# let &y = *x;
+# assert(y == 32);
+# assert(y == *x);
+# x == y == z == w

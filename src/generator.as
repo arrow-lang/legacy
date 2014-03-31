@@ -1,10 +1,8 @@
-module llvm {
-    foreign "C" import "llvm-c/Core.h";
-    foreign "C" import "llvm-c/Analysis.h";
-    foreign "C" import "llvm-c/ExecutionEngine.h";
-    foreign "C" import "llvm-c/Target.h";
-    foreign "C" import "llvm-c/Transforms/Scalar.h";
-}
+foreign "C" import "llvm-c/Core.h";
+foreign "C" import "llvm-c/Analysis.h";
+foreign "C" import "llvm-c/ExecutionEngine.h";
+foreign "C" import "llvm-c/Target.h";
+foreign "C" import "llvm-c/Transforms/Scalar.h";
 
 module libc {
     foreign "C" import "stdlib.h";
@@ -15,7 +13,8 @@ import ast;
 import parser;
 import errors;
 
-let mut _module: ^llvm.LLVMOpaqueModule;
+let mut _module: ^LLVMOpaqueModule;
+let mut _builder: ^LLVMOpaqueBuilder;
 
 def main() {
     # Parse the AST from the standard input.
@@ -23,16 +22,19 @@ def main() {
     if errors.count > 0 { libc.exit(-1); }
 
     # Construct a LLVM module to hold the geneated IR.
-    _module = llvm.LLVMModuleCreateWithName("_" as ^int8);
+    _module = LLVMModuleCreateWithName("_" as ^int8);
+
+    # Construct an instruction builder.
+    _builder = LLVMCreateBuilder();
 
     # Walk the AST and generate the LLVM IR.
     generate(&unit);
 
     # Output the generated LLVM IR.
-    llvm.LLVMDumpModule(_module);
+    LLVMDumpModule(_module);
 
     # Dispose of the consructed LLVM module.
-    llvm.LLVMDisposeModule(_module);
+    LLVMDisposeModule(_module);
 
     # Return success back to the envrionment.
     libc.exit(0);
@@ -40,7 +42,7 @@ def main() {
 
 # generate -- "Generic" generation dispatcher
 # -----------------------------------------------------------------------------
-let mut gen_table: def(^ast.Node)[100];
+let mut gen_table: (def(^ast.Node) -> ^LLVMOpaqueValue)[100];
 let mut gen_initialized: bool = false;
 def generate(node: ^ast.Node) {
     if not gen_initialized {
@@ -86,15 +88,23 @@ def generate(node: ^ast.Node) {
         gen_initialized = true;
     }
 
-    let gen_fn: def(^ast.Node) = gen_table[node.tag];
+    let gen_fn: def(^ast.Node) -> ^LLVMOpaqueValue = gen_table[node.tag];
     let node_ptr: ^ast.Node = node;
     gen_fn(node_ptr);
 }
 
 # generate_nil
 # -----------------------------------------------------------------------------
-def generate_nil(node: ^ast.Node) {
+def generate_nil(node: ^ast.Node) -> ^LLVMOpaqueValue {
     printf("generate %d\n", node.tag);
+    0 as ^LLVMOpaqueValue;
+}
+
+# generate_integer_expr
+# -----------------------------------------------------------------------------
+def generate_integer_expr(node: ^ast.Node) -> ^LLVMOpaqueValue {
+    # Nothing generated.
+    0 as ^LLVMOpaqueValue;
 }
 
 # generate_nodes
@@ -110,16 +120,19 @@ def generate_nodes(&nodes: ast.Nodes) {
 
 # generate_module
 # -----------------------------------------------------------------------------
-def generate_module(node: ^ast.Node) {
+def generate_module(node: ^ast.Node) -> ^LLVMOpaqueValue {
     let x: ^ast.ModuleDecl = ast.unwrap(node^) as ^ast.ModuleDecl;
 
     # Generate each node in the module.
     generate_nodes(x.nodes);
+
+    # Nothing generated.
+    0 as ^LLVMOpaqueValue;
 }
 
 # generate_static_slot
 # -----------------------------------------------------------------------------
-def generate_static_slot(node: ^ast.Node) {
+def generate_static_slot(node: ^ast.Node) -> ^LLVMOpaqueValue {
     let x: ^ast.StaticSlotDecl = ast.unwrap(node^) as ^ast.StaticSlotDecl;
 
     # Get the name for the slot.
@@ -127,16 +140,16 @@ def generate_static_slot(node: ^ast.Node) {
     let name: ast.arena.Store = id.name;
 
     # Resolve the slot type.
-    let type_: ^llvm.LLVMOpaqueType;
-    type_ = llvm.LLVMInt32Type();
+    let type_: ^LLVMOpaqueType;
+    type_ = LLVMInt32Type();
 
     # Add the global slot declaration to the IR.
-    llvm.LLVMAddGlobal(_module, type_, name._data);
+    LLVMAddGlobal(_module, type_, name._data);
 }
 
 # generate_func_decl
 # -----------------------------------------------------------------------------
-def generate_func_decl(node: ^ast.Node) {
+def generate_func_decl(node: ^ast.Node) -> ^LLVMOpaqueValue {
     let x: ^ast.FuncDecl = (node^).unwrap() as ^ast.FuncDecl;
 
     # Get the name for the function.
@@ -144,15 +157,19 @@ def generate_func_decl(node: ^ast.Node) {
     let name: ast.arena.Store = id.name;
 
     # Resolve the function type.
-    let type_: ^llvm.LLVMOpaqueType;
-    type_ = llvm.LLVMFunctionType(llvm.LLVMVoidType(),
-                                  0 as ^^llvm.LLVMOpaqueType,
+    let type_: ^LLVMOpaqueType;
+    type_ = LLVMFunctionType(LLVMVoidType(),
+                                  0 as ^^LLVMOpaqueType,
                                   0,
                                   0);
 
     # Add the function declaration to the IR.
-    llvm.LLVMAddFunction(_module, name._data, type_);
+    let handle: ^LLVMOpaqueValue;
+    handle = LLVMAddFunction(_module, name._data, type_);
 
     # Generate each node in the function.
     generate_nodes(x.nodes);
+
+    # Return the constructed node.
+    handle;
 }

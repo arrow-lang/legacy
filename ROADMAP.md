@@ -43,6 +43,7 @@
  - [ ] Break / continue statements
  - [ ] Array type declaration -- let x: int[3]
  - [ ] Typesafe variadic functions
+ - [ ] chained relational operators -- x < y <= 4 -- x == y == z
 
 # 0.0.3
  - [ ] Enumeration declaration

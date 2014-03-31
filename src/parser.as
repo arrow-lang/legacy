@@ -1001,14 +1001,22 @@ def parse_top() -> ast.Node {
     node;
 }
 
-# Main
+# Parse
 # -----------------------------------------------------------------------------
-def main() {
+def parse() -> ast.Node {
     # Prime the token buffer.
     bump_token();
 
     # Parse the top-level module.
     let node: ast.Node = parse_top();
+    node;
+}
+
+# Main
+# -----------------------------------------------------------------------------
+def main() {
+    # Parse the top-level module.
+    let node: ast.Node = parse();
 
     if errors.count == 0 {
         # Dump the top-level module.

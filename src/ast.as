@@ -52,6 +52,13 @@ let TAG_MEMBER          : int = 40;             # MemberExpr
 # NOTE: This is filthy polymorphism.
 type Node { tag: int, data: arena.Store }
 
+implement Node {
+    def unwrap(&self) -> ^int8 {
+        let store: arena.Store = self.data;
+        store._data as ^int8;
+    }
+}
+
 # Generic collection of AST "nodes" that can store a
 # heterogeneous linked-list of nodes.
 type Nodes { self: Node, next: arena.Store }

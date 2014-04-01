@@ -15,3 +15,6 @@ Data structures:
 Generation:
  ☐ basic type resolution
  ☐ namespaces
+ ☐ local scope
+ ☐ type inference
+ ☐ semantic analysis (to support type inference)

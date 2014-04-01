@@ -4,11 +4,7 @@ foreign "C" import "llvm-c/ExecutionEngine.h";
 foreign "C" import "llvm-c/Target.h";
 foreign "C" import "llvm-c/Transforms/Scalar.h";
 
-module libc {
-    foreign "C" import "stdlib.h";
-    foreign "C" import "stdio.h";
-}
-
+import libc;
 import ast;
 import parser;
 import errors;
@@ -114,19 +110,20 @@ def generate_ident(node: ^ast.Node) -> ^LLVMOpaqueValue {
     let x: ^ast.Ident = ast.unwrap(node^) as ^ast.Ident;
 
     # Get the name for the identifier.
-    let name: ast.arena.Store = x.name;
+    let name_data: ast.arena.Store = x.name;
+    let name: str = name_data._data as str;
 
-    # Check for the identifier in the `global` scope.
+    # Resolve the identifier in the `global` scope.
     let handle: ^LLVMOpaqueValue;
-    handle = _global.get_ptr(name._data as str) as ^LLVMOpaqueValue;
-
-    # Create a load instruction to get at the value.
-    LLVMBuildLoad(_builder, handle, "" as ^int8);
+    handle = _global.get_ptr(name) as ^LLVMOpaqueValue;
 }
 
 # generate_integer_expr
 # -----------------------------------------------------------------------------
 def generate_integer_expr(node: ^ast.Node) -> ^LLVMOpaqueValue {
+    # ..
+    # LLVMConstIntOfString(...)
+
     # Nothing generated.
     0 as ^LLVMOpaqueValue;
 }
@@ -134,12 +131,72 @@ def generate_integer_expr(node: ^ast.Node) -> ^LLVMOpaqueValue {
 # generate_nodes
 # -----------------------------------------------------------------------------
 def generate_nodes(&nodes: ast.Nodes) {
-    # Enumerate through each node.
+
+    # In order to support mutual recursion in all spaces we re-arrange (sort)
+    # declaration nodes according to their priority. In certain cases,
+    # tags 3 to 7 can recurse by name reference so to support that,
+    # if we detect a name error in which case we stop,
+    # push it to the bottom (of 7) and continue (with a counter to check
+    # for recursion).
+
+    # 1 - imports
+    let _nodesize: uint = ast._sizeof(ast.TAG_NODE);
+    let mut imp_nodes: list.List = list.make_generic(_nodesize);
+    # 2 - modules
+    let mut mod_nodes: list.List = list.make_generic(_nodesize);
+    # TODO: 3 - use
+    # 4 - opaque types (structs / enums / type)
+    let mut type_nodes: list.List = list.make_generic(_nodesize);
+    # 5 - static declaration
+    let mut static_nodes: list.List = list.make_generic(_nodesize);
+    # 6 - function prototypes
+    let mut fn_nodes: list.List = list.make_generic(_nodesize);
+    # 7 - type bodies (structs / enums / type)
+    # 8 - static declaration initializer
+    # 9 - function bodies
+    # 10 - other nodes
+    let mut other_nodes: list.List = list.make_generic(_nodesize);
+
+    # Enumerate through each node and sort it.
     let mut iter: ast.NodesIterator = ast.iter_nodes(nodes);
     while not ast.iter_empty(iter) {
         let node: ast.Node = ast.iter_next(iter);
-        generate(&node);
+        let lst: ^mut list.List =
+            if      node.tag == ast.TAG_MODULE        { &mod_nodes; }
+            else if node.tag == ast.TAG_STATIC_SLOT   { &static_nodes; }
+            else if node.tag == ast.TAG_FUNC_DECL     { &fn_nodes; }
+            # else if node.tag == ast.TAG_IMPORT        { &imp_nodes; }
+            # else if node.tag == ast.TAG_STRUCT_DECL   { type_nodes; }
+            # else if node.tag == ast.TAG_ENUM_DECL     { type_nodes; }
+            # else if node.tag == ast.TAG_TYPE_DECL     { type_nodes; }
+            # else if node.tag == ast.TAG_USE_DECL      { type_nodes; }
+            else { &other_nodes; };
+
+        (lst^).push(&node as ^void);
     }
+
+    # Then enumerate the sorted nodes and generate each node.
+
+    # Then generate each node that is the body of a declaration node.
+
+    # Then generate any remaining nodes (in lexical order).
+
+    # Enumerate through each node.
+    # FIXME: Do the above.
+    # let mut iter: ast.NodesIterator = ast.iter_nodes(nodes);
+    # while not ast.iter_empty(iter) {
+    #     let node: ast.Node = ast.iter_next(iter);
+    #     generate(&node);
+    # }
+
+    # Dispose of temporary lists.
+    imp_nodes.dispose();
+    mod_nodes.dispose();
+    type_nodes.dispose();
+    static_nodes.dispose();
+    fn_nodes.dispose();
+    other_nodes.dispose();
+
 }
 
 # generate_module

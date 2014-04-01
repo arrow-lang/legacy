@@ -21,6 +21,7 @@ import types;
 
 type List {
     mut tag: int,
+    mut element_size: uint,
     mut size: uint,
     mut capacity: uint,
     mut elements: ^mut void
@@ -30,6 +31,15 @@ def make(tag: int) -> List {
     let list: List;
     libc.memset(&list as ^void, 0, (&list + 1) - &list);
     list.tag = tag;
+    list.element_size = types.sizeof(tag);
+    list;
+}
+
+def make_generic(size: uint) -> List {
+    let list: List;
+    libc.memset(&list as ^void, 0, (&list + 1) - &list);
+    list.tag = 0;
+    list.element_size = size;
     list;
 }
 
@@ -61,8 +71,8 @@ implement List {
         capacity = capacity + (capacity % 10);
 
         # Reallocate memory to the new requested capacity.
-        let size: uint = types.sizeof(self.tag);
-        self.elements = libc.realloc(self.elements, capacity * size);
+        self.elements = libc.realloc(
+            self.elements, capacity * self.element_size);
 
         # Update capacity.
         self.capacity = capacity;
@@ -76,8 +86,8 @@ implement List {
         if self.size == self.capacity { self.reserve(self.capacity + 1); }
 
         # Move element into the container.
-        let size: uint = types.sizeof(self.tag);
-        libc.memcpy(self.elements + (self.size * size), el, size);
+        libc.memcpy(self.elements + (self.size * self.element_size),
+                    el, self.element_size);
 
         # Increment size to keep track of element insertion.
         self.size = self.size + 1;
@@ -112,7 +122,6 @@ implement List {
     }
 
     def at(&mut self, index: int) -> ^void {
-        let size: uint = types.sizeof(self.tag);
         let mut _index: uint;
 
         # Handle negative indexing.
@@ -120,7 +129,7 @@ implement List {
         else         { _index = index as uint; }
 
         # Return the element offset.
-        (self.elements + (_index * size));
+        (self.elements + (_index * self.element_size));
     }
 
     def at_i8(&mut self, index: int) -> int8 {

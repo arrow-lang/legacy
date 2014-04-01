@@ -44,6 +44,7 @@ let TAG_UNSAFE          : int = 37;             # UnsafeBlock
 let TAG_RETURN          : int = 38;             # ReturnExpr
 let TAG_BLOCK           : int = 39;             # Block
 let TAG_MEMBER          : int = 40;             # MemberExpr
+let TAG_NODE            : int = 41;             # Node
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -180,6 +181,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
     else if tag == TAG_UNSAFE  { let tmp: UnsafeBlock; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BLOCK   { let tmp: Block; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_NODE    { let tmp: Node; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }

@@ -435,7 +435,7 @@ implement List {
     def insert_u64 (&mut self, index: int, el:  int64)  { self.insert(index, &el as ^void); }
     def insert_u128(&mut self, index: int, el: int128)  { self.insert(index, &el as ^void); }
     def insert_int (&mut self, index: int, el:    int)  { self.insert(index, &el as ^void); }
-    def insert_uint(&mut self, index: int, el:   uint)  { self.insert(index, &el as ^void);
+    def insert_uint(&mut self, index: int, el:   uint)  { self.insert(index, &el as ^void); }
     
     def insert_str (&mut self, index: int, el: str) {
         # Request additional memory if needed.

@@ -24,7 +24,7 @@ type List {
     mut element_size: uint,
     mut size: uint,
     mut capacity: uint,
-    mut elements: ^mut void
+    mut elements: ^mut int8
 }
 
 def make(tag: int) -> List {
@@ -33,7 +33,7 @@ def make(tag: int) -> List {
     list.element_size = types.sizeof(tag);
     list.size = 0;
     list.capacity = 0;
-    list.elements = 0 as ^void;
+    list.elements = 0 as ^int8;
     list;
 }
 
@@ -43,7 +43,7 @@ def make_generic(size: uint) -> List {
     list.element_size = size;
     list.size = 0;
     list.capacity = 0;
-    list.elements = 0 as ^void;
+    list.elements = 0 as ^int8;
     list;
 }
 
@@ -63,7 +63,7 @@ implement List {
         }
 
         # Free the contiguous chunk of memory used for the list.
-        libc.free(self.elements);
+        libc.free(self.elements as ^void);
     }
 
     def reserve(&mut self, capacity: uint) {
@@ -76,7 +76,7 @@ implement List {
 
         # Reallocate memory to the new requested capacity.
         self.elements = libc.realloc(
-            self.elements, capacity * self.element_size);
+            self.elements as ^void, capacity * self.element_size) as ^int8;
 
         # Update capacity.
         self.capacity = capacity;
@@ -90,7 +90,7 @@ implement List {
         if self.size == self.capacity { self.reserve(self.capacity + 1); }
 
         # Move element into the container.
-        libc.memcpy(self.elements + (self.size * self.element_size),
+        libc.memcpy((self.elements + (self.size * self.element_size)) as ^void,
                     el, self.element_size);
 
         # Increment size to keep track of element insertion.
@@ -134,7 +134,7 @@ implement List {
         else         { _index = index as uint; }
 
         # Return the element offset.
-        (self.elements + (_index * self.element_size));
+        (self.elements + (_index * self.element_size)) as ^void;
     }
 
     def at_i8(&mut self, index: int) -> int8 {
@@ -215,8 +215,8 @@ implement List {
         }
 
         # Move everything past index one place to the left, overwriting index
-        libc.memmove(self.elements + (_index * self.element_size),
-                     self.elements + ((_index + 1) * self.element_size),
+        libc.memmove((self.elements + (_index * self.element_size)) as ^void,
+                     (self.elements + ((_index + 1) * self.element_size)) as ^void,
                      self.element_size * (self.size - (_index + 1)));
 
         self.size = self.size - 1;
@@ -231,7 +231,7 @@ implement List {
             # See if the element at this index matches el
             # We need to make sure it isn't a str, handle those differently
             if self.tag <> types.STR {
-                eq = libc.memcmp(self.elements + (index * self.element_size),
+                eq = libc.memcmp((self.elements + (index * self.element_size)) as ^void,
                                  el, self.element_size);
             } else {
                 # If string, compare value pointed to by value at index
@@ -268,36 +268,51 @@ implement List {
 }
 
 def main() {
-    let mut m: List = make(types.STR);
+    let mut il: List = make(types.INT);
+    il.push_int(10);
+    il.push_int(623);
+    il.push_int(60);
+    il.push_int(51);
+    il.push_int(99921);
+
+    let mut i: uint = 0;
+    while i < il.size {
+        printf("%d -> %d\n", i, il.at_int(i as int));
+        i = i + 1;
+    }
+
+    il.dispose();
+
+    # let mut m: List = make(types.INT);
 
     # Push two strings.
-    m.push_str("Hello");
-    m.push_str("World");
-    m.push_str("!\n");
-    m.push_str("Pushing");
-    m.push_str("in");
-    m.push_str("strings");
+    # m.push_str("Hello");
+    # m.push_str("World");
+    # m.push_str("!\n");
+    # m.push_str("Pushing");
+    # m.push_str("in");
+    # m.push_str("strings");
 
     # Print them all.
-    let mut i: uint = 0;
-    while i < m.size {
-        printf("%s ", m.at_str(i as int));
-        i = i + 1;
-    }
-    printf("\n");
+    # let mut i: uint = 0;
+    # while i < m.size {
+    #     printf("%s ", m.at_str(i as int));
+    #     i = i + 1;
+    # }
+    # printf("\n");
 
     # Remove a couple, a couple different ways.
-    m.erase(4);
-    m.remove_str("some");
+    # m.erase(4);
+    # m.remove_str("some");
 
     # Second line should now be "Pushing strings."
-    i = 0;
-    while i < m.size {
-        printf("%s ", m.at_str(i as int));
-        i = i + 1;
-    }
+    # i = 0;
+    # while i < m.size {
+    #     printf("%s ", m.at_str(i as int));
+    #     i = i + 1;
+    # }
 
-    m.dispose();
+    # m.dispose();
 
     # Exit properly.
     libc.exit(0);

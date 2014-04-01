@@ -139,14 +139,14 @@ def generate_nodes(&nodes: ast.Nodes) {
     # push it to the bottom (of 7) and continue (with a counter to check
     # for recursion).
 
-    # 1 - imports
     let _nodesize: uint = ast._sizeof(ast.TAG_NODE);
-    let mut imp_nodes: list.List = list.make_generic(_nodesize);
-    # 2 - modules
+    # 1 - modules
     let mut mod_nodes: list.List = list.make_generic(_nodesize);
+    # TODO: 2 - imports
+    # let mut imp_nodes: list.List = list.make_generic(_nodesize);
     # TODO: 3 - use
-    # 4 - opaque types (structs / enums / type)
-    let mut type_nodes: list.List = list.make_generic(_nodesize);
+    # TODO: 4 - opaque types (structs / enums / type)
+    # let mut type_nodes: list.List = list.make_generic(_nodesize);
     # 5 - static declaration
     let mut static_nodes: list.List = list.make_generic(_nodesize);
     # 6 - function prototypes
@@ -175,19 +175,24 @@ def generate_nodes(&nodes: ast.Nodes) {
         (lst^).push(&node as ^void);
     }
 
-    # Then enumerate the sorted nodes and generate each node.
+    # Enumerate and generate each node from the sorted lists (in order).
+    # 1 - Enumerate and generate each `module` node.
+    let mut i: uint = 0;
+    while i < mod_nodes.size {
+        generate(mod_nodes.at(i as int) as ^ast.Node);
+        i = i + 1;
+    }
+
+    # 5 - Enumerate and generate each `static` node.
+    i = 0;
+    while i < static_nodes.size {
+        generate(static_nodes.at(i as int) as ^ast.Node);
+        i = i + 1;
+    }
 
     # Then generate each node that is the body of a declaration node.
 
     # Then generate any remaining nodes (in lexical order).
-
-    # Enumerate through each node.
-    # FIXME: Do the above.
-    # let mut iter: ast.NodesIterator = ast.iter_nodes(nodes);
-    # while not ast.iter_empty(iter) {
-    #     let node: ast.Node = ast.iter_next(iter);
-    #     generate(&node);
-    # }
 
     # Dispose of temporary lists.
     imp_nodes.dispose();

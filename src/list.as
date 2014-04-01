@@ -418,7 +418,7 @@ implement List {
                      self.element_size * (self.size - (_index + 1)));
         
          # Move element into the container.
-        libc.memcpy((self.elements + (index * self.element_size)) as ^void,
+        libc.memcpy((self.elements + ((index as uint) * self.element_size)) as ^void,
                     el, self.element_size);
         
         self.size = self.size + 1;
@@ -438,6 +438,12 @@ implement List {
     def insert_uint(&mut self, index: int, el:   uint)  { self.insert(index, &el as ^void); }
     
     def insert_str (&mut self, index: int, el: str) {
+        let mut _index: uint;
+
+        # Handle negative indexing.
+        if index < 0 { _index = self.size - ((-index) as uint); }
+        else         { _index = index as uint; }
+        
         # Request additional memory if needed.
         if self.size == self.capacity { self.reserve(self.capacity + 1); }
 
@@ -447,7 +453,7 @@ implement List {
                      self.element_size * (self.size - (_index + 1)));
 
         # Allocate space in the container.
-        let offset: uint = index * self.element_size;
+        let offset: uint = (index as uint) * self.element_size;
         let ref: ^^int8 = (self.elements + offset) as ^^int8;
         ref^ = libc.calloc(libc.strlen(el as ^int8) + 1, 1) as ^int8;
 

@@ -54,10 +54,10 @@ implement List {
         # each element.
         if types.is_disposable(self.tag) {
             let mut i: uint = 0;
-            let mut x: ^uint = self.elements as ^uint;
+            let mut x: ^^int8 = self.elements as ^^int8;
             while i < self.size {
                 libc.free(x^ as ^void);
-                x = x + self.element_size;
+                x = x + 1;
                 i = i + 1;
             }
         }
@@ -116,8 +116,8 @@ implement List {
 
         # Allocate space in the container.
         let offset: uint = self.size * self.element_size;
-        let ref: ^uint = (self.elements + offset) as ^uint;
-        ref^ = libc.calloc(libc.strlen(el as ^int8) + 1, 1) as uint;
+        let ref: ^^int8 = (self.elements + offset) as ^^int8;
+        ref^ = libc.calloc(libc.strlen(el as ^int8) + 1, 1) as ^int8;
 
         # Move the element into the container.
         libc.memcpy(ref^ as ^void, el as ^void, libc.strlen(el as ^int8));
@@ -211,7 +211,8 @@ implement List {
 
         # If we're dealing with a disposable type, we need to free
         if types.is_disposable(self.tag) {
-            libc.free((self.elements + (_index * self.element_size))^ as ^void);
+            let x: ^^int8 = (self.elements + (_index * self.element_size)) as ^^int8;
+            libc.free(x^ as ^void);
         }
 
         # Move everything past index one place to the left, overwriting index
@@ -235,8 +236,8 @@ implement List {
                                  el, self.element_size);
             } else {
                 # If string, compare value pointed to by value at index
-                eq = libc.memcmp((self.elements + (index * self.element_size))^ as ^void,
-                                 el, libc.strlen(el as ^int8));
+                let data: ^^int8 = (self.elements + (index * self.element_size)) as ^^int8;
+                eq = libc.strcmp(data^, el^ as ^int8);
             }
 
             if eq == 0 {
@@ -283,36 +284,40 @@ def main() {
 
     il.dispose();
 
-    # let mut m: List = make(types.INT);
+    printf("------------------------------------------------\n");
+
+    let mut m: List = make(types.STR);
 
     # Push two strings.
-    # m.push_str("Hello");
-    # m.push_str("World");
-    # m.push_str("!\n");
-    # m.push_str("Pushing");
-    # m.push_str("in");
-    # m.push_str("strings");
+    m.push_str("Hello");
+    m.push_str("World");
+    m.push_str("!\n");
+    m.push_str("Pushing");
+    m.push_str("in");
+    m.push_str("some");
+    m.push_str("strings");
 
     # Print them all.
-    # let mut i: uint = 0;
-    # while i < m.size {
-    #     printf("%s ", m.at_str(i as int));
-    #     i = i + 1;
-    # }
-    # printf("\n");
+    let mut i: uint = 0;
+    while i < m.size {
+        printf("%s ", m.at_str(i as int));
+        i = i + 1;
+    }
+    printf("\n");
 
     # Remove a couple, a couple different ways.
-    # m.erase(4);
-    # m.remove_str("some");
+    m.erase(4);
+    m.remove_str("some");
 
     # Second line should now be "Pushing strings."
-    # i = 0;
-    # while i < m.size {
-    #     printf("%s ", m.at_str(i as int));
-    #     i = i + 1;
-    # }
+    i = 0;
+    while i < m.size {
+        printf("%s ", m.at_str(i as int));
+        i = i + 1;
+    }
+    printf("\n");
 
-    # m.dispose();
+    m.dispose();
 
     # Exit properly.
     libc.exit(0);

@@ -196,7 +196,70 @@ implement List {
         let p: ^uint = self.at(index) as ^uint;
         p^;
     }
-
+    
+    def erase(&mut self, index: int) {
+        let mut _index: uint;
+		
+        # Handle negative indexing.
+        if index < 0 { _index = self.size - ((-index) as uint); }
+        else         { _index = index as uint; }
+        
+        # If we're dealing with a disposable type, we need to free
+        if types.is_disposable(self.tag) {
+            libc.free((self.elements + (_index * self.element_size))^ as ^void);
+        }
+        
+        # Move everything past index one place to the left, overwriting index
+        libc.memmove(self.elements + (_index * self.element_size),
+                     self.elements + ((_index + 1) * self.element_size),
+                     self.element_size * (self.size - (_index + 1)));
+        
+        self.size = self.size - 1;
+	}
+    
+    # Note, this removes ALL elements equal to el
+    def remove(&mut self, el: ^void) {
+        let mut index :uint = 0;
+        let mut eq :int;
+        
+        while index < self.size {
+            # See if the element at this index matches el
+            # We need to make sure it isn't a str, handle those differently
+            if self.tag <> types.STR {
+                eq = libc.memcmp(self.elements + (index * self.element_size),
+                                 el, self.element_size);
+            } else {
+                # If string, compare value pointed to by value at index
+                eq = libc.memcmp((self.elements + (index * self.element_size))^ as ^void,
+                                 el, libc.strlen(el as ^int8));
+            }
+            
+            if eq == 0 {
+                self.erase(index as int);
+                
+                # Correct the index, so index + 1 later on
+                # doesn't cause a skip
+                index = index - 1;
+            }
+            
+            index = index + 1;
+        }
+    }
+    
+    def remove_i8  (&mut self, el:   int8)  { self.remove(&el as ^void); }
+    def remove_i16 (&mut self, el:  int16)  { self.remove(&el as ^void); }
+    def remove_i32 (&mut self, el:  int32)  { self.remove(&el as ^void); }
+    def remove_i64 (&mut self, el:  int64)  { self.remove(&el as ^void); }
+    def remove_i128(&mut self, el: int128)  { self.remove(&el as ^void); }
+    def remove_u8  (&mut self, el:   int8)  { self.remove(&el as ^void); }
+    def remove_u16 (&mut self, el:  int16)  { self.remove(&el as ^void); }
+    def remove_u32 (&mut self, el:  int32)  { self.remove(&el as ^void); }
+    def remove_u64 (&mut self, el:  int64)  { self.remove(&el as ^void); }
+    def remove_u128(&mut self, el: int128)  { self.remove(&el as ^void); }
+    def remove_int (&mut self, el:    int)  { self.remove(&el as ^void); }
+    def remove_uint(&mut self, el:   uint)  { self.remove(&el as ^void); }
+    def remove_str (&mut self, el:    str)  { self.remove(&el as ^void); }
+    
 }
 
 def main() {
@@ -205,6 +268,11 @@ def main() {
     # Push two strings.
     m.push_str("Hello");
     m.push_str("World");
+    m.push_str("!\n");
+    m.push_str("Pushing");
+    m.push_str("in");
+    m.push_str("some");
+    m.push_str("strings.");
 
     # Print them all.
     let mut i: uint = 0;
@@ -213,6 +281,17 @@ def main() {
         i = i + 1;
     }
     printf("\n");
+    
+    # Remove a couple, a couple different ways.
+    m.erase(4);
+    m.remove_str("some");
+    
+    # Second line should now be "Pushing strings."
+    i = 0;
+    while i < m.size {
+        printf("%s ", m.at_str(i as int));
+        i = i + 1;
+    }
 
     m.dispose();
 }

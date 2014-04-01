@@ -8,7 +8,17 @@ import types;
 # NOTE: `.dispose` must be called a "used" list in order to deallocate
 #       any used memory.
 #
-# - [ ] Implement .iter()
+# - [ ] Add .iter()
+# - [ ] Add .index(<el>) and use it to implement the internals of .remove and .contains
+# - [ ] Add .count(<el>) because python has it on their lists
+# - [ ] Add .shift_*() -- Removes the first element from and returns it.
+# - [ ] Add .unshift_*(<el>) -- Prepend an element to the vector.
+# - [ ] Add .pop_*() -- Removes the last element from a vector and returns it
+# - [ ] Add .reverse() -- python has it
+# - [ ] Add .sort() -- python has it
+# - [ ] Add .truncate(<size>) -- Shorten a vector, dropping excess elements.
+# - [ ] Add .unique() -- de-duplicate the list (c++ has it)
+# - [ ] Consider renaming `push` to `append` so its cousin `extend` could be added nicely
 
 type List {
     mut tag: int,
@@ -40,6 +50,8 @@ def make_generic(size: uint) -> List {
 
 implement List {
 
+    # Dispose of the memory managed by this list.
+    # -------------------------------------------------------------------------
     def dispose(&mut self) {
         # If the underlying type is disposable then enumerate and dispose
         # each element.
@@ -57,6 +69,10 @@ implement List {
         libc.free(self.elements as ^void);
     }
 
+    # Reserve additional memory for `capacity` elements to be pushed onto
+    # the list. This allows for O(1) insertion if the number of elements
+    # is known before a series of `push` statements.
+    # -------------------------------------------------------------------------
     def reserve(&mut self, capacity: uint) {
         # Check existing capacity and short-circuit if
         # we are already at a sufficient capacity.
@@ -73,6 +89,9 @@ implement List {
         self.capacity = capacity;
     }
 
+    # Push an element onto the list. The list is expanded if there is not
+    # enough room.
+    # -------------------------------------------------------------------------
     def push(&mut self, el: ^void) {
         # Delegate if we can't handle it here.
         if self.tag == types.STR { self.push_str(el as str); return; }
@@ -117,6 +136,10 @@ implement List {
         self.size = self.size + 1;
     }
 
+    # Get an element at `index` from the start of the list (negative indicies
+    # offset from the size of the list). Attempting to access an element
+    # out-of-bounds of the current size is undefined.
+    # -------------------------------------------------------------------------
     def at(&mut self, index: int) -> ^void {
         let mut _index: uint;
 
@@ -193,8 +216,14 @@ implement List {
         p^;
     }
 
+    # Erase the element at `index` in the list. This is O(1) for elements
+    # at the end of the list and O(n) for any other element (where `n` is
+    # the number of elements between the erased element and the end of the
+    # list).
+    # -------------------------------------------------------------------------
     def erase(&mut self, index: int) {
-        let mut _index: uint;
+        let _index: uint;
+        let el_size: uint = self.element_size;
 
         # Handle negative indexing.
         if index < 0 { _index = self.size - ((-index) as uint); }
@@ -202,19 +231,24 @@ implement List {
 
         # If we're dealing with a disposable type, we need to free
         if types.is_disposable(self.tag) {
-            let x: ^^int8 = (self.elements + (_index * self.element_size)) as ^^int8;
+            let x: ^^int8 = (self.elements + (_index * el_size)) as ^^int8;
             libc.free(x^ as ^void);
         }
 
-        # Move everything past index one place to the left, overwriting index
-        libc.memmove((self.elements + (_index * self.element_size)) as ^void,
-                     (self.elements + ((_index + 1) * self.element_size)) as ^void,
-                     self.element_size * (self.size - (_index + 1)));
+        if index < self.size - 1 {
+            # Move everything past index one place to the left,
+            # overwriting index.
+            libc.memmove((self.elements + (_index * el_size)) as ^void,
+                         (self.elements + ((_index + 1) * el_size)) as ^void,
+                         self.element_size * (self.size - (_index + 1)));
+        }
 
+        # Decrement the size to keep track of the element erasure.
         self.size = self.size - 1;
     }
 
-    # Note, this removes ALL elements equal to el
+    # Remove 'all' elements that compare equal to `el`.
+    # -------------------------------------------------------------------------
     def remove(&mut self, el: ^void) {
         let mut index :uint = 0;
         let mut eq :int;
@@ -257,6 +291,8 @@ implement List {
     def remove_uint(&mut self, el:   uint)  { self.remove(&el as ^void); }
     def remove_str (&mut self, el:    str)  { self.remove(&el as ^void); }
 
+    # Check if `el` compares equal to an element in the list.
+    # -------------------------------------------------------------------------
     def contains(&mut self, el: ^void) -> bool {
         let mut index :uint = 0;
         let mut eq :int = -1;
@@ -298,13 +334,13 @@ implement List {
     def contains_uint(&mut self, el:   uint) -> bool { self.contains(&el as ^void); }
     def contains_str (&mut self, el:    str) -> bool { self.contains(&el as ^void); }
 
-    def empty(&mut self) -> bool {
-        self.size == 0;
-    }
+    # Returns true if the list contains no elements.
+    # -------------------------------------------------------------------------
+    def empty(&mut self) -> bool { self.size == 0; }
 
-    def size(&mut self) -> uint {
-        self.size;
-    }
+    # Gets the number of elements in the list.
+    # -------------------------------------------------------------------------
+    def size(&mut self) -> uint { self.size; }
 
     # This is very lazy, if you've allocated a huge list previously
     # and you won't need a list that large again any time soon,

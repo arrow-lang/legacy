@@ -29,17 +29,21 @@ type List {
 
 def make(tag: int) -> List {
     let list: List;
-    libc.memset(&list as ^void, 0, (&list + 1) - &list);
     list.tag = tag;
     list.element_size = types.sizeof(tag);
+    list.size = 0;
+    list.capacity = 0;
+    list.elements = 0 as ^void;
     list;
 }
 
 def make_generic(size: uint) -> List {
     let list: List;
-    libc.memset(&list as ^void, 0, (&list + 1) - &list);
     list.tag = 0;
     list.element_size = size;
+    list.size = 0;
+    list.capacity = 0;
+    list.elements = 0 as ^void;
     list;
 }
 
@@ -50,10 +54,10 @@ implement List {
         # each element.
         if types.is_disposable(self.tag) {
             let mut i: uint = 0;
-            let mut x: ^^void = self.elements as ^^void;
+            let mut x: ^uint = self.elements as ^uint;
             while i < self.size {
-                libc.free(x^);
-                x = x + 1;
+                libc.free(x^ as ^void);
+                x = x + self.element_size;
                 i = i + 1;
             }
         }
@@ -68,7 +72,7 @@ implement List {
         if capacity <= self.capacity { return; }
 
         # Ensure that we reserve space in chunks of 10.
-        capacity = capacity + (capacity % 10);
+        capacity = capacity + (10 - capacity % 10);
 
         # Reallocate memory to the new requested capacity.
         self.elements = libc.realloc(
@@ -111,11 +115,12 @@ implement List {
         if self.size == self.capacity { self.reserve(self.capacity + 1); }
 
         # Allocate space in the container.
-        let ref: ^^void = (self.elements + self.size) as ^^void;
-        ref^ = libc.calloc(libc.strlen(el as ^int8) + 1, 1);
+        let offset: uint = self.size * self.element_size;
+        let ref: ^uint = (self.elements + offset) as ^uint;
+        ref^ = libc.calloc(libc.strlen(el as ^int8) + 1, 1) as uint;
 
         # Move the element into the container.
-        libc.memcpy(ref^, el as ^void, libc.strlen(el as ^int8));
+        libc.memcpy(ref^ as ^void, el as ^void, libc.strlen(el as ^int8));
 
         # Increment size to keep track of element insertion.
         self.size = self.size + 1;
@@ -183,8 +188,8 @@ implement List {
     }
 
     def at_str(&mut self, index: int) -> str {
-        let p: ^str = self.at(index) as ^str;
-        p^;
+        let p: ^uint = self.at(index) as ^uint;
+        (p^ as ^int8) as str;
     }
 
     def at_int(&mut self, index: int) -> int {
@@ -196,32 +201,32 @@ implement List {
         let p: ^uint = self.at(index) as ^uint;
         p^;
     }
-    
+
     def erase(&mut self, index: int) {
         let mut _index: uint;
-		
+
         # Handle negative indexing.
         if index < 0 { _index = self.size - ((-index) as uint); }
         else         { _index = index as uint; }
-        
+
         # If we're dealing with a disposable type, we need to free
         if types.is_disposable(self.tag) {
             libc.free((self.elements + (_index * self.element_size))^ as ^void);
         }
-        
+
         # Move everything past index one place to the left, overwriting index
         libc.memmove(self.elements + (_index * self.element_size),
                      self.elements + ((_index + 1) * self.element_size),
                      self.element_size * (self.size - (_index + 1)));
-        
+
         self.size = self.size - 1;
-	}
-    
+    }
+
     # Note, this removes ALL elements equal to el
     def remove(&mut self, el: ^void) {
         let mut index :uint = 0;
         let mut eq :int;
-        
+
         while index < self.size {
             # See if the element at this index matches el
             # We need to make sure it isn't a str, handle those differently
@@ -233,19 +238,19 @@ implement List {
                 eq = libc.memcmp((self.elements + (index * self.element_size))^ as ^void,
                                  el, libc.strlen(el as ^int8));
             }
-            
+
             if eq == 0 {
                 self.erase(index as int);
-                
+
                 # Correct the index, so index + 1 later on
                 # doesn't cause a skip
                 index = index - 1;
             }
-            
+
             index = index + 1;
         }
     }
-    
+
     def remove_i8  (&mut self, el:   int8)  { self.remove(&el as ^void); }
     def remove_i16 (&mut self, el:  int16)  { self.remove(&el as ^void); }
     def remove_i32 (&mut self, el:  int32)  { self.remove(&el as ^void); }
@@ -259,7 +264,7 @@ implement List {
     def remove_int (&mut self, el:    int)  { self.remove(&el as ^void); }
     def remove_uint(&mut self, el:   uint)  { self.remove(&el as ^void); }
     def remove_str (&mut self, el:    str)  { self.remove(&el as ^void); }
-    
+
 }
 
 def main() {
@@ -271,8 +276,7 @@ def main() {
     m.push_str("!\n");
     m.push_str("Pushing");
     m.push_str("in");
-    m.push_str("some");
-    m.push_str("strings.");
+    m.push_str("strings");
 
     # Print them all.
     let mut i: uint = 0;
@@ -281,11 +285,11 @@ def main() {
         i = i + 1;
     }
     printf("\n");
-    
+
     # Remove a couple, a couple different ways.
     m.erase(4);
     m.remove_str("some");
-    
+
     # Second line should now be "Pushing strings."
     i = 0;
     while i < m.size {
@@ -294,4 +298,7 @@ def main() {
     }
 
     m.dispose();
+
+    # Exit properly.
+    libc.exit(0);
 }

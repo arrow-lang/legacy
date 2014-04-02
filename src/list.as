@@ -140,7 +140,7 @@ implement List {
     # offset from the size of the list). Attempting to access an element
     # out-of-bounds of the current size is undefined.
     # -------------------------------------------------------------------------
-    def at(&mut self, index: int) -> ^void {
+    def at(&self, index: int) -> ^void {
         let mut _index: uint;
 
         # Handle negative indexing.
@@ -151,67 +151,67 @@ implement List {
         (self.elements + (_index * self.element_size)) as ^void;
     }
 
-    def at_i8(&mut self, index: int) -> int8 {
+    def at_i8(&self, index: int) -> int8 {
         let p: ^int8 = self.at(index) as ^int8;
         p^;
     }
 
-    def at_i16(&mut self, index: int) -> int16 {
+    def at_i16(&self, index: int) -> int16 {
         let p: ^int16 = self.at(index) as ^int16;
         p^;
     }
 
-    def at_i32(&mut self, index: int) -> int32 {
+    def at_i32(&self, index: int) -> int32 {
         let p: ^int32 = self.at(index) as ^int32;
         p^;
     }
 
-    def at_i64(&mut self, index: int) -> int64 {
+    def at_i64(&self, index: int) -> int64 {
         let p: ^int64 = self.at(index) as ^int64;
         p^;
     }
 
-    def at_i128(&mut self, index: int) -> int128 {
+    def at_i128(&self, index: int) -> int128 {
         let p: ^int128 = self.at(index) as ^int128;
         p^;
     }
 
-    def at_u8(&mut self, index: int) -> uint8 {
+    def at_u8(&self, index: int) -> uint8 {
         let p: ^uint8 = self.at(index) as ^uint8;
         p^;
     }
 
-    def at_u16(&mut self, index: int) -> uint16 {
+    def at_u16(&self, index: int) -> uint16 {
         let p: ^uint16 = self.at(index) as ^uint16;
         p^;
     }
 
-    def at_u32(&mut self, index: int) -> uint32 {
+    def at_u32(&self, index: int) -> uint32 {
         let p: ^uint32 = self.at(index) as ^uint32;
         p^;
     }
 
-    def at_u64(&mut self, index: int) -> uint64 {
+    def at_u64(&self, index: int) -> uint64 {
         let p: ^uint64 = self.at(index) as ^uint64;
         p^;
     }
 
-    def at_u128(&mut self, index: int) -> uint128 {
+    def at_u128(&self, index: int) -> uint128 {
         let p: ^uint128 = self.at(index) as ^uint128;
         p^;
     }
 
-    def at_str(&mut self, index: int) -> str {
+    def at_str(&self, index: int) -> str {
         let p: ^uint = self.at(index) as ^uint;
         (p^ as ^int8) as str;
     }
 
-    def at_int(&mut self, index: int) -> int {
+    def at_int(&self, index: int) -> int {
         let p: ^int = self.at(index) as ^int;
         p^;
     }
 
-    def at_uint(&mut self, index: int) -> uint {
+    def at_uint(&self, index: int) -> uint {
         let p: ^uint = self.at(index) as ^uint;
         p^;
     }
@@ -235,7 +235,7 @@ implement List {
             libc.free(x^ as ^void);
         }
 
-        if index < self.size - 1 {
+        if _index < self.size - 1 {
             # Move everything past index one place to the left,
             # overwriting index.
             libc.memmove((self.elements + (_index * el_size)) as ^void,
@@ -501,6 +501,7 @@ implement List {
     }
 
 }
+
 
 def main() {
     let mut il: List = make(types.INT);

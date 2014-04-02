@@ -10,11 +10,13 @@ import parser;
 import errors;
 import dict;
 import list;
+import types;
 
 # Some process variables
 let mut _module: ^LLVMOpaqueModule;
 let mut _builder: ^LLVMOpaqueBuilder;
 let mut _global: dict.Dictionary = dict.make();
+let mut _namespace: list.List = list.make(types.STR);
 
 # Termination cleanup.
 libc.atexit(dispose);
@@ -132,61 +134,37 @@ def generate_integer_expr(node: ^ast.Node) -> ^LLVMOpaqueValue {
 # -----------------------------------------------------------------------------
 def generate_nodes(&nodes: ast.Nodes) {
 
-    # In order to support mutual recursion in all spaces we re-arrange (sort)
-    # declaration nodes according to their priority. In certain cases,
-    # tags 3 to 7 can recurse by name reference so to support that,
-    # if we detect a name error in which case we stop,
-    # push it to the bottom (of 7) and continue (with a counter to check
-    # for recursion).
+    # In order to support mutual recursion in all spaces we separate out
+    # declarations from the other nodes.
 
     let _nodesize: uint = ast._sizeof(ast.TAG_NODE);
-    # 1 - modules
-    let mut mod_nodes: list.List = list.make_generic(_nodesize);
-    # TODO: 2 - imports
-    # let mut imp_nodes: list.List = list.make_generic(_nodesize);
-    # TODO: 3 - use
-    # TODO: 4 - opaque types (structs / enums / type)
-    # let mut type_nodes: list.List = list.make_generic(_nodesize);
-    # 5 - static declaration
-    let mut static_nodes: list.List = list.make_generic(_nodesize);
-    # 6 - function prototypes
-    let mut fn_nodes: list.List = list.make_generic(_nodesize);
-    # 7 - type bodies (structs / enums / type)
-    # 8 - static declaration initializer
-    # 9 - function bodies
-    # 10 - other nodes
+    let mut decl_nodes: list.List = list.make_generic(_nodesize);
     let mut other_nodes: list.List = list.make_generic(_nodesize);
 
-    # Enumerate through each node and sort it.
     let mut iter: ast.NodesIterator = ast.iter_nodes(nodes);
     while not ast.iter_empty(iter) {
         let node: ast.Node = ast.iter_next(iter);
-        let lst: ^mut list.List =
-            if      node.tag == ast.TAG_MODULE        { &mod_nodes; }
-            else if node.tag == ast.TAG_STATIC_SLOT   { &static_nodes; }
-            else if node.tag == ast.TAG_FUNC_DECL     { &fn_nodes; }
-            # else if node.tag == ast.TAG_IMPORT        { &imp_nodes; }
-            # else if node.tag == ast.TAG_STRUCT_DECL   { type_nodes; }
-            # else if node.tag == ast.TAG_ENUM_DECL     { type_nodes; }
-            # else if node.tag == ast.TAG_TYPE_DECL     { type_nodes; }
-            # else if node.tag == ast.TAG_USE_DECL      { type_nodes; }
-            else { &other_nodes; };
-
-        (lst^).push(&node as ^void);
+        if node.tag == ast.TAG_STATIC_SLOT
+                or node.tag == ast.TAG_MODULE
+                or node.tag == ast.TAG_FUNC_DECL {
+            decl_nodes.push(&node as ^void);
+        } else {
+            other_nodes.push(&node as ^void);
+        }
     }
 
-    # Enumerate and generate each node from the sorted lists (in order).
-    # 1 - Enumerate and generate each `module` node.
+    # For declarations, order doesn't matter and if a name error
+    # is detected it is skipped in the declaration stack and we continue
+    # to recurse the declarations until there are none left. If recursion
+    # is detected then we stop and report an error.
+
+    # Enumerate and generate each declaration node.
+    # NOTE: Keep track of declaration nodes that need their body generated
+    #       later.
+
     let mut i: uint = 0;
-    while i < mod_nodes.size {
-        generate(mod_nodes.at(i as int) as ^ast.Node);
-        i = i + 1;
-    }
-
-    # 5 - Enumerate and generate each `static` node.
-    i = 0;
-    while i < static_nodes.size {
-        generate(static_nodes.at(i as int) as ^ast.Node);
+    while i < decl_nodes.size {
+        generate(decl_nodes.at(i as int) as ^ast.Node);
         i = i + 1;
     }
 
@@ -195,11 +173,7 @@ def generate_nodes(&nodes: ast.Nodes) {
     # Then generate any remaining nodes (in lexical order).
 
     # Dispose of temporary lists.
-    imp_nodes.dispose();
-    mod_nodes.dispose();
-    type_nodes.dispose();
-    static_nodes.dispose();
-    fn_nodes.dispose();
+    decl_nodes.dispose();
     other_nodes.dispose();
 
 }
@@ -209,8 +183,18 @@ def generate_nodes(&nodes: ast.Nodes) {
 def generate_module(node: ^ast.Node) -> ^LLVMOpaqueValue {
     let x: ^ast.ModuleDecl = ast.unwrap(node^) as ^ast.ModuleDecl;
 
+    # Get the name for the slot.
+    let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+    let name: ast.arena.Store = id.name;
+
+    # Push our name onto the namespace stack.
+    _namespace.push_str(name._data as str);
+
     # Generate each node in the module.
     generate_nodes(x.nodes);
+
+    # Pop our name off the namespace stack.
+    _namespace.erase(-1);
 
     # Nothing generated.
     0 as ^LLVMOpaqueValue;
@@ -225,16 +209,25 @@ def generate_static_slot(node: ^ast.Node) -> ^LLVMOpaqueValue {
     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
     let name: ast.arena.Store = id.name;
 
+    # Build the qual name for this slot.
+    let mut qual_name: string.String;
+    qual_name = string.join(".", _namespace);
+    qual_name.append('.')
+    qual_name.extend(name._data as str);
+
     # Resolve the slot type.
     let type_: ^LLVMOpaqueType;
     type_ = LLVMInt32Type();
 
     # Add the global slot declaration to the IR.
     let handle: ^LLVMOpaqueValue;
-    handle = LLVMAddGlobal(_module, type_, name._data);
+    handle = LLVMAddGlobal(_module, type_, qual_name.data());
 
     # Set us in the global scope.
     _global.set_ptr(name._data as str, handle as ^void);
+
+    # Dispose of dynamic memory.
+    qual_name.dispose();
 
     # Slot declarations return nothing.
     0 as ^LLVMOpaqueValue;

@@ -125,8 +125,7 @@ def parse_expr() -> ast.Node {
 # Binary operator token precedence
 # -----------------------------------------------------------------------------
 def get_binop_tok_precedence() -> int {
-         if cur_tok == tokens.TOK_DOT            { 005; }  # .
-    else if cur_tok == tokens.TOK_IF             { 015; }  # if
+         if cur_tok == tokens.TOK_IF             { 015; }  # if
     else if cur_tok == tokens.TOK_EQ             { 030; }  # =
     else if cur_tok == tokens.TOK_PLUS_EQ        { 030; }  # +=
     else if cur_tok == tokens.TOK_MINUS_EQ       { 030; }  # -=
@@ -148,6 +147,7 @@ def get_binop_tok_precedence() -> int {
     else if cur_tok == tokens.TOK_STAR           { 150; }  # *
     else if cur_tok == tokens.TOK_FSLASH         { 150; }  # /
     else if cur_tok == tokens.TOK_PERCENT        { 150; }  # %
+    else if cur_tok == tokens.TOK_DOT            { 190; }  # .
     else {
         # Not a binary operator.
         -1;

@@ -24,6 +24,7 @@ libc.atexit(dispose);
 def dispose() {
     LLVMDisposeModule(_module);
     _global.dispose();
+    _namespace.dispose();
 }
 
 def main() {
@@ -111,14 +112,56 @@ def generate_nil(node: ^ast.Node) -> ^LLVMOpaqueValue {
 # -----------------------------------------------------------------------------
 def generate_ident(node: ^ast.Node) -> ^LLVMOpaqueValue {
     let x: ^ast.Ident = ast.unwrap(node^) as ^ast.Ident;
+    let handle: ^LLVMOpaqueValue;
 
     # Get the name for the identifier.
     let name_data: ast.arena.Store = x.name;
     let name: str = name_data._data as str;
 
-    # Resolve the identifier in the `global` scope.
-    let handle: ^LLVMOpaqueValue;
-    handle = _global.get_ptr(name) as ^LLVMOpaqueValue;
+    # Qualify the name reference and match against the enclosing
+    # scopes by resolving inner-most first and popping namespaces until
+    # a match.
+    let mut qual_name: string.String = string.make();
+    let mut namespace: list.List = _namespace.clone();
+    let mut matched: bool = false;
+    loop {
+        # Qualify the name by joining the namespaces.
+        qual_name.dispose();
+        qual_name = string.join(".", namespace);
+        if qual_name.size() > 0 { qual_name.append('.'); }
+        qual_name.extend(name);
+
+        # Check for the qualified identifier in the `global` scope.
+        if _global.contains(qual_name.data() as str) {
+            # Found it in the currently resolved scope.
+            matched = true;
+            break;
+        }
+
+        # Do we have any namespaces left.
+        # Note that we can't pop the `top` namespace.
+        if namespace.size > 1 {
+            namespace.erase(-1);
+        } else {
+            # Out of namespaces to pop.
+            break;
+        }
+    }
+
+    # Retrieve the `global` identifier.
+    handle = _global.get_ptr(qual_name.data() as str) as ^LLVMOpaqueValue;
+
+    printf("%s\n", qual_name.data());
+    printf("------------------------\n");
+    LLVMDumpValue(handle);
+
+    # Dispose of dynamic memory.
+    qual_name.dispose();
+    namespace.dispose();
+
+    # Return our resolved thing.
+    handle;
+
 }
 
 # generate_integer_expr
@@ -173,6 +216,12 @@ def generate_nodes(&nodes: ast.Nodes) {
 
     # Then generate any remaining nodes (in lexical order).
 
+    i = 0;
+    while i < other_nodes.size {
+        generate(other_nodes.at(i as int) as ^ast.Node);
+        i = i + 1;
+    }
+
     # Dispose of temporary lists.
     decl_nodes.dispose();
     other_nodes.dispose();
@@ -225,7 +274,7 @@ def generate_static_slot(node: ^ast.Node) -> ^LLVMOpaqueValue {
     handle = LLVMAddGlobal(_module, type_, qual_name.data());
 
     # Set us in the global scope.
-    _global.set_ptr(name._data as str, handle as ^void);
+    _global.set_ptr(qual_name.data() as str, handle as ^void);
 
     # Dispose of dynamic memory.
     qual_name.dispose();
@@ -250,9 +299,15 @@ def generate_func_decl(node: ^ast.Node) -> ^LLVMOpaqueValue {
                              0,
                              0);
 
+    # Build the qual name for this slot.
+    let mut qual_name: string.String;
+    qual_name = string.join(".", _namespace);
+    if qual_name.size() > 0 { qual_name.append('.'); }
+    qual_name.extend(name._data as str);
+
     # Add the function declaration to the IR.
     let handle: ^LLVMOpaqueValue;
-    handle = LLVMAddFunction(_module, name._data, type_);
+    handle = LLVMAddFunction(_module, qual_name.data(), type_);
 
     # Create a basic block for the function definition.
     let block_handle: ^LLVMOpaqueBasicBlock;
@@ -269,6 +324,9 @@ def generate_func_decl(node: ^ast.Node) -> ^LLVMOpaqueValue {
 
     # Pop our name off the namespace stack.
     _namespace.erase(-1);
+
+    # Dispose of dynamic memory.
+    qual_name.dispose();
 
     # Return the constructed node.
     handle;

@@ -80,6 +80,25 @@ implement Bucket {
         if self.tag <> types.PTR { libc.free(self.value); }
     }
 
+    def contains(&self, key: str) -> bool {
+        # Check if this bucket is not empty.
+        if self.key <> 0 as ^int8 {
+            # Check if this _is_ the bucket in question.
+            if libc.strcmp(self.key, key as ^int8) == 0 {
+                # This _is_ the bucket.
+                return true;
+            }
+
+            # This is not the bucket; check the next one.
+            if self.next <> 0 as ^Bucket {
+                return (self.next^).contains(key);
+            }
+        }
+
+        # Found nothing.
+        false;
+    }
+
     def get(&self, key: str) -> ^void {
         # Check if this bucket is not empty.
         if self.key <> 0 as ^int8 {
@@ -145,6 +164,18 @@ implement Dictionary {
 
         # Free the memory taken up by the buckets themselves.
         libc.free(self.buckets as ^void);
+    }
+
+    def contains(&self, key: str) -> bool {
+        # Hash the string key.
+        let hash: uint = hash_str(key) bitand (self.capacity - 1);
+
+        # Grab the bucket offset by the result of the bounded hash function.
+        let mut b: ^mut Bucket = self.buckets + hash;
+        self.size = self.size + 1;
+
+        # Check if the bucket contains us.
+        (b^).contains(key);
     }
 
     def set(&mut self, key: str, tag: int, value: ^void) {

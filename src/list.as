@@ -9,8 +9,8 @@ import types;
 #       any used memory.
 #
 # - [ ] Add .iter()
-# - [ ] Add .index(<el>) and use it to implement the internals of .remove and .contains
-# - [ ] Add .count(<el>) because python has it on their lists
+# - [ ] Add .index_*(<el>) and use it to implement the internals of .remove and .contains
+# - [ ] Add .count_*(<el>) because python has it on their lists
 # - [ ] Add .shift_*() -- Removes the first element from and returns it.
 # - [ ] Add .unshift_*(<el>) -- Prepend an element to the vector.
 # - [ ] Add .pop_*() -- Removes the last element from a vector and returns it
@@ -67,6 +67,35 @@ implement List {
 
         # Free the contiguous chunk of memory used for the list.
         libc.free(self.elements as ^void);
+    }
+
+    # Perform a deep clone of the list and return the list.
+    # -------------------------------------------------------------------------
+    def clone(&self) -> List {
+        # Make the new list.
+        let mut new: List = make(self.tag);
+
+        # Reserve enough space.
+        new.reserve(self.capacity);
+
+        # If this is a simple (no managed memory) list then just do a `memcpy`.
+        if not types.is_disposable(self.tag) {
+            libc.memcpy(new.elements as ^void, self.elements as ^void,
+                        self.size * self.element_size);
+            void;
+        } else {
+            # We need to do it the long way.
+            if self.tag == types.STR {
+                let mut i: int = 0;
+                while i as uint < self.size {
+                    new.push_str(self.at_str(i));
+                    i = i + 1;
+                }
+            }
+        }
+
+        # Return the new list.
+        new;
     }
 
     # Reserve additional memory for `capacity` elements to be pushed onto
@@ -141,9 +170,8 @@ implement List {
     # out-of-bounds of the current size is undefined.
     # -------------------------------------------------------------------------
     def at(&self, index: int) -> ^void {
-        let mut _index: uint;
-
         # Handle negative indexing.
+        let mut _index: uint;
         if index < 0 { _index = self.size - ((-index) as uint); }
         else         { _index = index as uint; }
 
@@ -504,55 +532,67 @@ implement List {
 
 
 def main() {
-    let mut il: List = make(types.INT);
-    il.push_int(10);
-    il.push_int(623);
-    il.push_int(60);
-    il.push_int(51);
-    il.push_int(99921);
+    let mut l: List = make(types.STR);
+    l.push_str("10");
+    l.push_str("623");
+    l.push_str("60");
+    l.push_str("51");
+    l.push_str("99921");
+
+    let mut l2: List = l.clone();
+    l2.erase(-1);
 
     let mut i: uint = 0;
-    while i < il.size {
-        printf("%d -> %d\n", i, il.at_int(i as int));
+    while i < l2.size {
+        printf("%s ", l2.at_str(i as int));
         i = i + 1;
     }
 
-    il.dispose();
+    l.dispose();
+    l2.dispose();
 
-    printf("------------------------------------------------\n");
+    # let mut i: uint = 0;
+    # while i < il.size {
+    #     printf("%d -> %d\n", i, il.at_int(i as int));
+    #     i = i + 1;
+    # }
 
-    let mut m: List = make(types.STR);
+    # il.dispose();
 
-    # Push two strings.
-    m.push_str("Hello");
-    m.push_str("World");
-    m.push_str("!\n");
-    m.push_str("Pushing");
-    m.push_str("in");
-    m.push_str("some");
-    m.push_str("strings");
+    # printf("------------------------------------------------\n");
 
-    # Print them all.
-    let mut i: uint = 0;
-    while i < m.size {
-        printf("%s ", m.at_str(i as int));
-        i = i + 1;
-    }
-    printf("\n");
+    # let mut m: List = make(types.STR);
 
-    # Remove a couple, a couple different ways.
-    m.erase(4);
-    m.remove_str("some");
+    # # Push two strings.
+    # m.push_str("Hello");
+    # m.push_str("World");
+    # m.push_str("!\n");
+    # m.push_str("Pushing");
+    # m.push_str("in");
+    # m.push_str("some");
+    # m.push_str("strings");
 
-    # Second line should now be "Pushing strings."
-    i = 0;
-    while i < m.size {
-        printf("%s ", m.at_str(i as int));
-        i = i + 1;
-    }
-    printf("\n");
+    # # Print them all.
+    # let mut i: uint = 0;
+    # while i < m.size {
+    #     printf("%s ", m.at_str(i as int));
+    #     i = i + 1;
+    # }
+    # printf("\n");
 
-    m.dispose();
+    # # Remove a couple, a couple different ways.
+    # m.erase(4);
+    # m.remove_str("some");
+
+    # # Second line should now be "Pushing strings."
+    # i = 0;
+    # while i < m.size {
+    #     printf("%s ", m.at_str(i as int));
+    #     i = i + 1;
+    # }
+    # printf("\n");
+
+    # m.dispose();
 
     # Exit properly.
     libc.exit(0);

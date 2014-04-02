@@ -18,3 +18,4 @@ Generation:
  ☐ local scope
  ☐ type inference
  ☐ semantic analysis (to support type inference)
+ ☐ type deferrence

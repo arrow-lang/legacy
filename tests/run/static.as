@@ -23,6 +23,15 @@ def main() {
     static m: int = 30;
     static n: bool = false;
 
+    # Define a nested function.
+    def nested() {
+        # With more static data.
+        static m: float32 = 320.32;
+        static a: float64 = 923.23582395;
+    }
+
+    extra.a;
+
     # Assert the values of the "safe" statics.
     # assert(a == false);
     # assert(b == -235);
@@ -35,6 +44,10 @@ def main() {
     # assert(main.m == 30);
     # assert(n == false);
     # assert(main.n == false);
+    # assert(main.nested.m == 320.32);
+    # assert(main.nested.a == 920.23582395);
+    # assert(nested.m == 320.32);
+    # assert(nested.a == 920.23582395);
 
     # Assert the values of the "unsafe" statics.
     # FIXME: As soon as "unsafe" is implemented this stuff needs to go

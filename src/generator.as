@@ -4,6 +4,7 @@ foreign "C" import "llvm-c/ExecutionEngine.h";
 foreign "C" import "llvm-c/Target.h";
 foreign "C" import "llvm-c/Transforms/Scalar.h";
 
+import string;
 import libc;
 import ast;
 import parser;
@@ -212,7 +213,7 @@ def generate_static_slot(node: ^ast.Node) -> ^LLVMOpaqueValue {
     # Build the qual name for this slot.
     let mut qual_name: string.String;
     qual_name = string.join(".", _namespace);
-    qual_name.append('.')
+    if qual_name.size() > 0 { qual_name.append('.'); }
     qual_name.extend(name._data as str);
 
     # Resolve the slot type.
@@ -260,8 +261,14 @@ def generate_func_decl(node: ^ast.Node) -> ^LLVMOpaqueValue {
     # Set the insertion point.
     LLVMPositionBuilderAtEnd(_builder, block_handle);
 
+    # Push our name onto the namespace stack.
+    _namespace.push_str(name._data as str);
+
     # Generate each node in the function.
     generate_nodes(x.nodes);
+
+    # Pop our name off the namespace stack.
+    _namespace.erase(-1);
 
     # Return the constructed node.
     handle;

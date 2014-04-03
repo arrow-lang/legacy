@@ -168,7 +168,7 @@ def generate(node: ^ast.Node) -> ^code.Handle {
         gen_table[ast.TAG_FUNC_PARAM] = generate_nil;
         gen_table[ast.TAG_UNSAFE] = generate_nil;
         gen_table[ast.TAG_BLOCK] = generate_nil;
-        gen_table[ast.TAG_RETURN] = generate_nil;
+        gen_table[ast.TAG_RETURN] = generate_return_expr;
         gen_table[ast.TAG_MEMBER] = generate_member_expr;
         gen_initialized = true;
     }
@@ -490,6 +490,37 @@ def generate_member_expr(node: ^ast.Node) -> ^code.Handle {
     }
 }
 
+# Generate a `return` expression.
+# -----------------------------------------------------------------------------
+def generate_return_expr(node: ^ast.Node) -> ^code.Handle {
+    # Unwrap the "ploymorphic" node to its proper type.
+    let x: ^ast.ReturnExpr = (node^).unwrap() as ^ast.ReturnExpr;
+
+    # Generate a handle for the expression (if we have one.)
+    if not ast.isnull(x.expression) {
+        let expr: ^code.Handle = generate(&x.expression);
+        if code.isnil(expr) { return code.make_nil(); }
+
+        # Coerce the expression to a value.
+        let val_han: ^code.Handle = code.to_value(_builder, expr);
+        let val: ^code.Value = val_han._object as ^code.Value;
+
+        # Create the `RET` instruction.
+        LLVMBuildRet(_builder, val.handle);
+
+        # Dispose.
+        code.dispose(expr);
+        code.dispose(val_han);
+    } else {
+        # Create the void `RET` instruction.
+        LLVMBuildRetVoid(_builder);
+        void;  #HACK
+    }
+
+    # Nothing is forwarded from a `return`.
+    code.make_nil();
+}
+
 # Generate the LHS and RHS of a binary expression.
 # -----------------------------------------------------------------------------
 def generate_binexpr_ops(x: ^ast.BinaryExpr) -> (^code.Handle, ^code.Handle) {
@@ -771,10 +802,10 @@ def generate_mod_expr(node: ^ast.Node) -> ^code.Handle {
             # Figure out if this signed or not.
             let int_type: ^code.IntegerType = lhs_val.type_._object as ^code.IntegerType;
             if int_type.signed {
-                LLVMBuildSRem(
+                han = LLVMBuildSRem(
                     _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
             } else {
-                LLVMBuildURem(
+                han = LLVMBuildURem(
                     _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
             }
         } else {
@@ -798,3 +829,41 @@ def generate_mod_expr(node: ^ast.Node) -> ^code.Handle {
         }
     }
 }
+
+# TODO: Generate a DIV expression (with good features.. haha)
+# -----------------------------------------------------------------------------
+# def generate_div_expr(node: *ast.Node) -> code.Handle {
+#     # Unwrap the "ploymorphic" node to its proper type.
+#     x := node.unwrap() as *ast.BinaryExpr;
+
+#     # Generate the operands.
+#     (lhs, rhs) := generate_binexpr_ops(x);
+
+#     # If either operand failed then return nil.
+#     if lhs == code.nil or rhs == code.nil { return code.nil; }
+
+#     # Generate the `DIV` operation.
+#     han := match type(lhs) {
+#         code.FloatType => {
+#             # Floating-point division generates the `FDIV` instruction.
+#             LLVMBuildFDiv(_b, lhs.handle, rhs.handle);
+#         }
+
+#         code.IntegerType => {
+#             # Instruction for integral division depends
+#             # on the sign (`SDIV` for signed and `UDIV` for unsigned).
+#             (LLVMBuildSDiv if lhs.signed else LLVMBuildUDiv)(
+#                 _b, lhs.handle, rhs.handle
+#             );
+#         }
+
+#         _ => {
+#             # No idea how to handle this.
+#             # FIXME: Report proper error message.
+#             return code.nil;
+#         }
+#     }
+
+#     # Wrap and return the value.
+#     return code.Value(lhs.type_, han);
+# }

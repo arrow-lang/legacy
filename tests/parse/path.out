@@ -1,21 +1,21 @@
 ModuleDecl <?> _
   Nodes <?> 
     LocalSlotDecl <?> mut origin 'Point'
-    MemberExpr <?>
-      Ident <?> origin
-      AssignExpr <?>
+    AssignExpr <?>
+      MemberExpr <?>
+        Ident <?> origin
         Ident <?> x
-        IntegerExpr <?> 'int' 3 (10)
+      IntegerExpr <?> 'int' 3 (10)
     AssignExpr <?>
       MemberExpr <?>
         Ident <?> origin
         Ident <?> x
       IntegerExpr <?> 'int' 10 (10)
-    MemberExpr <?>
-      Ident <?> origin
-      AssignExpr <?>
+    AssignExpr <?>
+      MemberExpr <?>
+        Ident <?> origin
         Ident <?> x
-        IntegerExpr <?> 'int' 21 (10)
+      IntegerExpr <?> 'int' 21 (10)
     MemberExpr <?>
       MemberExpr <?>
         MemberExpr <?>

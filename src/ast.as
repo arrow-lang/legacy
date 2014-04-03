@@ -45,6 +45,7 @@ let TAG_RETURN          : int = 38;             # ReturnExpr
 let TAG_BLOCK           : int = 39;             # Block
 let TAG_MEMBER          : int = 40;             # MemberExpr
 let TAG_NODE            : int = 41;             # Node
+let TAG_IMPORT          : int = 42;             # Import
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -136,6 +137,11 @@ type LocalSlotDecl {
 # Identifier.
 type Ident { name: arena.Store }
 
+# Import
+# ids: ordered collection of the identifiers that make up the `x.y.z` name
+#      to import.
+type Import { ids: Nodes }
+
 # sizeof -- Get the size required for a specific node tag.
 # -----------------------------------------------------------------------------
 # FIXME: Replace this monster with type(T).size as soon as humanely possible
@@ -185,6 +191,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_IMPORT  { let tmp: Import; ((&tmp + 1) - &tmp); }
     else if tag == TAG_STATIC_SLOT {
         let tmp: StaticSlotDecl;
         ((&tmp + 1) - &tmp);
@@ -351,6 +358,7 @@ def dump(&node: Node) {
         dump_table[TAG_BLOCK] = dump_block_expr;
         dump_table[TAG_RETURN] = dump_return_expr;
         dump_table[TAG_MEMBER] = dump_binop_expr;
+        dump_table[TAG_IMPORT] = dump_import;
         dump_initialized = true;
     }
 
@@ -657,4 +665,24 @@ def dump_return_expr(node: ^Node) {
     dump_indent = dump_indent + 1;
     if not isnull(x.expression) { dump(x.expression); }
     dump_indent = dump_indent - 1;
+}
+
+# dump_import
+# -----------------------------------------------------------------------------
+def dump_import(node: ^Node) {
+    let x: ^Import = unwrap(node^) as ^Import;
+    printf("Import <?> " as ^int8);
+
+    let mut iter: NodesIterator = iter_nodes(x.ids);
+    let mut i: int = 0;
+    while not iter_empty(iter) {
+        let node: Node = iter_next(iter);
+        let id: ^Ident = node.unwrap() as ^Ident;
+        let xs: arena.Store = id.name;
+        if i > 0 { printf("." as ^int8); }
+        printf("%s" as ^int8, xs._data);
+        i = i + 1;
+    }
+
+    printf("\n" as ^int8);
 }

@@ -825,6 +825,50 @@ def parse_return_expr() -> ast.Node {
     node;
 }
 
+# Import
+# -----------------------------------------------------------------------------
+# import = "import" ident { "." ident }
+# -----------------------------------------------------------------------------
+def parse_import() -> ast.Node {
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_IMPORT);
+    let mut imp: ^ast.Import = ast.unwrap(node) as ^ast.Import;
+
+    # Consume the "import" token.
+    bump_token();
+
+    loop {
+        # There must be at least one `ident` next.
+        if cur_tok <> tokens.TOK_IDENTIFIER {
+            error_consume();
+            errors.begin_error();
+            errors.fprintf(errors.stderr, "expected `identifier`" as ^int8);
+            errors.end();
+
+            return ast.null();
+        }
+
+        # Parse the identifier token and push it onto the collection.
+        let id: ast.Node = parse_ident();
+        ast.push(imp.ids, id);
+
+        # Continue if there is a `.` next.
+        if cur_tok == tokens.TOK_DOT {
+            # Consume the `.`
+            bump_token();
+
+            # Match the next id.
+            continue;
+        }
+
+        # We're done.
+        break;
+    }
+
+    # Return the constructed node.
+    node;
+}
+
 # Statement
 # -----------------------------------------------------------------------------
 # statement = primary_expr ";"
@@ -836,6 +880,7 @@ def parse_statement() -> ast.Node {
     if cur_tok == tokens.TOK_UNSAFE { return parse_unsafe_block(); }
     if cur_tok == tokens.TOK_MODULE { return parse_module(); }
     if cur_tok == tokens.TOK_RETURN { return parse_return_expr(); }
+    if cur_tok == tokens.TOK_IMPORT { return parse_import(); }
 
     if cur_tok == tokens.TOK_SEMICOLON {
         bump_token();              # consume the semicolon

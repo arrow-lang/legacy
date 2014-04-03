@@ -1,0 +1,52 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    FuncDecl <?> name
+      Parameters <?> 
+      Nodes <?> 
+    FuncDecl <?> sum
+      Parameters <?> 
+        FuncParam <?> x 'int'
+        FuncParam <?> y 'int'
+        FuncParam <?> y 'int'
+      Nodes <?> 
+    FuncDecl <?> defualt_sum1
+      Parameters <?> 
+        FuncParam <?> x 'int'
+          IntegerExpr <?> 'int' 0 (10)
+        FuncParam <?> y 'int'
+      Nodes <?> 
+    FuncDecl <?> defualt_sum2
+      Parameters <?> 
+        FuncParam <?> x 'int'
+        FuncParam <?> y 'int'
+          IntegerExpr <?> 'int' 0 (10)
+      Nodes <?> 
+    FuncDecl <?> defualt_sum3
+      Parameters <?> 
+        FuncParam <?> x 'int'
+          IntegerExpr <?> 'int' 0 (10)
+        FuncParam <?> y 'int'
+          IntegerExpr <?> 'int' 0 (10)
+      Nodes <?> 
+    FuncDecl <?> read 'int'
+      Parameters <?> 
+      Nodes <?> 
+    FuncDecl <?> some 'bool'
+      Parameters <?> 
+      Nodes <?> 
+        StaticSlotDecl <?> y 'int'
+          IntegerExpr <?> 'int' 32 (10)
+        LocalSlotDecl <?> x 'int'
+          IntegerExpr <?> 'int' 43 (10)
+        LocalSlotDecl <?> y 'int'
+        AssignExpr <?>
+          Ident <?> y
+          IntegerExpr <?> 'int' 436 (10)
+        BooleanExpr <?> true
+    FuncDecl <?> main
+      Parameters <?> 
+      Nodes <?> 
+        FuncDecl <?> nested 'int'
+          Parameters <?> 
+          Nodes <?> 
+            IntegerExpr <?> 'int' 432 (10)

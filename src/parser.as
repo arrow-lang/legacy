@@ -97,7 +97,13 @@ def parse_float_expr() -> ast.Node {
 def parse_paren_expr() -> ast.Node {
     bump_token();  # Eat '('
     let result: ast.Node = parse_expr();
-    if ast.isnull(result) { return result; }
+    if ast.isnull(result) {
+        # Consume the next token if its a ")"
+        if cur_tok == tokens.TOK_RPAREN { bump_token(); }
+
+        # Return null.
+        return result;
+    }
 
     if cur_tok <> tokens.TOK_RPAREN {
         errors.begin_error();

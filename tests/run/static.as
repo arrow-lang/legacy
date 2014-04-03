@@ -33,6 +33,7 @@ def main() -> int8 {
     # }
 
     return extra.a * extra.more.p;
+    (return);
 
     # Assert the values of the "safe" statics.
     # assert(a == false);

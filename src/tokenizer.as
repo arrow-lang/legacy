@@ -3,24 +3,10 @@ foreign "C" import "ctype.h";
 import asciz;
 import tokens;
 
-# Blocking
-# -----------------------------------------------------------------------------
-# [ ] Proper static data
-# [ ] Fully test imports (in combination with successive foreign imports)
-# [ ] Implicit-adjacent string concatenation
-
-# Wishlist
-# -----------------------------------------------------------------------------
-# [ ] Simple enumerations
-
 # Todo
 # -----------------------------------------------------------------------------
-# [ ] Tokenize ourself
 # [ ] Return location span along with token
-# [ ] Refactor
-# [ ]   - Perhaps separate some things to keep this file smaller
 # [ ] Fully test both good and bad sets of data (eg. trigger all errors)
-# [ ] Error "counting"
 # -----------------------------------------------------------------------------
 
 # Kinds of string literals.

@@ -11,6 +11,8 @@ let TAG_MODULE: int = 1;
 let TAG_STATIC_SLOT: int = 2;
 let TAG_TYPE: int = 3;
 let TAG_VALUE: int = 4;
+let TAG_INT_TYPE: int = 5;
+let TAG_FLOAT_TYPE: int = 6;
 
 # Type
 # -----------------------------------------------------------------------------
@@ -18,7 +20,13 @@ let TAG_VALUE: int = 4;
 
 type Type { handle: ^LLVMOpaqueType }
 
+type IntegerType {
+    handle: ^LLVMOpaqueType,
+    signed: bool
+}
+
 let TYPE_SIZE: uint = ((0 as ^Type) + 1) - (0 as ^Type);
+let INT_TYPE_SIZE: uint = ((0 as ^IntegerType) + 1) - (0 as ^IntegerType);
 
 def make_type(handle: ^LLVMOpaqueType) -> ^Handle {
     # Build the module.
@@ -29,6 +37,25 @@ def make_type(handle: ^LLVMOpaqueType) -> ^Handle {
     make(TAG_TYPE, ty as ^void);
 }
 
+def make_float_type(handle: ^LLVMOpaqueType) -> ^Handle {
+    # Build the module.
+    let ty: ^Type = libc.malloc(TYPE_SIZE) as ^Type;
+    ty.handle = handle;
+
+    # Wrap in a handle.
+    make(TAG_FLOAT_TYPE, ty as ^void);
+}
+
+def make_int_type(handle: ^LLVMOpaqueType, signed: bool) -> ^Handle {
+    # Build the module.
+    let ty: ^IntegerType = libc.malloc(INT_TYPE_SIZE) as ^IntegerType;
+    ty.handle = handle;
+    ty.signed = signed;
+
+    # Wrap in a handle.
+    make(TAG_INT_TYPE, ty as ^void);
+}
+
 # Static Slot
 # -----------------------------------------------------------------------------
 # A slot keeps its name with it for now. It'll contain later its type and
@@ -36,7 +63,7 @@ def make_type(handle: ^LLVMOpaqueType) -> ^Handle {
 
 type StaticSlot {
     mut name: string.String,
-    type_: ^Type,
+    type_: ^Handle,
     handle: ^LLVMOpaqueValue
 }
 
@@ -44,7 +71,7 @@ let STATIC_SLOT_SIZE: uint = ((0 as ^StaticSlot) + 1) - (0 as ^StaticSlot);
 
 def make_static_slot(
         &name: string.String,
-        type_: ^Type,
+        type_: ^Handle,
         handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the slot.
     let slot: ^StaticSlot = libc.malloc(STATIC_SLOT_SIZE) as ^StaticSlot;
@@ -94,11 +121,11 @@ implement Module {
 # -----------------------------------------------------------------------------
 # A value remembers its type and the llvm handle.
 
-type Value { type_: ^Type, handle: ^LLVMOpaqueValue }
+type Value { type_: ^Handle, handle: ^LLVMOpaqueValue }
 
 let VALUE_SIZE: uint = ((0 as ^Value) + 1) - (0 as ^Value);
 
-def make_value(type_: ^Type, handle: ^LLVMOpaqueValue) -> ^Handle {
+def make_value(type_: ^Handle, handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the module.
     let val: ^Value = libc.malloc(VALUE_SIZE) as ^Value;
     val.handle = handle;

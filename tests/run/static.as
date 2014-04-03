@@ -2,6 +2,7 @@
 static a: int8 = 21;
 static b: int8 = -23;
 static c: int8 = 5;
+static m: int8 = 30;
 
 # Declare 2 mutable static slots.
 static mut d: int8 = 32;
@@ -20,8 +21,8 @@ module extra {
 
 def main() -> int8 {
     # Declare a couple statics in here.
-    static m: int8 = 30;
-    static n: int8 = 12;
+    static m: float32 = 30;
+    static n: uint8 = 12;
 
     # Define a nested function.
     # def nested() {
@@ -31,7 +32,10 @@ def main() -> int8 {
 
     # }
 
-    extra.more.p + extra.more.p + d + e + c + extra.a;
+    # m + m;
+    n % n;
+
+    # extra.more.p * extra.more.p + d + e + c + extra.a + m;
 
     # Assert the values of the "safe" statics.
     # assert(a == false);

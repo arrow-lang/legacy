@@ -62,6 +62,20 @@ def _declare_type(name: str, val: ^LLVMOpaqueType) {
     _global.set_ptr(name, han as ^void);
 }
 
+# declare_int_type -- Declare an integral type in `global` scope.
+# -----------------------------------------------------------------------------
+def _declare_int_type(name: str, val: ^LLVMOpaqueType, signed: bool) {
+    let han: ^code.Handle = code.make_int_type(val, signed);
+    _global.set_ptr(name, han as ^void);
+}
+
+# declare_float_type -- Declare a float type in `global` scope.
+# -----------------------------------------------------------------------------
+def _declare_float_type(name: str, val: ^LLVMOpaqueType) {
+    let han: ^code.Handle = code.make_float_type(val);
+    _global.set_ptr(name, han as ^void);
+}
+
 # declare_builtin_types
 # -----------------------------------------------------------------------------
 def _declare_primitive_types() {
@@ -69,22 +83,22 @@ def _declare_primitive_types() {
     _declare_type("bool", LLVMInt1Type());
 
     # Signed machine-independent integers
-    _declare_type(  "int8",   LLVMInt8Type());
-    _declare_type( "int16",  LLVMInt16Type());
-    _declare_type( "int32",  LLVMInt32Type());
-    _declare_type( "int64",  LLVMInt64Type());
-    _declare_type("int128", LLVMIntType(128));
+    _declare_int_type(  "int8",   LLVMInt8Type(), true);
+    _declare_int_type( "int16",  LLVMInt16Type(), true);
+    _declare_int_type( "int32",  LLVMInt32Type(), true);
+    _declare_int_type( "int64",  LLVMInt64Type(), true);
+    _declare_int_type("int128", LLVMIntType(128), true);
 
     # Unsigned machine-independent integers
-    _declare_type(  "uint8",   LLVMInt8Type());
-    _declare_type( "uint16",  LLVMInt16Type());
-    _declare_type( "uint32",  LLVMInt32Type());
-    _declare_type( "uint64",  LLVMInt64Type());
-    _declare_type("uint128", LLVMIntType(128));
+    _declare_int_type(  "uint8",   LLVMInt8Type(), false);
+    _declare_int_type( "uint16",  LLVMInt16Type(), false);
+    _declare_int_type( "uint32",  LLVMInt32Type(), false);
+    _declare_int_type( "uint64",  LLVMInt64Type(), false);
+    _declare_int_type("uint128", LLVMIntType(128), false);
 
     # Floating-points
-    _declare_type("float32", LLVMFloatType());
-    _declare_type("float64", LLVMDoubleType());
+    _declare_float_type("float32", LLVMFloatType());
+    _declare_float_type("float64", LLVMDoubleType());
 
     # TODO: Unsigned machine-dependent integer
 
@@ -121,10 +135,10 @@ def generate(node: ^ast.Node) -> ^code.Handle {
         gen_table[ast.TAG_FLOAT] = generate_nil;
         gen_table[ast.TAG_BOOLEAN] = generate_nil;
         gen_table[ast.TAG_ADD] = generate_add_expr;
-        gen_table[ast.TAG_SUBTRACT] = generate_nil;
-        gen_table[ast.TAG_MULTIPLY] = generate_nil;
-        gen_table[ast.TAG_DIVIDE] = generate_nil;
-        gen_table[ast.TAG_MODULO] = generate_nil;
+        gen_table[ast.TAG_SUBTRACT] = generate_sub_expr;
+        gen_table[ast.TAG_MULTIPLY] = generate_mult_expr;
+        gen_table[ast.TAG_DIVIDE] = generate_div_expr;
+        gen_table[ast.TAG_MODULO] = generate_mod_expr;
         gen_table[ast.TAG_MODULE] = generate_module;
         gen_table[ast.TAG_PROMOTE] = generate_nil;
         gen_table[ast.TAG_NUMERIC_NEGATE] = generate_nil;
@@ -352,7 +366,7 @@ def generate_static_slot(node: ^ast.Node) -> ^code.Handle {
 
     # Create a solid handle for the slot.
     let han: ^code.Handle;
-    han = code.make_static_slot(qual_name, type_obj, val);
+    han = code.make_static_slot(qual_name, type_handle, val);
 
     # Set us in the global scope.
     _global.set_ptr(qual_name.data() as str, han as ^void);
@@ -476,42 +490,311 @@ def generate_member_expr(node: ^ast.Node) -> ^code.Handle {
     }
 }
 
+# Generate the LHS and RHS of a binary expression.
+# -----------------------------------------------------------------------------
+def generate_binexpr_ops(x: ^ast.BinaryExpr) -> (^code.Handle, ^code.Handle) {
+    # Coerce the operands to values.
+    let lhs_han: ^code.Handle = code.make_nil();
+    let rhs_han: ^code.Handle = code.make_nil();
+
+    # Generate a handle for the LHS.
+    let lhs: ^code.Handle = generate(&x.lhs);
+    if not code.isnil(lhs) {
+        # Coerce the operands to values.
+        lhs_han = code.to_value(_builder, lhs);
+    }
+
+    # Generate a handle for the RHS.
+    let rhs: ^code.Handle = generate(&x.rhs);
+    if not code.isnil(rhs) {
+        # Coerce the operands to values.
+        rhs_han = code.to_value(_builder, rhs);
+    }
+
+    # Return the handles.
+    let res: (^code.Handle, ^code.Handle) = (lhs_han, rhs_han);
+    res;
+}
+
 # Generate an addition operation.
 # -----------------------------------------------------------------------------
 def generate_add_expr(node: ^ast.Node) -> ^code.Handle {
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
-    # Generate a handle for the LHS.
-    let lhs: ^code.Handle = generate(&x.lhs);
-    if code.isnil(lhs) { return code.make_nil(); }
+    # Generate the operands.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = generate_binexpr_ops(x);
 
-    # Generate a handle for the RHS.
-    let rhs: ^code.Handle = generate(&x.rhs);
-    if code.isnil(rhs) { return code.make_nil(); }
+    # If either of them are nil; return nil.
+    if code.isnil(lhs_han) or code.isnil(rhs_han) {
+        # Dispose.
+        code.dispose(lhs_han);
+        code.dispose(rhs_han);
 
-    # Coerce the operands to values.
-    let lhs_han: ^code.Handle = code.to_value(_builder, lhs);
-    let rhs_han: ^code.Handle = code.to_value(_builder, rhs);
-    if code.isnil(lhs_han) or code.isnil(rhs_han) { return code.make_nil(); }
+        # Return nil.
+        code.make_nil();
+    } else {
+        # Get the values.
+        let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
 
-    # Get the values.
-    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
-    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+        # Create the ADD operation.
+        let han: ^LLVMOpaqueValue;
+        if lhs_val.type_._tag == code.TAG_FLOAT_TYPE {
+            han = LLVMBuildFAdd(
+                _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if lhs_val.type_._tag == code.TAG_INT_TYPE {
+            han = LLVMBuildAdd(
+                _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else {
+            # FIXME: Report proper error message.
+            han = 0 as ^LLVMOpaqueValue;
+        }
 
-    # Create the ADD operation.
-    let han: ^LLVMOpaqueValue;
-    han = LLVMBuildAdd(_builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        if han == 0 as ^LLVMOpaqueValue {
+            code.make_nil();
+        } else {
+            # Wrap and return the value.
+            # NOTE: We are just using the LHS type right now. Type coercion, etc. has
+            #       to happen.
+            let val: ^code.Handle;
+            val = code.make_value(lhs_val.type_, han);
 
-    # Wrap and return the value.
-    # NOTE: We are just using the LHS type right now. Type coercion, etc. has
-    #       to happen.
-    let val: ^code.Handle;
-    val = code.make_value(lhs_val.type_, han);
+            # Dispose.
+            code.dispose(lhs_han);
+            code.dispose(rhs_han);
 
-    # Dispose.
-    code.dispose(lhs_han);
-    code.dispose(rhs_han);
+            # Return our wrapped result.
+            val;
+        }
+    }
+}
 
-    # Return our wrapped result.
-    val;
+# Generate a subtraction operation.
+# -----------------------------------------------------------------------------
+def generate_sub_expr(node: ^ast.Node) -> ^code.Handle {
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Generate the operands.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = generate_binexpr_ops(x);
+
+    # If either of them are nil; return nil.
+    if code.isnil(lhs_han) or code.isnil(rhs_han) {
+        # Dispose.
+        code.dispose(lhs_han);
+        code.dispose(rhs_han);
+
+        # Return nil.
+        code.make_nil();
+    } else {
+        # Get the values.
+        let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+        # Create the SUB operation.
+        let han: ^LLVMOpaqueValue;
+        if lhs_val.type_._tag == code.TAG_FLOAT_TYPE {
+            han = LLVMBuildFSub(
+                _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if lhs_val.type_._tag == code.TAG_INT_TYPE {
+            han = LLVMBuildSub(
+                _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else {
+            # FIXME: Report proper error message.
+            han = 0 as ^LLVMOpaqueValue;
+        }
+
+        if han == 0 as ^LLVMOpaqueValue {
+            code.make_nil();
+        } else {
+            # Wrap and return the value.
+            # NOTE: We are just using the LHS type right now. Type coercion, etc. has
+            #       to happen.
+            let val: ^code.Handle;
+            val = code.make_value(lhs_val.type_, han);
+
+            # Dispose.
+            code.dispose(lhs_han);
+            code.dispose(rhs_han);
+
+            # Return our wrapped result.
+            val;
+        }
+    }
+}
+
+# Generate a multiplication operation.
+# -----------------------------------------------------------------------------
+def generate_mult_expr(node: ^ast.Node) -> ^code.Handle {
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Generate the operands.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = generate_binexpr_ops(x);
+
+    # If either of them are nil; return nil.
+    if code.isnil(lhs_han) or code.isnil(rhs_han) {
+        # Dispose.
+        code.dispose(lhs_han);
+        code.dispose(rhs_han);
+
+        # Return nil.
+        code.make_nil();
+    } else {
+        # Get the values.
+        let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+        # Create the MULT operation.
+        let han: ^LLVMOpaqueValue;
+        if lhs_val.type_._tag == code.TAG_FLOAT_TYPE {
+            han = LLVMBuildFMul(
+                _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if lhs_val.type_._tag == code.TAG_INT_TYPE {
+            han = LLVMBuildMul(
+                _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else {
+            # FIXME: Report proper error message.
+            han = 0 as ^LLVMOpaqueValue;
+        }
+
+        if han == 0 as ^LLVMOpaqueValue {
+            code.make_nil();
+        } else {
+            # Wrap and return the value.
+            let val: ^code.Handle;
+            val = code.make_value(lhs_val.type_, han);
+
+            # Dispose.
+            code.dispose(lhs_han);
+            code.dispose(rhs_han);
+
+            # Return our wrapped result.
+            val;
+        }
+    }
+}
+
+# Generate a division operation.
+# -----------------------------------------------------------------------------
+def generate_div_expr(node: ^ast.Node) -> ^code.Handle {
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Generate the operands.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = generate_binexpr_ops(x);
+
+    # If either of them are nil; return nil.
+    if code.isnil(lhs_han) or code.isnil(rhs_han) {
+        # Dispose.
+        code.dispose(lhs_han);
+        code.dispose(rhs_han);
+
+        # Return nil.
+        code.make_nil();
+    } else {
+        # Get the values.
+        let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+        # Create the DIV operation.
+        let han: ^LLVMOpaqueValue;
+        if lhs_val.type_._tag == code.TAG_FLOAT_TYPE {
+            han = LLVMBuildFDiv(
+                _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if lhs_val.type_._tag == code.TAG_INT_TYPE {
+            # Figure out if this signed or not.
+            let int_type: ^code.IntegerType = lhs_val.type_._object as ^code.IntegerType;
+            if int_type.signed {
+                LLVMBuildSDiv(
+                    _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+            } else {
+                LLVMBuildUDiv(
+                    _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+            }
+        } else {
+            # FIXME: Report proper error message.
+            han = 0 as ^LLVMOpaqueValue;
+        }
+
+        if han == 0 as ^LLVMOpaqueValue {
+            code.make_nil();
+        } else {
+            # Wrap and return the value.
+            let val: ^code.Handle;
+            val = code.make_value(lhs_val.type_, han);
+
+            # Dispose.
+            code.dispose(lhs_han);
+            code.dispose(rhs_han);
+
+            # Return our wrapped result.
+            val;
+        }
+    }
+}
+
+# Generate a modulo operation.
+# -----------------------------------------------------------------------------
+def generate_mod_expr(node: ^ast.Node) -> ^code.Handle {
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Generate the operands.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = generate_binexpr_ops(x);
+
+    # If either of them are nil; return nil.
+    if code.isnil(lhs_han) or code.isnil(rhs_han) {
+        # Dispose.
+        code.dispose(lhs_han);
+        code.dispose(rhs_han);
+
+        # Return nil.
+        code.make_nil();
+    } else {
+        # Get the values.
+        let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+        # Create the DIV operation.
+        let han: ^LLVMOpaqueValue;
+        if lhs_val.type_._tag == code.TAG_FLOAT_TYPE {
+            han = LLVMBuildFRem(
+                _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if lhs_val.type_._tag == code.TAG_INT_TYPE {
+            # Figure out if this signed or not.
+            let int_type: ^code.IntegerType = lhs_val.type_._object as ^code.IntegerType;
+            if int_type.signed {
+                LLVMBuildSRem(
+                    _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+            } else {
+                LLVMBuildURem(
+                    _builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+            }
+        } else {
+            # FIXME: Report proper error message.
+            han = 0 as ^LLVMOpaqueValue;
+        }
+
+        if han == 0 as ^LLVMOpaqueValue {
+            code.make_nil();
+        } else {
+            # Wrap and return the value.
+            let val: ^code.Handle;
+            val = code.make_value(lhs_val.type_, han);
+
+            # Dispose.
+            code.dispose(lhs_han);
+            code.dispose(rhs_han);
+
+            # Return our wrapped result.
+            val;
+        }
+    }
 }

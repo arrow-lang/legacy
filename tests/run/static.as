@@ -1,36 +1,37 @@
 # Declare 3 static slots.
-static a: bool = false;
-static b: int = -235;
-static c: float64 = 5.12;
+static a: int8 = 21;
+static b: int8 = -23;
+static c: int8 = 5;
 
 # Declare 2 mutable static slots.
-static mut d: float32 = 32.1;
-static mut e: uint = 66;
+static mut d: int8 = 32;
+static mut e: int8 = 66;
 
 # Declare some modules containing static slots.
 module extra {
-    static a: int = 30;
-    static b: bool = true;
+    static a: int8 = 30;
+    static b: int8 = 32;
 
     module more {
-        static o: uint128 = 9622;
-        static p: uint8 = 210;
+        static o: int8 = 22;
+        static p: int8 = 10;
     }
 }
 
-def main() {
+def main() -> int8 {
     # Declare a couple statics in here.
-    static m: int = 30;
-    static n: bool = false;
+    static m: int8 = 30;
+    static n: int8 = 12;
 
     # Define a nested function.
-    def nested() {
-        # With more static data.
-        static m: float32 = 320.32;
-        static a: float64 = 923.23582395;
-    }
+    # def nested() {
+    #     # With more static data.
+    #     static m: float32 = 320.32;
+    #     static a: float64 = 923.23582395;
 
-    extra.a;
+    # }
+
+    extra.more.p + extra.more.p + d + e + c + extra.a;
 
     # Assert the values of the "safe" statics.
     # assert(a == false);

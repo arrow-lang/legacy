@@ -29,6 +29,14 @@ implement String {
     # -------------------------------------------------------------------------
     def size(&self) -> uint { self._data.size; }
 
+    # Perform a deep clone of the string and return the string.
+    # -------------------------------------------------------------------------
+    def clone(&self) -> String {
+        let string: String;
+        string._data = self._data.clone();
+        string;
+    }
+
     # Append a character onto the string.
     # -------------------------------------------------------------------------
     def append(&mut self, c: char) { self._data.push_i8(c as int8); }
@@ -102,10 +110,13 @@ def main() {
     m.push_str("strings");
 
     let mut s: String = join(".", m);
+    let mut s2: String = s.clone();
 
     printf("%s\n", s.data());
+    printf("%s\n", s2.data());
 
     m.dispose();
+    s2.dispose();
     s.dispose();
 
 }

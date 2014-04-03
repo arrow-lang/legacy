@@ -12,6 +12,7 @@ import errors;
 import dict;
 import list;
 import types;
+import code;
 
 # Some process variables
 let mut _module: ^LLVMOpaqueModule;
@@ -23,6 +24,7 @@ let mut _namespace: list.List = list.make(types.STR);
 libc.atexit(dispose);
 def dispose() {
     LLVMDisposeModule(_module);
+    # FIXME: Dispose of each handle in the global scope.
     _global.dispose();
     _namespace.dispose();
 }
@@ -31,6 +33,9 @@ def main() {
     # Parse the AST from the standard input.
     let unit: ast.Node = parser.parse();
     if errors.count > 0 { libc.exit(-1); }
+
+    # Insert the primitive types into the global scope.
+    _declare_primitive_types();
 
     # Construct a LLVM module to hold the geneated IR.
     _module = LLVMModuleCreateWithName("_" as ^int8);
@@ -42,22 +47,80 @@ def main() {
     generate(&unit);
 
     # Output the generated LLVM IR.
-    LLVMDumpModule(_module);
+    let data: ^int8 = LLVMPrintModuleToString(_module);
+    printf("%s", data);
+    LLVMDisposeMessage(data);
 
     # Return success back to the envrionment.
     libc.exit(0);
 }
 
+# declare_type -- Declare a type in `global` scope.
+# -----------------------------------------------------------------------------
+def _declare_type(name: str, val: ^LLVMOpaqueType) {
+    let han: ^code.Handle = code.make_type(val);
+    _global.set_ptr(name, han as ^void);
+}
+
+# declare_builtin_types
+# -----------------------------------------------------------------------------
+def _declare_primitive_types() {
+    # Boolean
+    _declare_type("bool", LLVMInt1Type());
+
+    # Signed machine-independent integers
+    _declare_type(  "int8",   LLVMInt8Type());
+    _declare_type( "int16",  LLVMInt16Type());
+    _declare_type( "int32",  LLVMInt32Type());
+    _declare_type( "int64",  LLVMInt64Type());
+    _declare_type("int128", LLVMIntType(128));
+
+    # Unsigned machine-independent integers
+    _declare_type(  "uint8",   LLVMInt8Type());
+    _declare_type( "uint16",  LLVMInt16Type());
+    _declare_type( "uint32",  LLVMInt32Type());
+    _declare_type( "uint64",  LLVMInt64Type());
+    _declare_type("uint128", LLVMIntType(128));
+
+    # Floating-points
+    _declare_type("float32", LLVMFloatType());
+    _declare_type("float64", LLVMDoubleType());
+
+    # TODO: Unsigned machine-dependent integer
+
+    # TODO: Signed machine-dependent integer
+
+    # TODO: UTF-32 Character
+
+    # TODO: UTF-8 String
+}
+
+# Qualify the passed name in the passed namespace.
+# -----------------------------------------------------------------------------
+def _qualify_name_in(s: str, ns: list.List) -> string.String {
+    let mut qn: string.String;
+    qn = string.join(".", ns);
+    if qn.size() > 0 { qn.append('.'); }
+    qn.extend(s);
+    qn;
+}
+
+# Qualify the passed name in the current namespace.
+# -----------------------------------------------------------------------------
+def _qualify_name(s: str) -> string.String {
+    _qualify_name_in(s, _namespace);
+}
+
 # generate -- "Generic" generation dispatcher
 # -----------------------------------------------------------------------------
-let mut gen_table: (def(^ast.Node) -> ^LLVMOpaqueValue)[100];
+let mut gen_table: (def(^ast.Node) -> ^code.Handle)[100];
 let mut gen_initialized: bool = false;
-def generate(node: ^ast.Node) {
+def generate(node: ^ast.Node) -> ^code.Handle {
     if not gen_initialized {
         gen_table[ast.TAG_INTEGER] = generate_nil;
         gen_table[ast.TAG_FLOAT] = generate_nil;
         gen_table[ast.TAG_BOOLEAN] = generate_nil;
-        gen_table[ast.TAG_ADD] = generate_nil;
+        gen_table[ast.TAG_ADD] = generate_add_expr;
         gen_table[ast.TAG_SUBTRACT] = generate_nil;
         gen_table[ast.TAG_MULTIPLY] = generate_nil;
         gen_table[ast.TAG_DIVIDE] = generate_nil;
@@ -92,27 +155,29 @@ def generate(node: ^ast.Node) {
         gen_table[ast.TAG_UNSAFE] = generate_nil;
         gen_table[ast.TAG_BLOCK] = generate_nil;
         gen_table[ast.TAG_RETURN] = generate_nil;
-        gen_table[ast.TAG_MEMBER] = generate_nil;
+        gen_table[ast.TAG_MEMBER] = generate_member_expr;
         gen_initialized = true;
     }
 
-    let gen_fn: def(^ast.Node) -> ^LLVMOpaqueValue = gen_table[node.tag];
+    let gen_fn: def(^ast.Node) -> ^code.Handle = gen_table[node.tag];
     let node_ptr: ^ast.Node = node;
     gen_fn(node_ptr);
 }
 
 # generate_nil
 # -----------------------------------------------------------------------------
-def generate_nil(node: ^ast.Node) -> ^LLVMOpaqueValue {
+def generate_nil(node: ^ast.Node) -> ^code.Handle {
     printf("generate %d\n", node.tag);
-    0 as ^LLVMOpaqueValue;
+
+    # Generate a nil handle.
+    code.make_nil();
 }
 
 # generate_ident
 # -----------------------------------------------------------------------------
-def generate_ident(node: ^ast.Node) -> ^LLVMOpaqueValue {
+def generate_ident(node: ^ast.Node) -> ^code.Handle {
     let x: ^ast.Ident = ast.unwrap(node^) as ^ast.Ident;
-    let handle: ^LLVMOpaqueValue;
+    let val: ^LLVMOpaqueValue;
 
     # Get the name for the identifier.
     let name_data: ast.arena.Store = x.name;
@@ -127,9 +192,7 @@ def generate_ident(node: ^ast.Node) -> ^LLVMOpaqueValue {
     loop {
         # Qualify the name by joining the namespaces.
         qual_name.dispose();
-        qual_name = string.join(".", namespace);
-        if qual_name.size() > 0 { qual_name.append('.'); }
-        qual_name.extend(name);
+        qual_name = _qualify_name_in(name, namespace);
 
         # Check for the qualified identifier in the `global` scope.
         if _global.contains(qual_name.data() as str) {
@@ -139,8 +202,7 @@ def generate_ident(node: ^ast.Node) -> ^LLVMOpaqueValue {
         }
 
         # Do we have any namespaces left.
-        # Note that we can't pop the `top` namespace.
-        if namespace.size > 1 {
+        if namespace.size > 0 {
             namespace.erase(-1);
         } else {
             # Out of namespaces to pop.
@@ -148,30 +210,34 @@ def generate_ident(node: ^ast.Node) -> ^LLVMOpaqueValue {
         }
     }
 
-    # Retrieve the `global` identifier.
-    handle = _global.get_ptr(qual_name.data() as str) as ^LLVMOpaqueValue;
+    # Check if we still haven't found it.
+    # HACK: Weird type target saying we're returning a bool
+    if not matched {
+        # FIXME: Report an error.
+        code.make_nil();
+    } else {
+        # Retrieve the `global` identifier.
+        let han: ^code.Handle;
+        han = _global.get_ptr(qual_name.data() as str) as ^code.Handle;
 
-    printf("%s\n", qual_name.data());
-    printf("------------------------\n");
-    LLVMDumpValue(handle);
+        # Dispose of dynamic memory.
+        qual_name.dispose();
+        namespace.dispose();
 
-    # Dispose of dynamic memory.
-    qual_name.dispose();
-    namespace.dispose();
-
-    # Return our resolved thing.
-    handle;
-
+        # Return our resolved handle.
+        han;
+    }
 }
 
 # generate_integer_expr
 # -----------------------------------------------------------------------------
-def generate_integer_expr(node: ^ast.Node) -> ^LLVMOpaqueValue {
+def generate_integer_expr(node: ^ast.Node) -> ^code.Handle {
     # ..
     # LLVMConstIntOfString(...)
 
     # Nothing generated.
-    0 as ^LLVMOpaqueValue;
+    # Generate a nil handle.
+    code.make_nil();
 }
 
 # generate_nodes
@@ -230,12 +296,22 @@ def generate_nodes(&nodes: ast.Nodes) {
 
 # generate_module
 # -----------------------------------------------------------------------------
-def generate_module(node: ^ast.Node) -> ^LLVMOpaqueValue {
+def generate_module(node: ^ast.Node) -> ^code.Handle {
     let x: ^ast.ModuleDecl = ast.unwrap(node^) as ^ast.ModuleDecl;
 
-    # Get the name for the slot.
+    # Get the name for the module.
     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
     let name: ast.arena.Store = id.name;
+
+    # Build the qual name for this module.
+    let mut qual_name: string.String = _qualify_name(name._data as str);
+
+    # Create a solid handle for the module.
+    let han: ^code.Handle;
+    han = code.make_module(qual_name);
+
+    # Set us in the global scope.
+    _global.set_ptr(qual_name.data() as str, han as ^void);
 
     # Push our name onto the namespace stack.
     _namespace.push_str(name._data as str);
@@ -246,13 +322,16 @@ def generate_module(node: ^ast.Node) -> ^LLVMOpaqueValue {
     # Pop our name off the namespace stack.
     _namespace.erase(-1);
 
+    # Dispose of dynamic memory.
+    qual_name.dispose();
+
     # Nothing generated.
-    0 as ^LLVMOpaqueValue;
+    code.make_nil();
 }
 
 # generate_static_slot
 # -----------------------------------------------------------------------------
-def generate_static_slot(node: ^ast.Node) -> ^LLVMOpaqueValue {
+def generate_static_slot(node: ^ast.Node) -> ^code.Handle {
     let x: ^ast.StaticSlotDecl = ast.unwrap(node^) as ^ast.StaticSlotDecl;
 
     # Get the name for the slot.
@@ -260,74 +339,179 @@ def generate_static_slot(node: ^ast.Node) -> ^LLVMOpaqueValue {
     let name: ast.arena.Store = id.name;
 
     # Build the qual name for this slot.
-    let mut qual_name: string.String;
-    qual_name = string.join(".", _namespace);
-    if qual_name.size() > 0 { qual_name.append('.'); }
-    qual_name.extend(name._data as str);
+    let mut qual_name: string.String = _qualify_name(name._data as str);
 
-    # Resolve the slot type.
-    let type_: ^LLVMOpaqueType;
-    type_ = LLVMInt32Type();
+    # Resolve the slot type handle.
+    let type_handle: ^code.Handle = generate(&x.type_);
+    if code.isnil(type_handle) { return code.make_nil(); }
+    let type_obj: ^code.Type = type_handle._object as ^code.Type;
 
     # Add the global slot declaration to the IR.
-    let handle: ^LLVMOpaqueValue;
-    handle = LLVMAddGlobal(_module, type_, qual_name.data());
+    let val: ^LLVMOpaqueValue;
+    val = LLVMAddGlobal(_module, type_obj.handle, qual_name.data());
+
+    # Create a solid handle for the slot.
+    let han: ^code.Handle;
+    han = code.make_static_slot(qual_name, type_obj, val);
 
     # Set us in the global scope.
-    _global.set_ptr(qual_name.data() as str, handle as ^void);
+    _global.set_ptr(qual_name.data() as str, han as ^void);
 
     # Dispose of dynamic memory.
     qual_name.dispose();
 
-    # Slot declarations return nothing.
-    0 as ^LLVMOpaqueValue;
+    # Declarations return nothing.
+    code.make_nil();
 }
 
 # generate_func_decl
 # -----------------------------------------------------------------------------
-def generate_func_decl(node: ^ast.Node) -> ^LLVMOpaqueValue {
+def generate_func_decl(node: ^ast.Node) -> ^code.Handle {
     let x: ^ast.FuncDecl = (node^).unwrap() as ^ast.FuncDecl;
 
     # Get the name for the function.
     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
     let name: ast.arena.Store = id.name;
 
-    # Resolve the function type.
-    let type_: ^LLVMOpaqueType;
-    type_ = LLVMFunctionType(LLVMVoidType(),
-                             0 as ^^LLVMOpaqueType,
-                             0,
-                             0);
+    # Resolve the function return type handle.
+    let ret_type: ^LLVMOpaqueType;
+    let error: bool = false;
+    let void_: bool = false;
+    if ast.isnull(x.return_type) {
+        void_ = true;
+        ret_type = LLVMVoidType();
+    } else {
+        let ret_type_handle: ^code.Handle = generate(&x.return_type);
+        if code.isnil(ret_type_handle) { error = true; }
+        let ret_type_obj: ^code.Type = ret_type_handle._object as ^code.Type;
+        ret_type = ret_type_obj.handle;
+    }
 
-    # Build the qual name for this slot.
-    let mut qual_name: string.String;
-    qual_name = string.join(".", _namespace);
-    if qual_name.size() > 0 { qual_name.append('.'); }
-    qual_name.extend(name._data as str);
+    if not error {
+        # Resolve the function type.
+        let type_: ^LLVMOpaqueType;
+        type_ = LLVMFunctionType(ret_type,
+                                 0 as ^^LLVMOpaqueType,
+                                 0,
+                                 0);
 
-    # Add the function declaration to the IR.
-    let handle: ^LLVMOpaqueValue;
-    handle = LLVMAddFunction(_module, qual_name.data(), type_);
+        # Build the qual name for this slot.
+        let mut qual_name: string.String = _qualify_name(name._data as str);
 
-    # Create a basic block for the function definition.
-    let block_handle: ^LLVMOpaqueBasicBlock;
-    block_handle = LLVMAppendBasicBlock(handle, "" as ^int8);
+        # Add the function declaration to the IR.
+        let handle: ^LLVMOpaqueValue;
+        handle = LLVMAddFunction(_module, qual_name.data(), type_);
 
-    # Set the insertion point.
-    LLVMPositionBuilderAtEnd(_builder, block_handle);
+        # Create a basic block for the function definition.
+        let block_handle: ^LLVMOpaqueBasicBlock;
+        block_handle = LLVMAppendBasicBlock(handle, "" as ^int8);
 
-    # Push our name onto the namespace stack.
-    _namespace.push_str(name._data as str);
+        # Remember the insert block.
+        let old_block: ^LLVMOpaqueBasicBlock;
+        old_block = LLVMGetInsertBlock(_builder);
 
-    # Generate each node in the function.
-    generate_nodes(x.nodes);
+        # Set the insertion point.
+        LLVMPositionBuilderAtEnd(_builder, block_handle);
 
-    # Pop our name off the namespace stack.
-    _namespace.erase(-1);
+        # Push our name onto the namespace stack.
+        _namespace.push_str(name._data as str);
 
-    # Dispose of dynamic memory.
-    qual_name.dispose();
+        # Generate each node in the function.
+        generate_nodes(x.nodes);
 
-    # Return the constructed node.
-    handle;
+        # Pop our name off the namespace stack.
+        _namespace.erase(-1);
+
+        # Reset to the old insert block.
+        LLVMPositionBuilderAtEnd(_builder, old_block);
+
+        # Dispose of dynamic memory.
+        qual_name.dispose();
+    }
+
+    # Declarations return nothing.
+    code.make_nil();
+}
+
+# generate_member_expr
+# -----------------------------------------------------------------------------
+def generate_member_expr(node: ^ast.Node) -> ^code.Handle {
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Generate a handle for the LHS.
+    let lhs: ^code.Handle = generate(&x.lhs);
+    if code.isnil(lhs) { return code.make_nil(); }
+
+    # Resolve the RHS as an identifier.
+    let id: ^ast.Ident = x.rhs.unwrap() as ^ast.Ident;
+    let name: ast.arena.Store = id.name;
+
+    if lhs._tag == code.TAG_MODULE {
+        # Resolve the LHS as a module.
+        let mod: ^code.Module = lhs._object as ^code.Module;
+
+        # Build the qualified member name.
+        let mut qual_name: string.String = mod.name.clone();
+        qual_name.append('.');
+        qual_name.extend(name._data as str);
+
+        # All members of a module are `static`. Is this member present?
+        if not _global.contains(qual_name.data() as str) {
+            # FIXME: Report an error.
+            return code.make_nil();
+        }
+
+        # Retrieve the member.
+        let han: ^code.Handle;
+        han = _global.get_ptr(qual_name.data() as str) as ^code.Handle;
+
+        # Dispose of dynamic memory.
+        qual_name.dispose();
+
+        # Return our resolved handle.
+        han;
+    } else {
+        # FIXME: Report an error.
+        code.make_nil();
+    }
+}
+
+# Generate an addition operation.
+# -----------------------------------------------------------------------------
+def generate_add_expr(node: ^ast.Node) -> ^code.Handle {
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Generate a handle for the LHS.
+    let lhs: ^code.Handle = generate(&x.lhs);
+    if code.isnil(lhs) { return code.make_nil(); }
+
+    # Generate a handle for the RHS.
+    let rhs: ^code.Handle = generate(&x.rhs);
+    if code.isnil(rhs) { return code.make_nil(); }
+
+    # Coerce the operands to values.
+    let lhs_han: ^code.Handle = code.to_value(_builder, lhs);
+    let rhs_han: ^code.Handle = code.to_value(_builder, rhs);
+    if code.isnil(lhs_han) or code.isnil(rhs_han) { return code.make_nil(); }
+
+    # Get the values.
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Create the ADD operation.
+    let han: ^LLVMOpaqueValue;
+    han = LLVMBuildAdd(_builder, lhs_val.handle, rhs_val.handle, "" as ^int8);
+
+    # Wrap and return the value.
+    # NOTE: We are just using the LHS type right now. Type coercion, etc. has
+    #       to happen.
+    let val: ^code.Handle;
+    val = code.make_value(lhs_val.type_, han);
+
+    # Dispose.
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
+
+    # Return our wrapped result.
+    val;
 }

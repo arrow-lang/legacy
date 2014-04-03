@@ -82,6 +82,7 @@ implement List {
         if not types.is_disposable(self.tag) {
             libc.memcpy(new.elements as ^void, self.elements as ^void,
                         self.size * self.element_size);
+            new.size = self.size;
             void;
         } else {
             # We need to do it the long way.
@@ -540,7 +541,7 @@ def main() {
     l.push_str("99921");
 
     let mut l2: List = l.clone();
-    l2.erase(-1);
+    # l2.erase(-1);
 
     let mut i: uint = 0;
     while i < l2.size {

@@ -316,9 +316,92 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
     return ast.null();
 }
 
+# Index expression
+# -----------------------------------------------------------------------------
+def parse_index_expr(mut lhs: ast.Node) -> ast.Node {
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_INDEX);
+    let idx: ^ast.IndexExpr = ast.unwrap(node) as ^ast.IndexExpr;
+    idx.expression = lhs;
+
+    # Consume the "[" token.
+    bump_token();
+
+    # Parse the subscript expression.
+    idx.subscript = parse_expr();
+    if ast.isnull(idx.subscript) { return ast.null(); }
+
+    if cur_tok <> tokens.TOK_RBRACKET {
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected `]`" as ^int8);
+        errors.end();
+
+        return ast.null();
+    }
+
+    # Consume the "]" token.
+    bump_token();
+
+    # Return our constructed node.
+    node;
+}
+
+# Call expression
+# -----------------------------------------------------------------------------
+def parse_call_expr(mut lhs: ast.Node) -> ast.Node {
+    ast.null(); # FIXME!
+}
+
+# Postfix expression (with a specific LHS)
+# -----------------------------------------------------------------------------
+def parse_postfix_lhs(mut lhs: ast.Node) -> ast.Node {
+    # Delegate to the appropriate postfix parse.
+    let expr: ast.Node;
+    if cur_tok == tokens.TOK_LPAREN {
+        expr = parse_call_expr(lhs);
+    } else if cur_tok == tokens.TOK_LBRACKET {
+        expr = parse_index_expr(lhs);
+    }
+
+    # Return nil if that didn't succeed.
+    if ast.isnull(expr) { return ast.null(); }
+
+    # Are we consuming this as a postfix expression?
+    if cur_tok == tokens.TOK_LPAREN or cur_tok == tokens.TOK_LBRACKET {
+        # Consume this as an LHS to a postfix expression.
+        parse_postfix_lhs(expr);
+    } else {
+        # Nope; just return the expression.
+        expr;
+    }
+}
+
+# Postfix expression
+# -----------------------------------------------------------------------------
+# postfix_expr = primary_expr
+#              | postfix_expr "(" [ arguments ] ")"
+#              | postfix_expr "[" expr "]"
+# -----------------------------------------------------------------------------
+def parse_postfix_expr() -> ast.Node {
+    # Attempt to parse the `invoked` expression as a primary expression.
+    let operand: ast.Node = parse_primary_expr();
+
+    # Return nil if that didn't succeed.
+    if ast.isnull(operand) { return ast.null(); }
+
+    # Are we consuming this operand as a postfix expression?
+    if cur_tok == tokens.TOK_LPAREN or cur_tok == tokens.TOK_LBRACKET {
+        # Consume the operand as an LHS to a postfix expression.
+        parse_postfix_lhs(operand);
+    } else {
+        # Nope; just return the primary expression.
+        operand;
+    }
+}
+
 # Unary expression
 # -----------------------------------------------------------------------------
-# unary_expr = primary_expr
+# unary_expr = postfix_expr
 #            | "+" unary_expr
 #            | "-" unary_expr
 #            | "not" unary_expr
@@ -329,7 +412,7 @@ def parse_unary_expr() -> ast.Node {
     if cur_tok <> tokens.TOK_PLUS
             and cur_tok <> tokens.TOK_MINUS
             and cur_tok <> tokens.TOK_NOT {
-        return parse_primary_expr();
+        return parse_postfix_expr();
     }
 
     # Okay; this is a unary operator token; consume and move on.

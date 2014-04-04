@@ -2,6 +2,7 @@
 import std;
 
 # The `std.io` module.
+# This import brings `io` in scope from the `std` module.
 import std.io;
 
 # The os module contains os-independent functions that operate on normally

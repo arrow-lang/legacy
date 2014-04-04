@@ -46,6 +46,8 @@ let TAG_BLOCK           : int = 39;             # Block
 let TAG_MEMBER          : int = 40;             # MemberExpr
 let TAG_NODE            : int = 41;             # Node
 let TAG_IMPORT          : int = 42;             # Import
+let TAG_CALL            : int = 43;             # CallExpr
+let TAG_INDEX           : int = 44;             # IndexExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -77,6 +79,9 @@ type BooleanExpr { value: bool }
 
 # "Generic" binary expression type.
 type BinaryExpr { lhs: Node, rhs: Node }
+
+# Index expression type.
+type IndexExpr { expression: Node, subscript: Node }
 
 # Conditional expression.
 type ConditionalExpr { lhs: Node, rhs: Node, condition: Node }
@@ -192,6 +197,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IMPORT  { let tmp: Import; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_INDEX   { let tmp: IndexExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_STATIC_SLOT {
         let tmp: StaticSlotDecl;
         ((&tmp + 1) - &tmp);
@@ -359,6 +365,7 @@ def dump(&node: Node) {
         dump_table[TAG_RETURN] = dump_return_expr;
         dump_table[TAG_MEMBER] = dump_binop_expr;
         dump_table[TAG_IMPORT] = dump_import;
+        dump_table[TAG_INDEX] = dump_index_expr;
         dump_initialized = true;
     }
 
@@ -451,6 +458,17 @@ def dump_binop_expr(node: ^Node) {
     dump_indent = dump_indent + 1;
     dump(x.lhs);
     dump(x.rhs);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_index_expr
+# -----------------------------------------------------------------------------
+def dump_index_expr(node: ^Node) {
+    let x: ^IndexExpr = unwrap(node^) as ^IndexExpr;
+    printf("IndexExpr <?>\n" as ^int8);
+    dump_indent = dump_indent + 1;
+    dump(x.expression);
+    dump(x.subscript);
     dump_indent = dump_indent - 1;
 }
 

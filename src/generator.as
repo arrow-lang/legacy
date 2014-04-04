@@ -133,7 +133,7 @@ def generate(node: ^ast.Node) -> ^code.Handle {
     if not gen_initialized {
         gen_table[ast.TAG_INTEGER] = generate_nil;
         gen_table[ast.TAG_FLOAT] = generate_nil;
-        gen_table[ast.TAG_BOOLEAN] = generate_nil;
+        gen_table[ast.TAG_BOOLEAN] = generate_bool_expr;
         gen_table[ast.TAG_ADD] = generate_add_expr;
         gen_table[ast.TAG_SUBTRACT] = generate_sub_expr;
         gen_table[ast.TAG_MULTIPLY] = generate_mult_expr;
@@ -252,6 +252,19 @@ def generate_integer_expr(node: ^ast.Node) -> ^code.Handle {
     # Nothing generated.
     # Generate a nil handle.
     code.make_nil();
+}
+
+# Generate `bool` expression.
+# -----------------------------------------------------------------------------
+def generate_bool_expr(node: ^ast.Node) -> ^code.Handle {
+    let x: ^ast.BooleanExpr = ast.unwrap(node^) as ^ast.BooleanExpr;
+
+    # Generate a llvm val for the boolean expression.
+    let val: ^LLVMOpaqueValue;
+    val = LLVMConstInt(LLVMInt1Type(), 1 if x.value else 0, false);
+
+    # Wrap and return the value.
+    code.make_value(_global.get_ptr("bool") as ^code.Handle, val);
 }
 
 # generate_nodes

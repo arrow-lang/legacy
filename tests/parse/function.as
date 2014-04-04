@@ -2,13 +2,13 @@
 def name() { }
 
 # Functions are invoked as follows:
-# name();
+name();
 
 # Parameters are specified comma-delimited inside the parenthesis.
 def sum(x: int, y: int, y: int) { }
 
 # Functions pass in parameters much the same way.
-# sum(53, 3, 23);
+sum(53, 3, 23);
 
 # Parameters may be given default values.
 # All 3 of these are valid.
@@ -17,10 +17,10 @@ def defualt_sum2(x: int, y: int = 0) { }
 def defualt_sum3(x: int = 0, y: int = 0) { }
 
 # Keyword arguments are supported.
-# defualt_sum1(y=320);
-# defualt_sum2(320);
-# defualt_sum2(x=320);
-# defualt_sum3(y=320, x=32);
+defualt_sum1(y=320);
+defualt_sum2(320);
+defualt_sum2(x=320);
+defualt_sum3(y=320, x=32);
 
 # The return type is specified using an "->" following the parameter list.
 def read() -> int { }

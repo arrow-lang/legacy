@@ -48,6 +48,7 @@ let TAG_NODE            : int = 41;             # Node
 let TAG_IMPORT          : int = 42;             # Import
 let TAG_CALL            : int = 43;             # CallExpr
 let TAG_INDEX           : int = 44;             # IndexExpr
+let TAG_CALL_ARG        : int = 45;             # Argument
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -139,6 +140,12 @@ type LocalSlotDecl {
     initializer: Node
 }
 
+# Call expression
+type CallExpr { expression: Node, arguments: Nodes }
+
+# Call arguments
+type Argument { expression: Node, name: Node }
+
 # Identifier.
 type Ident { name: arena.Store }
 
@@ -198,6 +205,8 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IMPORT  { let tmp: Import; ((&tmp + 1) - &tmp); }
     else if tag == TAG_INDEX   { let tmp: IndexExpr; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_CALL    { let tmp: CallExpr; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_CALL_ARG{ let tmp: Argument; ((&tmp + 1) - &tmp); }
     else if tag == TAG_STATIC_SLOT {
         let tmp: StaticSlotDecl;
         ((&tmp + 1) - &tmp);
@@ -366,6 +375,8 @@ def dump(&node: Node) {
         dump_table[TAG_MEMBER] = dump_binop_expr;
         dump_table[TAG_IMPORT] = dump_import;
         dump_table[TAG_INDEX] = dump_index_expr;
+        dump_table[TAG_CALL] = dump_call_expr;
+        dump_table[TAG_CALL_ARG] = dump_call_arg;
         dump_initialized = true;
     }
 
@@ -469,6 +480,33 @@ def dump_index_expr(node: ^Node) {
     dump_indent = dump_indent + 1;
     dump(x.expression);
     dump(x.subscript);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_call_arg
+# -----------------------------------------------------------------------------
+def dump_call_arg(node: ^Node) {
+    let x: ^Argument = unwrap(node^) as ^Argument;
+    printf("Argument <?>" as ^int8);
+    if not isnull(x.name) {
+        let id: ^Ident = unwrap(x.name) as ^Ident;
+        let xs: arena.Store = id.name;
+        printf(" %s" as ^int8, xs._data);
+    }
+    printf("\n" as ^int8);
+    dump_indent = dump_indent + 1;
+    dump(x.expression);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_call_expr
+# -----------------------------------------------------------------------------
+def dump_call_expr(node: ^Node) {
+    let x: ^CallExpr = unwrap(node^) as ^CallExpr;
+    printf("CallExpr <?>\n" as ^int8);
+    dump_indent = dump_indent + 1;
+    dump(x.expression);
+    dump_nodes("Arguments", x.arguments);
     dump_indent = dump_indent - 1;
 }
 

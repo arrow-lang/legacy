@@ -349,7 +349,95 @@ def parse_index_expr(mut lhs: ast.Node) -> ast.Node {
 # Call expression
 # -----------------------------------------------------------------------------
 def parse_call_expr(mut lhs: ast.Node) -> ast.Node {
-    ast.null(); # FIXME!
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_CALL);
+    let cal: ^ast.CallExpr = ast.unwrap(node) as ^ast.CallExpr;
+    cal.expression = lhs;
+
+    # Consume the "(" token.
+    bump_token();
+
+    # Parse the arguments.
+    let mut in_named_arguments: bool = false;
+    let mut error: bool = false;
+    while cur_tok <> tokens.TOK_RPAREN {
+        # Declare the argument node.
+        let arg_node: ast.Node = ast.make(ast.TAG_CALL_ARG);
+        let arg: ^ast.Argument = ast.unwrap(arg_node) as ^ast.Argument;
+
+        # This is a named argument if we have a ( ident "=" ) sequence.
+        if cur_tok == tokens.TOK_IDENTIFIER and next_tok == tokens.TOK_EQ {
+            # Read in the name.
+            arg.name = parse_ident();
+            if ast.isnull(arg.name) { return ast.null(); }
+
+            # Consume the "=" token.
+            bump_token();
+
+            # Mark that we have entered the land of named arguments.
+            in_named_arguments = true;
+        } else if in_named_arguments and ast.isnull(arg.name) {
+            # If we didn't get a named argument but are in the
+            # land of named arguments throw an error.
+            error_consume_until(tokens.TOK_RPAREN);
+            errors.begin_error();
+            errors.fprintf(errors.stderr, "non-keyword argument after keyword argument" as ^int8);
+            errors.end();
+            error = true;
+            break;
+        }
+
+        # Parse the argument expression.
+        arg.expression = parse_expr();
+        if ast.isnull(arg.expression) { return ast.null(); }
+
+        # Push the argument onto the arguments list.
+        ast.push(cal.arguments, arg_node);
+
+        # Is there a "," to continue the argument list.
+        if cur_tok == tokens.TOK_COMMA {
+            # Consume the "comma" token.
+            bump_token();
+
+            # Is there another comma?
+            if cur_tok == tokens.TOK_COMMA {
+                # Consume the errorenous comma.
+                bump_token();
+                error_consume_until(tokens.TOK_RPAREN);
+
+                errors.begin_error();
+                errors.fprintf(errors.stderr, "unexpected `,`" as ^int8);
+                errors.end();
+
+                return ast.null();
+            }
+
+            # Continue looking for arguments.
+            continue;
+        }
+
+        # Break out; no more arguments.
+        break;
+    }
+
+    if cur_tok <> tokens.TOK_RPAREN {
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected `)`" as ^int8);
+        errors.end();
+
+        return ast.null();
+    } else if error {
+        # Consume the ")" token.
+        bump_token();
+
+        return ast.null();
+    }
+
+    # Consume the ")" token.
+    bump_token();
+
+    # Return our constructed node.
+    node;
 }
 
 # Postfix expression (with a specific LHS)
@@ -992,6 +1080,15 @@ def error_consume() {
     while       cur_tok <> tokens.TOK_END
             and cur_tok <> tokens.TOK_SEMICOLON
             and cur_tok <> tokens.TOK_DEF {
+        bump_token();
+    }
+}
+
+# error_consume_until
+# -----------------------------------------------------------------------------
+def error_consume_until(tok: int) {
+    while       cur_tok <> tok
+            and cur_tok <> tokens.TOK_SEMICOLON {
         bump_token();
     }
 }

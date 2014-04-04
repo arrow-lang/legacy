@@ -149,6 +149,7 @@ implement List {
     def push_u128(&mut self, el: int128)  { self.push(&el as ^void); }
     def push_int (&mut self, el:    int)  { self.push(&el as ^void); }
     def push_uint(&mut self, el:   uint)  { self.push(&el as ^void); }
+    def push_ptr (&mut self, el:  ^void)  { self.push_uint(el as uint); }
 
     def push_str (&mut self, el: str) {
         # Request additional memory if needed.
@@ -243,6 +244,11 @@ implement List {
     def at_uint(&self, index: int) -> uint {
         let p: ^uint = self.at(index) as ^uint;
         p^;
+    }
+
+    def at_ptr(&self, index: int) -> ^void {
+        let p: uint = self.at_uint(index);
+        index as ^void;
     }
 
     # Erase the element at `index` in the list. This is O(1) for elements

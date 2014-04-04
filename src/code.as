@@ -2,6 +2,7 @@ foreign "C" import "llvm-c/Core.h";
 
 import string;
 import libc;
+import list;
 
 # Tags
 # -----------------------------------------------------------------------------
@@ -13,7 +14,9 @@ let TAG_TYPE: int = 3;
 let TAG_VALUE: int = 4;
 let TAG_INT_TYPE: int = 5;
 let TAG_FLOAT_TYPE: int = 6;
-let TAG_FUNCTION: int = 7;
+let TAG_FUNCTION_TYPE: int = 7;
+let TAG_FUNCTION: int = 8;
+let TAG_PARAMETER: int = 9;
 
 # Type
 # -----------------------------------------------------------------------------
@@ -55,6 +58,59 @@ def make_int_type(handle: ^LLVMOpaqueType, signed: bool) -> ^Handle {
 
     # Wrap in a handle.
     make(TAG_INT_TYPE, ty as ^void);
+}
+
+# Function type
+# -----------------------------------------------------------------------------
+# A function type needs to remember its return type and its parameters.
+
+type Parameter {
+    mut name: string.String,
+    type_: ^mut Handle
+}
+
+type FunctionType {
+    handle: ^LLVMOpaqueType,
+    return_type: ^mut Handle,
+    mut parameters: list.List
+}
+
+let PARAMETER_SIZE: uint = ((0 as ^Parameter) + 1) - (0 as ^Parameter);
+
+let FUNCTION_TYPE_SIZE: uint = ((0 as ^FunctionType) + 1) - (0 as ^FunctionType);
+
+def make_parameter(&mut name: string.String, type_: ^Handle) -> ^Handle {
+    # Build the parameter.
+    let param: ^Parameter = libc.malloc(PARAMETER_SIZE) as ^Parameter;
+    param.name = name.clone();
+    param.type_ = type_;
+
+    # Wrap in a handle.
+    make(TAG_PARAMETER, param as ^void);
+}
+
+def make_function_type(
+        handle: ^LLVMOpaqueType,
+        return_type: ^Handle,
+        &mut parameters: list.List) -> ^Handle {
+    # Build the function.
+    let func: ^FunctionType = libc.malloc(FUNCTION_TYPE_SIZE) as ^FunctionType;
+    func.return_type = return_type;
+    func.parameters = parameters;
+
+    # Wrap in a handle.
+    make(TAG_FUNCTION_TYPE, func as ^void);
+}
+
+implement Parameter {
+
+    # Dispose the parameter and its resources.
+    # -------------------------------------------------------------------------
+    def dispose(&mut self) {
+        # Dispose of the name.
+        self.name.dispose();
+    }
+
 }
 
 # Static Slot
@@ -139,25 +195,23 @@ def make_value(type_: ^Handle, handle: ^LLVMOpaqueValue) -> ^Handle {
 # Function
 # -----------------------------------------------------------------------------
 
-type Function { mut name: string.String }
+type Function {
+    mut name: string.String,
+    mut type_: ^mut Handle
+}
 
 let FUNCTION_SIZE: uint = ((0 as ^Function) + 1) - (0 as ^Function);
 
-def make_function(&mut name: string.String) -> ^Handle {
+def make_function(
+        &mut name: string.String,
+        type_: ^Handle) -> ^Handle {
     # Build the function.
-    let mod: ^Function = libc.malloc(FUNCTION_SIZE) as ^Function;
-    mod.name = name.clone();
+    let func: ^Function = libc.malloc(FUNCTION_SIZE) as ^Function;
+    func.name = name.clone();
+    func.type_ = type_;
 
     # Wrap in a handle.
-    make(TAG_MODULE, mod as ^void);
-}
-
-implement Function {
-
-    # Dispose the function and its resources.
-    # -------------------------------------------------------------------------
-    def dispose(&mut self) { self.name.dispose(); }
-
+    make(TAG_FUNCTION, func as ^void);
 }
 
 # Coerce an arbitary handle to a value.
@@ -198,6 +252,45 @@ type Handle {
 
 let HANDLE_SIZE: uint = ((0 as ^Handle) + 1) - (0 as ^Handle);
 
+implement Handle {
+    def _dispose(&mut self) { dispose(&self); }
+}
+
+implement Function { # HACK: Re-arrange when we can.
+
+    # Dispose the function and its resources.
+    # -------------------------------------------------------------------------
+    def dispose(&mut self) {
+        # Dispose of the type.
+        (self.type_^)._dispose();
+
+        # Dispose of the name.
+        self.name.dispose();
+    }
+
+}
+
+implement FunctionType { # HACK: Re-arrange when we can.
+
+    # Dispose the function and its resources.
+    # -------------------------------------------------------------------------
+    def dispose(&mut self) {
+        # Dispose of each parameter.
+        let mut i: uint = 0;
+        while i < self.parameters.size {
+            let param_han: ^mut Handle =
+                self.parameters.at_ptr(i as int) as ^Handle;
+
+            (param_han^)._dispose();
+            i = i + 1;
+        }
+
+        # Dispose of the parameter list.
+        self.parameters.dispose();
+    }
+
+}
+
 # Dispose the handle and its bound object.
 # -----------------------------------------------------------------------------
 def dispose(self: ^Handle) {
@@ -214,6 +307,12 @@ def dispose(self: ^Handle) {
     } else if self._tag == TAG_FUNCTION {
         let fn: ^mut Function = (self._object as ^Function);
         (fn^).dispose();
+    } else if self._tag == TAG_FUNCTION_TYPE {
+        let fn: ^mut FunctionType = (self._object as ^FunctionType);
+        (fn^).dispose();
+    } else if self._tag == TAG_PARAMETER {
+        let p: ^mut Parameter = (self._object as ^Parameter);
+        (p^).dispose();
     }
 
     # Free the object.

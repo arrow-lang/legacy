@@ -551,18 +551,25 @@ def generate_call_expr(node: ^ast.Node) -> ^code.Handle {
     # Ex. Point(1) Point(x=1) Point(5, y=2) Point(y=2)
 
     # First we create a list to hold the entire argument list.
-    let args: list.List = list.make(types.PTR);
+    let mut args: list.List = list.make(types.PTR);
 
     # Enumerate the parameters and push an equivalent amount
     # of blank arguments.
-    let mut iter: ^ast.NodesIterator = ast.iter_nodes(x.arguments);
-    while ast.iter_empty(iter) {
-        args.push_ptr(0 as ^void);
-        ast.iter_next(iter);
-    }
+    # let mut iter: ^ast.NodesIterator = ast.iter_nodes(x.arguments);
+    # while ast.iter_empty(iter) {
+    #     args.push_ptr(0 as ^void);
+    #     ast.iter_next(iter);
+    # }
 
-    # Enumerate the arguments and
+    # Enumerate the arguments and set the parameters in turn to each
+    # generated argument expression.
+    # iter = ast.iter_nodes(x.arguments);
 
+    # Dispose of dynamic memory.
+    args.dispose();
+
+    # Return nil.
+    code.make_nil();
 }
 
 # Generate a `return` expression.

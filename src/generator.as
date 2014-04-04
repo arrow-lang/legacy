@@ -425,6 +425,13 @@ def generate_func_decl(node: ^ast.Node) -> ^code.Handle {
         # Build the qual name for this slot.
         let mut qual_name: string.String = _qualify_name(name._data as str);
 
+        # Create a solid handle for the function.
+        let han: ^code.Handle;
+        han = code.make_function(qual_name);
+
+        # Set us in the global scope.
+        _global.set_ptr(qual_name.data() as str, han as ^void);
+
         # Add the function declaration to the IR.
         let handle: ^LLVMOpaqueValue;
         handle = LLVMAddFunction(_module, qual_name.data(), type_);
@@ -451,6 +458,8 @@ def generate_func_decl(node: ^ast.Node) -> ^code.Handle {
 
         # Reset to the old insert block.
         LLVMPositionBuilderAtEnd(_builder, old_block);
+
+        #
 
         # Dispose of dynamic memory.
         qual_name.dispose();
@@ -497,10 +506,63 @@ def generate_member_expr(node: ^ast.Node) -> ^code.Handle {
 
         # Return our resolved handle.
         han;
+    } else if lhs._tag == code.TAG_FUNCTION {
+        # Resolve the LHS as a function.
+        let mod: ^code.Function = lhs._object as ^code.Function;
+
+        # Build the qualified member name.
+        let mut qual_name: string.String = mod.name.clone();
+        qual_name.append('.');
+        qual_name.extend(name._data as str);
+
+        # All members of a function are `static`. Is this member present?
+        if not _global.contains(qual_name.data() as str) {
+            # FIXME: Report an error.
+            return code.make_nil();
+        }
+
+        # Retrieve the member.
+        let han: ^code.Handle;
+        han = _global.get_ptr(qual_name.data() as str) as ^code.Handle;
+
+        # Dispose of dynamic memory.
+        qual_name.dispose();
+
+        # Return our resolved handle.
+        han;
     } else {
         # FIXME: Report an error.
         code.make_nil();
     }
+}
+
+# Generate a `call` expression.
+# -----------------------------------------------------------------------------
+def generate_call_expr(node: ^ast.Node) -> ^code.Handle {
+    # Unwrap the "ploymorphic" node to its proper type.
+    let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
+
+    # A `call` contains the `invoked` expression and a sequence of arguments
+    # that are to be applied to the formal function parameters. An
+    # argument can be named in which it applies to a specific parameter;
+    # else, the argument is applied strictly in sequence. A parameter may
+    # have a default value that is to be used if there is not a matching
+    # argument in the call expression.
+    # Ex. Point(1) Point(x=1) Point(5, y=2) Point(y=2)
+
+    # First we create a list to hold the entire argument list.
+    let args: list.List = list.make(types.PTR);
+
+    # Enumerate the parameters and push an equivalent amount
+    # of blank arguments.
+    let mut iter: ^ast.NodesIterator = ast.iter_nodes(x.arguments);
+    while ast.iter_empty(iter) {
+        args.push_ptr(0 as ^void);
+        ast.iter_next(iter);
+    }
+
+    # Enumerate the arguments and
+
 }
 
 # Generate a `return` expression.

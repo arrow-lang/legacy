@@ -13,6 +13,7 @@ let TAG_TYPE: int = 3;
 let TAG_VALUE: int = 4;
 let TAG_INT_TYPE: int = 5;
 let TAG_FLOAT_TYPE: int = 6;
+let TAG_FUNCTION: int = 7;
 
 # Type
 # -----------------------------------------------------------------------------
@@ -135,6 +136,30 @@ def make_value(type_: ^Handle, handle: ^LLVMOpaqueValue) -> ^Handle {
     make(TAG_VALUE, val as ^void);
 }
 
+# Function
+# -----------------------------------------------------------------------------
+
+type Function { mut name: string.String }
+
+let FUNCTION_SIZE: uint = ((0 as ^Function) + 1) - (0 as ^Function);
+
+def make_function(&mut name: string.String) -> ^Handle {
+    # Build the function.
+    let mod: ^Function = libc.malloc(FUNCTION_SIZE) as ^Function;
+    mod.name = name.clone();
+
+    # Wrap in a handle.
+    make(TAG_MODULE, mod as ^void);
+}
+
+implement Function {
+
+    # Dispose the function and its resources.
+    # -------------------------------------------------------------------------
+    def dispose(&mut self) { self.name.dispose(); }
+
+}
+
 # Coerce an arbitary handle to a value.
 # -----------------------------------------------------------------------------
 # This can cause a LOAD.
@@ -186,6 +211,9 @@ def dispose(self: ^Handle) {
     } else if self._tag == TAG_STATIC_SLOT {
         let slot: ^mut StaticSlot = (self._object as ^StaticSlot);
         (slot^).dispose();
+    } else if self._tag == TAG_FUNCTION {
+        let fn: ^mut Function = (self._object as ^Function);
+        (fn^).dispose();
     }
 
     # Free the object.

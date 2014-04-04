@@ -41,7 +41,7 @@ def some() -> bool {
 }
 
 # Statics in functions may be accessed.
-# some.y == 32;
+some.y == 32;
 
 # Functions may be nested in other functions.
 def main() {
@@ -49,7 +49,7 @@ def main() {
 }
 
 # Invoking nested functions.
-# main.nested();
+main.nested();
 
 # Functions are first-class objects and are a valid type for a
 # slot declaration.

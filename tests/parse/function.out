@@ -77,6 +77,11 @@ ModuleDecl <?> _
           Ident <?> y
           IntegerExpr <?> 'int' 436 (10)
         BooleanExpr <?> true
+    EQExpr <?>
+      MemberExpr <?>
+        Ident <?> some
+        Ident <?> y
+      IntegerExpr <?> 'int' 32 (10)
     FuncDecl <?> main
       Parameters <?> 
       Nodes <?> 
@@ -84,3 +89,8 @@ ModuleDecl <?> _
           Parameters <?> 
           Nodes <?> 
             IntegerExpr <?> 'int' 432 (10)
+    MemberExpr <?>
+      Ident <?> main
+      CallExpr <?>
+        Ident <?> nested
+        Arguments <?> 

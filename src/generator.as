@@ -170,6 +170,7 @@ def generate(node: ^ast.Node) -> ^code.Handle {
         gen_table[ast.TAG_BLOCK] = generate_nil;
         gen_table[ast.TAG_RETURN] = generate_return_expr;
         gen_table[ast.TAG_MEMBER] = generate_member_expr;
+        gen_table[ast.TAG_CALL] = generate_call_expr;
         gen_initialized = true;
     }
 
@@ -402,71 +403,114 @@ def generate_func_decl(node: ^ast.Node) -> ^code.Handle {
 
     # Resolve the function return type handle.
     let ret_type: ^LLVMOpaqueType;
+    let ret_type_handle: ^code.Handle = code.make_nil();
     let error: bool = false;
     let void_: bool = false;
     if ast.isnull(x.return_type) {
         void_ = true;
         ret_type = LLVMVoidType();
     } else {
-        let ret_type_handle: ^code.Handle = generate(&x.return_type);
+        ret_type_handle = generate(&x.return_type);
         if code.isnil(ret_type_handle) { error = true; }
         let ret_type_obj: ^code.Type = ret_type_handle._object as ^code.Type;
         ret_type = ret_type_obj.handle;
     }
 
     if not error {
-        # Resolve the function type.
-        let type_: ^LLVMOpaqueType;
-        type_ = LLVMFunctionType(ret_type,
-                                 0 as ^^LLVMOpaqueType,
-                                 0,
-                                 0);
+        # Resolve the type for each function parameter.
+        let mut params: list.List = list.make(types.PTR);
+        let mut param_type_handles: list.List = list.make(types.PTR);
+        let mut piter: ast.NodesIterator = ast.iter_nodes(x.params);
+        while not ast.iter_empty(piter) {
+            let pnode: ast.Node = ast.iter_next(piter);
+            let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
 
-        # Build the qual name for this slot.
-        let mut qual_name: string.String = _qualify_name(name._data as str);
+            # Resolve the type.
+            let ptype_handle: ^code.Handle = generate(&p.type_);
+            if code.isnil(ptype_handle) { error = true; break; }
+            let ptype_obj: ^code.Type = ptype_handle._object as ^code.Type;
 
-        # Create a solid handle for the function.
-        let han: ^code.Handle;
-        han = code.make_function(qual_name);
+            # Emplace the type handle.
+            param_type_handles.push_ptr(ptype_obj.handle as ^void);
 
-        # Set us in the global scope.
-        _global.set_ptr(qual_name.data() as str, han as ^void);
+            # Unwrap the parameter name.
+            let param_id: ^ast.Ident = p.id.unwrap() as ^ast.Ident;
+            let param_name: ast.arena.Store = param_id.name;
 
-        # Add the function declaration to the IR.
-        let handle: ^LLVMOpaqueValue;
-        handle = LLVMAddFunction(_module, qual_name.data(), type_);
+            # Emplace a solid parameter.
+            params.push_ptr(code.make_parameter(
+                param_name._data as str,
+                ptype_handle,
+                code.make_nil()) as ^void);
+        }
 
-        # Create a basic block for the function definition.
-        let block_handle: ^LLVMOpaqueBasicBlock;
-        block_handle = LLVMAppendBasicBlock(handle, "" as ^int8);
+        if not error {
+            # Resolve the function type.
+            let type_: ^LLVMOpaqueType;
+            type_ = LLVMFunctionType(
+                ret_type,
+                param_type_handles.elements as ^^LLVMOpaqueType,
+                param_type_handles.size as uint32,
+                0);
 
-        # Remember the insert block.
-        let old_block: ^LLVMOpaqueBasicBlock;
-        old_block = LLVMGetInsertBlock(_builder);
+            # Create a solid handle for the function type.
+            let tyhan: ^code.Handle;
+            tyhan = code.make_function_type(type_, ret_type_handle, params);
 
-        # Set the insertion point.
-        LLVMPositionBuilderAtEnd(_builder, block_handle);
+            # Build the qual name for this slot.
+            let mut qual_name: string.String = _qualify_name(
+                name._data as str);
 
-        # Push our name onto the namespace stack.
-        _namespace.push_str(name._data as str);
+            # Add the function declaration to the IR.
+            let handle: ^LLVMOpaqueValue;
+            handle = LLVMAddFunction(_module, qual_name.data(), type_);
 
-        # Generate each node in the function.
-        generate_nodes(x.nodes);
+            # Create a solid handle for the function.
+            let han: ^code.Handle;
+            han = code.make_function(handle, qual_name, tyhan);
 
-        # Pop our name off the namespace stack.
-        _namespace.erase(-1);
+            # Set us in the global scope.
+            _global.set_ptr(qual_name.data() as str, han as ^void);
 
-        # Reset to the old insert block.
-        LLVMPositionBuilderAtEnd(_builder, old_block);
+            # Generate the function definition.
+            generate_func_def(x, han);
 
-        #
-
-        # Dispose of dynamic memory.
-        qual_name.dispose();
+            # Dispose of dynamic memory.
+            qual_name.dispose();
+        }
     }
 
     # Declarations return nothing.
     code.make_nil();
+}
+
+def generate_func_def(node: ^ast.FuncDecl, handle: ^code.Handle) {
+    let x: ^code.Function = handle._object as ^code.Function;
+
+    # Create a basic block for the function definition.
+    let entry: ^LLVMOpaqueBasicBlock;
+    entry = LLVMAppendBasicBlock(x.handle, "" as ^int8);
+
+    # Remember the insert block.
+    let cur_block: ^LLVMOpaqueBasicBlock;
+    cur_block = LLVMGetInsertBlock(_builder);
+
+    # Set the insertion point.
+    LLVMPositionBuilderAtEnd(_builder, entry);
+
+    # Push our name onto the namespace stack.
+    _namespace.push_str(x.name.data() as str);
+
+    # TODO: Insert the parameters onto the local stack as slots.
+
+    # Generate each node in the function.
+    generate_nodes(node.nodes);
+
+    # Pop our name off the namespace stack.
+    _namespace.erase(-1);
+
+    # Reset to the old insert block.
+    LLVMPositionBuilderAtEnd(_builder, cur_block);
 }
 
 # generate_member_expr
@@ -550,26 +594,48 @@ def generate_call_expr(node: ^ast.Node) -> ^code.Handle {
     # argument in the call expression.
     # Ex. Point(1) Point(x=1) Point(5, y=2) Point(y=2)
 
-    # First we create a list to hold the entire argument list.
-    let mut args: list.List = list.make(types.PTR);
+    # Generate the `invoked` expression.
+    let expr: ^code.Handle = generate(&x.expression);
+    if code.isnil(expr) { return code.make_nil(); }
 
-    # Enumerate the parameters and push an equivalent amount
-    # of blank arguments.
-    # let mut iter: ^ast.NodesIterator = ast.iter_nodes(x.arguments);
-    # while ast.iter_empty(iter) {
-    #     args.push_ptr(0 as ^void);
-    #     ast.iter_next(iter);
-    # }
+    # Determine how to get a function handle from the expression.
+    let handle: ^LLVMOpaqueValue = 0 as ^LLVMOpaqueValue;
+    if expr._tag == code.TAG_FUNCTION {
+        # Just grab the function handle.
+        let fn: ^code.Function = expr._object as ^code.Function;
+        handle = fn.handle;
+    }
 
-    # Enumerate the arguments and set the parameters in turn to each
-    # generated argument expression.
-    # iter = ast.iter_nodes(x.arguments);
+    if handle == 0 as ^LLVMOpaqueValue {
+        # Don't know what to do.
+        # FIXME: Report an error.
+        code.make_nil();
+    } else {
+        # First we create a list to hold the entire argument list.
+        let mut args: list.List = list.make(types.PTR);
 
-    # Dispose of dynamic memory.
-    args.dispose();
+        # Enumerate the parameters and push an equivalent amount
+        # of blank arguments.
+        # let mut iter: ^ast.NodesIterator = ast.iter_nodes(x.arguments);
+        # while ast.iter_empty(iter) {
+        #     args.push_ptr(0 as ^void);
+        #     ast.iter_next(iter);
+        # }
 
-    # Return nil.
-    code.make_nil();
+        # Enumerate the arguments and set the parameters in turn to each
+        # generated argument expression.
+        # iter = ast.iter_nodes(x.arguments);
+
+        # Build the `call` instruction.
+        LLVMBuildCall(
+            _builder, handle, 0 as ^^LLVMOpaqueValue, 0, "" as ^int8);
+
+        # Dispose of dynamic memory.
+        args.dispose();
+
+        # Return nil.
+        code.make_nil();
+    }
 }
 
 # Generate a `return` expression.

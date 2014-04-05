@@ -66,7 +66,8 @@ def make_int_type(handle: ^LLVMOpaqueType, signed: bool) -> ^Handle {
 
 type Parameter {
     mut name: string.String,
-    type_: ^mut Handle
+    type_: ^mut Handle,
+    default: ^mut Handle
 }
 
 type FunctionType {
@@ -79,11 +80,14 @@ let PARAMETER_SIZE: uint = ((0 as ^Parameter) + 1) - (0 as ^Parameter);
 
 let FUNCTION_TYPE_SIZE: uint = ((0 as ^FunctionType) + 1) - (0 as ^FunctionType);
 
-def make_parameter(&mut name: string.String, type_: ^Handle) -> ^Handle {
+def make_parameter(name: str, type_: ^Handle,
+                   default: ^Handle) -> ^Handle {
     # Build the parameter.
     let param: ^Parameter = libc.malloc(PARAMETER_SIZE) as ^Parameter;
-    param.name = name.clone();
+    param.name = string.make();
+    param.name.extend(name);
     param.type_ = type_;
+    param.default = default;
 
     # Wrap in a handle.
     make(TAG_PARAMETER, param as ^void);
@@ -100,17 +104,6 @@ def make_function_type(
 
     # Wrap in a handle.
     make(TAG_FUNCTION_TYPE, func as ^void);
-}
-
-implement Parameter {
-
-    # Dispose the parameter and its resources.
-    # -------------------------------------------------------------------------
-    def dispose(&mut self) {
-        # Dispose of the name.
-        self.name.dispose();
-    }
-
 }
 
 # Static Slot
@@ -196,6 +189,7 @@ def make_value(type_: ^Handle, handle: ^LLVMOpaqueValue) -> ^Handle {
 # -----------------------------------------------------------------------------
 
 type Function {
+    handle: ^LLVMOpaqueValue,
     mut name: string.String,
     mut type_: ^mut Handle
 }
@@ -203,10 +197,12 @@ type Function {
 let FUNCTION_SIZE: uint = ((0 as ^Function) + 1) - (0 as ^Function);
 
 def make_function(
+        handle: ^LLVMOpaqueValue,
         &mut name: string.String,
         type_: ^Handle) -> ^Handle {
     # Build the function.
     let func: ^Function = libc.malloc(FUNCTION_SIZE) as ^Function;
+    func.handle = handle;
     func.name = name.clone();
     func.type_ = type_;
 
@@ -287,6 +283,17 @@ implement FunctionType { # HACK: Re-arrange when we can.
 
         # Dispose of the parameter list.
         self.parameters.dispose();
+    }
+
+}
+
+implement Parameter { # HACK: Re-arrange when we can.
+
+    # Dispose the parameter and its resources.
+    # -------------------------------------------------------------------------
+    def dispose(&mut self) {
+        self.name.dispose();
+        (self.default^)._dispose();
     }
 
 }

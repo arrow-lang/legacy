@@ -46,6 +46,7 @@ _sizes[F64] = 8;
 _sizes[STR] = ((0 as ^uint) + 1) - (0 as ^uint);
 _sizes[UINT] = ((0 as ^uint) + 1) - (0 as ^uint);
 _sizes[INT] = ((0 as ^int) + 1) - (0 as ^int);
+_sizes[PTR] = ((0 as ^uint) + 1) - (0 as ^uint);
 
 # Gets the size (in bytes) of the type.
 def sizeof(tag: int) -> uint { _sizes[tag]; }

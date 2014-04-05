@@ -1,0 +1,38 @@
+# [X] Add `code.FunctionType`
+# [X] Emplace functions with their type
+# [.] Generate call expressions
+# [ ] Move `.` to a postfix operator
+# [ ] Add `assert` built-in
+# [ ] Add semantic analysis pass for contextual type analysis
+# [ ]   - Determine the type of integer literals
+# [ ]   - Determine the type of float literals
+# [ ] Generate integral literals
+# [ ] Generate float literals
+# [ ] Parse / generate logical operations (short-circuiting): "and", "or", "not"
+# [ ] Parse / generate relational operations: "<", ">", "<=", ">="
+# [ ] Parse Inequality as "!="
+# [ ] Parse / generate bitwise operations: "&", "|", "!", "^"
+# [ ] Parse / generate type expressions: tuple, function, array
+# [ ] Parse / generate structure types / expressions (record and sequence)
+# [ ] Interleave the parsing of structure expressions and block statements
+# [ ] Parse / generate function types
+# [ ] Parse / generate function expressions
+# [ ] Parse / generate tuple types / expressions
+# [ ] Parse / generate arrays types
+# [ ] Parse / generate arrays expressions
+# [ ] Account for integer / float promotion in operations
+# [ ] Handle data layout and target triple
+# [ ] Allow machine dependent integer types
+# [ ] Generate selection expressions and operations
+# [ ] Remove `:=` operator
+# [ ] Parse / generate `while` / `loop` statements
+# [ ] Implement local scope and generate local slots
+# [ ] Add semantic analysis pass for initialization type analysis
+# [ ]   - Determine the type of local slots
+# [ ] Add semantic analysis pass for usage type analysis
+# [ ]   - Further determine the type of local slots
+# [ ]   - Further determine the type of integer and floating types
+# [ ] Add location spans to tokenizer, parser, generator
+# [ ] Harden with lots more parse-fail tests (at least 30)
+# [ ] Begin hardening the generator with lots of run-fail tests (at least 30)
+# [ ] Parse / generate cast expressions

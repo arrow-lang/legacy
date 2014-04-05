@@ -149,7 +149,19 @@ implement List {
     def push_u128(&mut self, el: int128)  { self.push(&el as ^void); }
     def push_int (&mut self, el:    int)  { self.push(&el as ^void); }
     def push_uint(&mut self, el:   uint)  { self.push(&el as ^void); }
-    def push_ptr (&mut self, el:  ^void)  { self.push_uint(el as uint); }
+
+    def push_ptr (&mut self, el:  ^void)  {
+        # Request additional memory if needed.
+        if self.size == self.capacity { self.reserve(self.capacity + 1); }
+
+        # Move the element into the container.
+        let elp: ^^void = self.elements as ^^void;
+        let elx: ^^void = elp + self.size;
+        elx^ = el;
+
+        # Increment size to keep track of element insertion.
+        self.size = self.size + 1;
+    }
 
     def push_str (&mut self, el: str) {
         # Request additional memory if needed.
@@ -247,8 +259,15 @@ implement List {
     }
 
     def at_ptr(&self, index: int) -> ^void {
-        let p: uint = self.at_uint(index);
-        index as ^void;
+        # Handle negative indexing.
+        let mut _index: uint;
+        if index < 0 { _index = self.size - ((-index) as uint); }
+        else         { _index = index as uint; }
+
+        # Return the element offset.
+        let elp: ^^void = self.elements as ^^void;
+        let elx: ^^void = elp + _index;
+        elx^;
     }
 
     # Erase the element at `index` in the list. This is O(1) for elements
@@ -539,24 +558,20 @@ implement List {
 
 
 def main() {
-    let mut l: List = make(types.STR);
-    l.push_str("10");
-    l.push_str("623");
-    l.push_str("60");
-    l.push_str("51");
-    l.push_str("99921");
-
-    let mut l2: List = l.clone();
-    # l2.erase(-1);
+    let mut l: List = make(types.PTR);
+    l.push_ptr("10" as ^void);
+    l.push_ptr("623" as ^void);
+    l.push_ptr("60" as ^void);
+    l.push_ptr("51" as ^void);
+    l.push_ptr("99921" as ^void);
 
     let mut i: uint = 0;
-    while i < l2.size {
-        printf("%s ", l2.at_str(i as int));
+    while i < l.size {
+        printf("%s \n", l.at_ptr(i as int));
         i = i + 1;
     }
 
     l.dispose();
-    l2.dispose();
 
     # let mut i: uint = 0;
     # while i < il.size {

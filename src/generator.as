@@ -43,6 +43,9 @@ def main() {
     # Construct an instruction builder.
     _builder = LLVMCreateBuilder();
 
+    # Insert an `assert` function.
+    _declare_assert();
+
     # Walk the AST and generate the LLVM IR.
     generate(&unit);
 
@@ -107,6 +110,43 @@ def _declare_primitive_types() {
     # TODO: UTF-32 Character
 
     # TODO: UTF-8 String
+}
+
+# Declare an `assert` built-in.
+# -----------------------------------------------------------------------------
+def _declare_assert() {
+
+    # Build the LLVM type.
+    let param: ^LLVMOpaqueType = LLVMInt1Type();
+    let type_obj: ^LLVMOpaqueType = LLVMFunctionType(
+        LLVMVoidType(), &param, 1, 0);
+
+    # Create a `solid` handle to the parameter.
+    let phandle: ^code.Handle = _global.get_ptr("bool") as ^code.Handle;
+
+    # Create a `solid` handle to the parameters.
+    let mut params: list.List = list.make(types.PTR);
+    params.push_ptr(code.make_parameter(
+        "", phandle, code.make_nil()) as ^void);
+
+    # Create a `solid` handle to the function type.
+    let type_: ^code.Handle = code.make_function_type(
+        type_obj, code.make_nil(), params);
+
+    # Build the LLVM function declaration.
+    let val: ^LLVMOpaqueValue;
+    val = LLVMAddFunction(_module, "assert" as ^int8, type_obj);
+
+    # Create a `solid` handle to the function.
+    let mut name: string.String = string.make();
+    name.extend("assert");
+    let fn: ^code.Handle = code.make_function(val, name, type_);
+
+    # Set in the global scope.
+    _global.set_ptr("assert", fn as ^void);
+
+    # Build the LLVM function definition.
+
 }
 
 # Qualify the passed name in the passed namespace.
@@ -477,6 +517,7 @@ def generate_func_decl(node: ^ast.Node) -> ^code.Handle {
 
             # Dispose of dynamic memory.
             qual_name.dispose();
+            param_type_handles.dispose();
         }
     }
 
@@ -594,6 +635,9 @@ def generate_call_expr(node: ^ast.Node) -> ^code.Handle {
     # argument in the call expression.
     # Ex. Point(1) Point(x=1) Point(5, y=2) Point(y=2)
 
+    # TODO: Handle default arguments
+    # TODO: Harden and produce error messages
+
     # Generate the `invoked` expression.
     let expr: ^code.Handle = generate(&x.expression);
     if code.isnil(expr) { return code.make_nil(); }
@@ -620,7 +664,6 @@ def generate_call_expr(node: ^ast.Node) -> ^code.Handle {
         # of blank arguments.
         let mut i: int = 0;
         while i as uint < type_.parameters.size {
-            printf("%p\n", type_.parameters.at_ptr(i));
             args.push_ptr(0 as ^void);
             i = i + 1;
         }
@@ -661,7 +704,6 @@ def generate_call_expr(node: ^ast.Node) -> ^code.Handle {
                 while pi as uint < type_.parameters.size {
                     let prm_han: ^code.Handle =
                         type_.parameters.at_ptr(pi) as ^code.Handle;
-                    printf("check: %p\n", prm_han);
                     let prm: ^code.Parameter =
                         prm_han._object as ^code.Parameter;
                     if prm.name.eq_str(name._data as str) {
@@ -690,15 +732,37 @@ def generate_call_expr(node: ^ast.Node) -> ^code.Handle {
         }
 
         if not error {
-            # Build the `call` instruction.
-            LLVMBuildCall(_builder, handle, data,
-                          args.size as uint32, "" as ^int8);
+            # Check for missing arguments.
+            i = 0;
+            while i as uint < args.size {
+                let arg: ^LLVMOpaqueValue = (data + i)^;
+                if arg == 0 as ^LLVMOpaqueValue {
+                    error = true;
+                }
 
-            # Dispose of dynamic memory.
-            args.dispose();
+                i = i + 1;
+            }
 
-            # Return nil.
-            code.make_nil();
+            if not error {
+                # Build the `call` instruction.
+                let val: ^LLVMOpaqueValue;
+                val = LLVMBuildCall(_builder, handle, data,
+                                    args.size as uint32, "" as ^int8);
+
+                # Dispose of dynamic memory.
+                args.dispose();
+
+                if code.isnil(type_.return_type) {
+                    # Return nil.
+                    code.make_nil();
+                } else {
+                    # Wrap and return the value.
+                    code.make_value(type_.return_type, val);
+                }
+            } else {
+                # Return nil.
+                code.make_nil();
+            }
         } else {
             # Return nil.
             code.make_nil();

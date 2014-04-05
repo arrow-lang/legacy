@@ -16,7 +16,7 @@ def main() {
     def nested() -> bool { return true; }
 
     # Assert some values that the functions return.
-    # assert(x());
+    assert(x());
     # assert(nested());
     # assert(not y());
     # assert(not b());

@@ -96,7 +96,7 @@ def make_parameter(name: str, type_: ^Handle,
 def make_function_type(
         handle: ^LLVMOpaqueType,
         return_type: ^Handle,
-        &mut parameters: list.List) -> ^Handle {
+        parameters: list.List) -> ^Handle {
     # Build the function.
     let func: ^FunctionType = libc.malloc(FUNCTION_TYPE_SIZE) as ^FunctionType;
     func.return_type = return_type;

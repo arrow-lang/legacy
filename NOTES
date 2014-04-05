@@ -1,8 +1,8 @@
 # [X] Add `code.FunctionType`
 # [X] Emplace functions with their type
-# [.] Generate call expressions
-# [ ] Move `.` to a postfix operator
+# [X] Generate call expressions
 # [ ] Add `assert` built-in
+# [ ] Move `.` to a postfix operator
 # [ ] Add semantic analysis pass for contextual type analysis
 # [ ]   - Determine the type of integer literals
 # [ ]   - Determine the type of float literals

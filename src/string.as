@@ -77,6 +77,12 @@ implement String {
         x;
     }
 
+    # Get if this string is equal to another string.
+    # -------------------------------------------------------------------------
+    def eq_str(&mut self, other: str) -> bool {
+        libc.strcmp(self.data(), other as ^int8) == 0;
+    }
+
 }
 
 # Join a list of strings into one string separated by a character.

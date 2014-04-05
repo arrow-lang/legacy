@@ -600,9 +600,11 @@ def generate_call_expr(node: ^ast.Node) -> ^code.Handle {
 
     # Determine how to get a function handle from the expression.
     let handle: ^LLVMOpaqueValue = 0 as ^LLVMOpaqueValue;
+    let type_ : ^code.FunctionType;
     if expr._tag == code.TAG_FUNCTION {
         # Just grab the function handle.
         let fn: ^code.Function = expr._object as ^code.Function;
+        type_ = fn.type_._object as ^code.FunctionType;
         handle = fn.handle;
     }
 
@@ -616,25 +618,91 @@ def generate_call_expr(node: ^ast.Node) -> ^code.Handle {
 
         # Enumerate the parameters and push an equivalent amount
         # of blank arguments.
-        # let mut iter: ^ast.NodesIterator = ast.iter_nodes(x.arguments);
-        # while ast.iter_empty(iter) {
-        #     args.push_ptr(0 as ^void);
-        #     ast.iter_next(iter);
-        # }
+        let mut i: int = 0;
+        while i as uint < type_.parameters.size {
+            printf("%p\n", type_.parameters.at_ptr(i));
+            args.push_ptr(0 as ^void);
+            i = i + 1;
+        }
 
         # Enumerate the arguments and set the parameters in turn to each
         # generated argument expression.
-        # iter = ast.iter_nodes(x.arguments);
+        let data: ^mut ^LLVMOpaqueValue = args.elements as ^^LLVMOpaqueValue;
+        i = 0;
+        let mut iter: ast.NodesIterator = ast.iter_nodes(x.arguments);
+        let mut error: bool = false;
+        while not ast.iter_empty(iter) {
+            let anode: ast.Node = ast.iter_next(iter);
+            let a: ^ast.Argument = anode.unwrap() as ^ast.Argument;
 
-        # Build the `call` instruction.
-        LLVMBuildCall(
-            _builder, handle, 0 as ^^LLVMOpaqueValue, 0, "" as ^int8);
+            # Resolve the expression.
+            let a_handle: ^code.Handle = generate(&a.expression);
+            if code.isnil(a_handle) { error = true; break; }
 
-        # Dispose of dynamic memory.
-        args.dispose();
+            # Coerce the expression to a value.
+            let val_han: ^code.Handle = code.to_value(_builder, a_handle);
+            let val: ^code.Value = val_han._object as ^code.Value;
 
-        # Return nil.
-        code.make_nil();
+            # TODO: Type coercion
+
+            # NOTE: The parser handles making sure no positional arg
+            #   comes after a keyword arg.
+            if ast.isnull(a.name) {
+                # Push the value as an argument in sequence.
+                (data + i)^ = val.handle;
+                i = i + 1;
+            } else {
+                # Get the name data for the id.
+                let id: ^ast.Ident = a.name.unwrap() as ^ast.Ident;
+                let name: ast.arena.Store = id.name;
+
+                # Find the parameter index.
+                let mut pi: int = 0;
+                while pi as uint < type_.parameters.size {
+                    let prm_han: ^code.Handle =
+                        type_.parameters.at_ptr(pi) as ^code.Handle;
+                    printf("check: %p\n", prm_han);
+                    let prm: ^code.Parameter =
+                        prm_han._object as ^code.Parameter;
+                    if prm.name.eq_str(name._data as str) {
+                        break;
+                    }
+                    pi = pi + 1;
+                }
+
+                # If we didn't find one ...
+                if pi as uint == type_.parameters.size {
+                    # FIXME: Report an error.
+                    error = true;
+                    break;
+                }
+
+                # TODO: Detect dup keyword args
+
+                # Push the value as an argument where it belongs.
+                (data + pi)^ = val.handle;
+                i = -1;
+            }
+
+            # Dispose.
+            code.dispose(a_handle);
+            code.dispose(val_han);
+        }
+
+        if not error {
+            # Build the `call` instruction.
+            LLVMBuildCall(_builder, handle, data,
+                          args.size as uint32, "" as ^int8);
+
+            # Dispose of dynamic memory.
+            args.dispose();
+
+            # Return nil.
+            code.make_nil();
+        } else {
+            # Return nil.
+            code.make_nil();
+        }
     }
 }
 

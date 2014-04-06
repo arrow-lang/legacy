@@ -1,14 +1,15 @@
 # [X] Add `code.FunctionType`
 # [X] Emplace functions with their type
 # [X] Generate call expressions
-# [ ] Add `assert` built-in
+# [X] Add `assert` built-in
+# [X] Add top-level `main`
 # [ ] Move `.` to a postfix operator
 # [ ] Add semantic analysis pass for contextual type analysis
 # [ ]   - Determine the type of integer literals
 # [ ]   - Determine the type of float literals
 # [ ] Generate integral literals
 # [ ] Generate float literals
-# [ ] Parse / generate logical operations (short-circuiting): "and", "or", "not"
+# [ ] Parse / generate logical operations (short-circuiting): "and", "or"
 # [ ] Parse / generate relational operations: "<", ">", "<=", ">="
 # [ ] Parse Inequality as "!="
 # [ ] Parse / generate bitwise operations: "&", "|", "!", "^"
@@ -24,7 +25,6 @@
 # [ ] Handle data layout and target triple
 # [ ] Allow machine dependent integer types
 # [ ] Generate selection expressions and operations
-# [ ] Remove `:=` operator
 # [ ] Parse / generate `while` / `loop` statements
 # [ ] Implement local scope and generate local slots
 # [ ] Add semantic analysis pass for initialization type analysis

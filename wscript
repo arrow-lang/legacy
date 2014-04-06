@@ -33,6 +33,7 @@ def configure(ctx):
 
     # Check for the llvm compiler.
     ctx.find_program('llc', var='LLC')
+    ctx.find_program('lli', var='LLI')
     ctx.find_program('opt', var='OPT')
 
     # Check for gcc.
@@ -152,8 +153,6 @@ def _report(filename, status):
         print("{:<72}: \033[32m{}\033[0m".format(filename, 'PASS'))
 
 def _test_tokenizer(ctx):
-    # Enumerate through the test directory and run the command sequence,
-    # checking against the expected output.
     for fixture in glob("tests/tokenize/*.as"):
         # Run the tokenizer over our fixture.
         returncode, stdout, stderr = _run(fixture, 'tokenizer', [])
@@ -168,8 +167,6 @@ def _test_tokenizer(ctx):
         _report(fixture, status)
 
 def _test_parser(ctx):
-    # Enumerate through the test directory and run the command sequence,
-    # checking against the expected output.
     for fixture in glob("tests/parse/*.as"):
         # Run the parser over our fixture.
         returncode, stdout, stderr = _run(fixture, 'parser', [])
@@ -183,8 +180,6 @@ def _test_parser(ctx):
         _report(fixture, status)
 
 def _test_parser_fail(ctx):
-    # Enumerate through the test directory and run the command sequence,
-    # checking against the expected output.
     for fixture in glob("tests/parse-fail/*.as"):
         # Run the parser over our fixture.
         returncode, stdout, stderr = _run(fixture, 'parser', [])
@@ -196,6 +191,24 @@ def _test_parser_fail(ctx):
 
         # Report our status.
         _report(fixture, status)
+
+def _test_run(ctx):
+    for fixture in glob("tests/run/*.as"):
+        # Run the generator over our fixture.
+        with open(fixture) as stream:
+            # Execute and run the test case.
+            p = Popen([path.join(out, 'generator')],
+                      stdin=stream, stdout=PIPE, stderr=PIPE)
+            p2 = Popen(["lli"], stdin=p.stdout, stdout=PIPE, stderr=PIPE)
+            stdout, stderr = p2.communicate()
+
+            # Check the output against the expected.
+            status = True
+            status = p2.returncode == 0
+            status = status and _check_expected_stdout(fixture, stdout)
+
+            # Report our status.
+            _report(fixture, status)
 
 def _print_report():
     print()
@@ -228,4 +241,6 @@ def test(ctx):
     _test_parser(ctx)
     print(_sep("parse-fail", "-"))
     _test_parser_fail(ctx)
+    print(_sep("run", "-"))
+    _test_run(ctx)
     _print_report()

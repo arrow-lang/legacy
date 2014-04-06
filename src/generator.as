@@ -19,6 +19,7 @@ let mut _module: ^LLVMOpaqueModule;
 let mut _builder: ^LLVMOpaqueBuilder;
 let mut _global: dict.Dictionary = dict.make();
 let mut _namespace: list.List = list.make(types.STR);
+let mut _top_namespace: string.String = string.make();
 
 # Termination cleanup.
 libc.atexit(dispose);
@@ -27,6 +28,7 @@ def dispose() {
     # FIXME: Dispose of each handle in the global scope.
     _global.dispose();
     _namespace.dispose();
+    _top_namespace.dispose();
 }
 
 def main() {
@@ -48,6 +50,9 @@ def main() {
 
     # Walk the AST and generate the LLVM IR.
     generate(&unit);
+
+    # Insert a `main` function.
+    _declare_main();
 
     # Output the generated LLVM IR.
     let data: ^int8 = LLVMPrintModuleToString(_module);
@@ -112,9 +117,68 @@ def _declare_primitive_types() {
     # TODO: UTF-8 String
 }
 
+# Declare the `main` function.
+# -----------------------------------------------------------------------------
+def _declare_main() {
+
+    # Qualify a module main name.
+    let mut name: string.String = string.make();
+    name.extend(_top_namespace.data() as str);
+    name.append('.');
+    name.extend("main");
+
+    # Was their a main function defined?
+    let module_main_fn: ^LLVMOpaqueValue = 0 as ^LLVMOpaqueValue;
+    if _global.contains(name.data() as str) {
+        let module_main_han: ^code.Handle;
+        module_main_han = _global.get_ptr(name.data() as str) as ^code.Handle;
+        let module_main_fn_han: ^code.Function;
+        module_main_fn_han = module_main_han._object as ^code.Function;
+        module_main_fn = module_main_fn_han.handle;
+    }
+
+    # Build the LLVM type for the `main` fn.
+    let main_type: ^LLVMOpaqueType = LLVMFunctionType(
+        LLVMInt32Type(), 0 as ^^LLVMOpaqueType, 0, 0);
+
+    # Build the LLVM function for `main`.
+    let main_fn: ^LLVMOpaqueValue = LLVMAddFunction(
+        _module, "main" as ^int8, main_type);
+
+    # Build the LLVM function definition.
+    let entry_block: ^LLVMOpaqueBasicBlock;
+    entry_block = LLVMAppendBasicBlock(main_fn, "" as ^int8);
+    LLVMPositionBuilderAtEnd(_builder, entry_block);
+
+    if module_main_fn <> 0 as ^LLVMOpaqueValue {
+        # Create a `call` to the module main method.
+        LLVMBuildCall(_builder, module_main_fn, 0 as ^^LLVMOpaqueValue, 0,
+                      "" as ^int8);
+    }
+
+    # Create a constant 0.
+    let zero: ^LLVMOpaqueValue;
+    zero = LLVMConstInt(LLVMInt32Type(), 0, false);
+
+    # Add the `ret void` instruction to terminate the function.
+    LLVMBuildRet(_builder, zero);
+
+    # Dispose.
+    name.dispose();
+
+}
+
 # Declare an `assert` built-in.
 # -----------------------------------------------------------------------------
 def _declare_assert() {
+
+    # Build the LLVM type for the `abort` fn.
+    let abort_type: ^LLVMOpaqueType = LLVMFunctionType(
+        LLVMVoidType(), 0 as ^^LLVMOpaqueType, 0, 0);
+
+    # Build the LLVM function for `abort`.
+    let abort_fn: ^LLVMOpaqueValue = LLVMAddFunction(
+        _module, "abort" as ^int8, abort_type);
 
     # Build the LLVM type.
     let param: ^LLVMOpaqueType = LLVMInt1Type();
@@ -146,7 +210,29 @@ def _declare_assert() {
     _global.set_ptr("assert", fn as ^void);
 
     # Build the LLVM function definition.
+    # Add the basic blocks.
+    let entry_block: ^LLVMOpaqueBasicBlock;
+    let then_block: ^LLVMOpaqueBasicBlock;
+    let merge_block: ^LLVMOpaqueBasicBlock;
+    entry_block = LLVMAppendBasicBlock(val, "" as ^int8);
+    then_block = LLVMAppendBasicBlock(val, "" as ^int8);
+    merge_block = LLVMAppendBasicBlock(val, "" as ^int8);
 
+    # Grab the single argument.
+    LLVMPositionBuilderAtEnd(_builder, entry_block);
+    let phandle: ^LLVMOpaqueValue = LLVMGetParam(val, 0);
+
+    # Add a conditional branch on the single argument.
+    LLVMBuildCondBr(_builder, phandle, merge_block, then_block);
+
+    # Add the call to `abort`.
+    LLVMPositionBuilderAtEnd(_builder, then_block);
+    LLVMBuildCall(_builder, abort_fn, 0 as ^^LLVMOpaqueValue, 0, "" as ^int8);
+    LLVMBuildBr(_builder, merge_block);
+
+    # Add the `ret void` instruction to terminate the function.
+    LLVMPositionBuilderAtEnd(_builder, merge_block);
+    LLVMBuildRetVoid(_builder);
 }
 
 # Qualify the passed name in the passed namespace.
@@ -182,7 +268,7 @@ def generate(node: ^ast.Node) -> ^code.Handle {
         gen_table[ast.TAG_MODULE] = generate_module;
         gen_table[ast.TAG_PROMOTE] = generate_nil;
         gen_table[ast.TAG_NUMERIC_NEGATE] = generate_nil;
-        gen_table[ast.TAG_LOGICAL_NEGATE] = generate_nil;
+        gen_table[ast.TAG_LOGICAL_NEGATE] = generate_log_neg_expr;
         gen_table[ast.TAG_LOGICAL_AND] = generate_nil;
         gen_table[ast.TAG_LOGICAL_OR] = generate_nil;
         gen_table[ast.TAG_EQ] = generate_nil;
@@ -381,6 +467,11 @@ def generate_module(node: ^ast.Node) -> ^code.Handle {
     # Set us in the global scope.
     _global.set_ptr(qual_name.data() as str, han as ^void);
 
+    # Set us as the `top` namespace if there isn't one yet.
+    if _top_namespace.size() == 0  {
+        _top_namespace.extend(name._data as str);
+    }
+
     # Push our name onto the namespace stack.
     _namespace.push_str(name._data as str);
 
@@ -513,7 +604,7 @@ def generate_func_decl(node: ^ast.Node) -> ^code.Handle {
             _global.set_ptr(qual_name.data() as str, han as ^void);
 
             # Generate the function definition.
-            generate_func_def(x, han);
+            generate_func_def(name._data as str, x, han);
 
             # Dispose of dynamic memory.
             qual_name.dispose();
@@ -525,7 +616,8 @@ def generate_func_decl(node: ^ast.Node) -> ^code.Handle {
     code.make_nil();
 }
 
-def generate_func_def(node: ^ast.FuncDecl, handle: ^code.Handle) {
+def generate_func_def(
+        basename: str, node: ^ast.FuncDecl, handle: ^code.Handle) {
     let x: ^code.Function = handle._object as ^code.Function;
 
     # Create a basic block for the function definition.
@@ -540,7 +632,7 @@ def generate_func_def(node: ^ast.FuncDecl, handle: ^code.Handle) {
     LLVMPositionBuilderAtEnd(_builder, entry);
 
     # Push our name onto the namespace stack.
-    _namespace.push_str(x.name.data() as str);
+    _namespace.push_str(basename);
 
     # TODO: Insert the parameters onto the local stack as slots.
 
@@ -1110,40 +1202,31 @@ def generate_mod_expr(node: ^ast.Node) -> ^code.Handle {
     }
 }
 
-# TODO: Generate a DIV expression (with good features.. haha)
+# Generate a logical `NOT` expression.
 # -----------------------------------------------------------------------------
-# def generate_div_expr(node: *ast.Node) -> code.Handle {
-#     # Unwrap the "ploymorphic" node to its proper type.
-#     x := node.unwrap() as *ast.BinaryExpr;
+def generate_log_neg_expr(node: ^ast.Node) -> ^code.Handle {
+    let x: ^ast.UnaryExpr = (node^).unwrap() as ^ast.UnaryExpr;
 
-#     # Generate the operands.
-#     (lhs, rhs) := generate_binexpr_ops(x);
+    # Generate the value expression for the operand.
+    let han: ^code.Handle = generate(&x.operand);
+    if code.isnil(han) { return han; }
 
-#     # If either operand failed then return nil.
-#     if lhs == code.nil or rhs == code.nil { return code.nil; }
+    # Coerce the operand into a value.
+    let val: ^code.Handle = code.to_value(_builder, han);
+    if code.isnil(val) { return val; }
+    let val_obj: ^code.Value = val._object as ^code.Value;
 
-#     # Generate the `DIV` operation.
-#     han := match type(lhs) {
-#         code.FloatType => {
-#             # Floating-point division generates the `FDIV` instruction.
-#             LLVMBuildFDiv(_b, lhs.handle, rhs.handle);
-#         }
+    # Get the bool type handle.
+    let bool_: ^code.Handle = _global.get_ptr("bool") as ^code.Handle;
 
-#         code.IntegerType => {
-#             # Instruction for integral division depends
-#             # on the sign (`SDIV` for signed and `UDIV` for unsigned).
-#             (LLVMBuildSDiv if lhs.signed else LLVMBuildUDiv)(
-#                 _b, lhs.handle, rhs.handle
-#             );
-#         }
+    # Create the `NOT` instruction.
+    let handle: ^LLVMOpaqueValue;
+    handle = LLVMBuildNot(_builder, val_obj.handle, "" as ^int8);
 
-#         _ => {
-#             # No idea how to handle this.
-#             # FIXME: Report proper error message.
-#             return code.nil;
-#         }
-#     }
+    # Dispose.
+    code.dispose(han);
+    code.dispose(val);
 
-#     # Wrap and return the value.
-#     return code.Value(lhs.type_, han);
-# }
+    # Wrap and return the value.
+    code.make_value(bool_, handle);
+}

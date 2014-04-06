@@ -17,9 +17,9 @@ def main() {
 
     # Assert some values that the functions return.
     assert(x());
-    # assert(nested());
-    # assert(not y());
-    # assert(not b());
+    assert(nested());
+    assert(not y());
+    assert(not b());
     # assert(main.nested());
     # assert(not extra.inside());
 

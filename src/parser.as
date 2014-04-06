@@ -248,7 +248,6 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
             else if binop == tokens.TOK_FSLASH_EQ      { ast.TAG_ASSIGN_DIV; }
             else if binop == tokens.TOK_PERCENT_EQ     { ast.TAG_ASSIGN_MOD; }
             else if binop == tokens.TOK_IF             { ast.TAG_SELECT_OP; }
-            else if binop == tokens.TOK_DOT            { ast.TAG_MEMBER; }
             else { 0; };
 
         if tag == ast.TAG_SELECT_OP and cur_tok == tokens.TOK_ELSE {
@@ -282,6 +281,33 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
 
     # Unreachable code.
     return ast.null();
+}
+
+# Member expression
+# -----------------------------------------------------------------------------
+def parse_member_expr(mut lhs: ast.Node) -> ast.Node {
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_MEMBER);
+    let mem: ^ast.BinaryExpr = ast.unwrap(node) as ^ast.BinaryExpr;
+    mem.lhs = lhs;
+
+    # Consume the "." token.
+    bump_token();
+
+    if cur_tok <> tokens.TOK_IDENTIFIER {
+        errors.begin_error();
+        errors.fprintf(errors.stderr, "expected identifier" as ^int8);
+        errors.end();
+
+        return ast.null();
+    }
+
+    # Parse the identifier.
+    mem.rhs = parse_ident();
+    if ast.isnull(mem.rhs) { return ast.null(); }
+
+    # Return our constructed node.
+    node;
 }
 
 # Index expression
@@ -417,13 +443,17 @@ def parse_postfix_lhs(mut lhs: ast.Node) -> ast.Node {
         expr = parse_call_expr(lhs);
     } else if cur_tok == tokens.TOK_LBRACKET {
         expr = parse_index_expr(lhs);
+    } else if cur_tok == tokens.TOK_DOT {
+        expr = parse_member_expr(lhs);
     }
 
     # Return nil if that didn't succeed.
     if ast.isnull(expr) { return ast.null(); }
 
     # Are we consuming this as a postfix expression?
-    if cur_tok == tokens.TOK_LPAREN or cur_tok == tokens.TOK_LBRACKET {
+    if cur_tok == tokens.TOK_LPAREN
+            or cur_tok == tokens.TOK_LBRACKET
+            or cur_tok == tokens.TOK_DOT {
         # Consume this as an LHS to a postfix expression.
         parse_postfix_lhs(expr);
     } else {
@@ -446,7 +476,9 @@ def parse_postfix_expr() -> ast.Node {
     if ast.isnull(operand) { return ast.null(); }
 
     # Are we consuming this operand as a postfix expression?
-    if cur_tok == tokens.TOK_LPAREN or cur_tok == tokens.TOK_LBRACKET {
+    if cur_tok == tokens.TOK_LPAREN
+            or cur_tok == tokens.TOK_LBRACKET
+            or cur_tok == tokens.TOK_DOT {
         # Consume the operand as an LHS to a postfix expression.
         parse_postfix_lhs(operand);
     } else {

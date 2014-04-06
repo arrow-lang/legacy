@@ -3,8 +3,8 @@
 # [X] Generate call expressions
 # [X] Add `assert` built-in
 # [X] Add top-level `main`
+# [X] Remove `:=`
 # [ ] Move `.` to a postfix operator
-# [ ] Remove `:=`
 # [ ] Add semantic analysis pass for contextual type analysis
 # [ ]   - Determine the type of integer literals
 # [ ]   - Determine the type of float literals

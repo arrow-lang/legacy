@@ -20,8 +20,8 @@ def main() {
     assert(nested());
     assert(not y());
     assert(not b());
-    # assert(main.nested());
-    # assert(not extra.inside());
+    assert(main.nested());
+    assert(not extra.inside());
 
     # Explicitly return nothing.
     return;

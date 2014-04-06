@@ -396,7 +396,6 @@ def scan_punctuator() -> int {
         return tokens.TOK_EQ;
     } else if lchar == asciz.ord(':') {
         bump();
-        if lchar == asciz.ord('=') { bump(); return tokens.TOK_COLON_EQ; }
         return tokens.TOK_COLON;
     }
 
@@ -556,8 +555,6 @@ def println_token(token: int) {
         printf("<punctuator> '/='\n" as ^int8);
     } else if token == tokens.TOK_PERCENT_EQ {
         printf("<punctuator> '%='\n" as ^int8);
-    } else if token == tokens.TOK_COLON_EQ {
-        printf("<punctuator> ':='\n" as ^int8);
     }
 }
 

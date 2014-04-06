@@ -184,9 +184,6 @@ let TOK_FSLASH_EQ: int = -2029;
 # "%=" -- Percent followed by an equals
 let TOK_PERCENT_EQ: int = -2030;
 
-# ":=" -- Colon followed by an equals
-let TOK_COLON_EQ: int = -2031;
-
 # "identifier" -- Lexical identifier
 let TOK_IDENTIFIER: int = -3001;
 

@@ -31,13 +31,6 @@ let mut h;
 let mut i: int;
 let mut j: int = 26;
 
-# Local slot declaration short-hand. Initializer is required in this case and
-# no explicit type annotation can be given. Futhermore declarations of this
-# kind cannot be made mutable.
-k := 42;
-k := k + 32;
-k := k * 21;
-
 # Multiple local slot declarations. The way it works / is implemented is that
 # a local slot declaration can use a pattern to match the right-hand
 # expression. Note that this is not possible for static slot declarations.
@@ -51,4 +44,3 @@ k := k * 21;
 # let (x, y, z, w) = (32, false, 243.5, "sg");
 # let (x, y, z, w);
 # let mut (x, y, z, w);
-# (x, y, z, w) := (32, false, 243.5, "sg");

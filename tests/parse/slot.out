@@ -20,13 +20,3 @@ ModuleDecl <?> _
     LocalSlotDecl <?> mut i 'int'
     LocalSlotDecl <?> mut j 'int'
       IntegerExpr <?> 'int' 26 (10)
-    LocalSlotDecl <?> k
-      IntegerExpr <?> 'int' 42 (10)
-    LocalSlotDecl <?> k
-      AddExpr <?>
-        Ident <?> k
-        IntegerExpr <?> 'int' 32 (10)
-    LocalSlotDecl <?> k
-      MultiplyExpr <?>
-        Ident <?> k
-        IntegerExpr <?> 'int' 21 (10)

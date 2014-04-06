@@ -138,7 +138,6 @@ def get_binop_tok_precedence() -> int {
     else if cur_tok == tokens.TOK_STAR_EQ        { 030; }  # *=
     else if cur_tok == tokens.TOK_FSLASH_EQ      { 030; }  # /=
     else if cur_tok == tokens.TOK_PERCENT_EQ     { 030; }  # %=
-    else if cur_tok == tokens.TOK_COLON_EQ       { 030; }  # :=
     else if cur_tok == tokens.TOK_RETURN         { 040; }  # return
     else if cur_tok == tokens.TOK_AND            { 060; }  # and
     else if cur_tok == tokens.TOK_OR             { 060; }  # or
@@ -173,7 +172,6 @@ def get_binop_tok_associativity() -> int {
     else if cur_tok == tokens.TOK_STAR_EQ        { ASSOC_RIGHT; }  # *=
     else if cur_tok == tokens.TOK_FSLASH_EQ      { ASSOC_RIGHT; }  # /=
     else if cur_tok == tokens.TOK_PERCENT_EQ     { ASSOC_RIGHT; }  # %=
-    else if cur_tok == tokens.TOK_COLON_EQ       { ASSOC_RIGHT; }  # :=
     else if cur_tok == tokens.TOK_AND            { ASSOC_LEFT; }   # and
     else if cur_tok == tokens.TOK_OR             { ASSOC_LEFT; }   # or
     else if cur_tok == tokens.TOK_EQ_EQ          { ASSOC_LEFT; }   # ==
@@ -279,36 +277,6 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
             expr.lhs = lhs;
             expr.rhs = rhs;
             lhs = node;
-        } else if binop == tokens.TOK_COLON_EQ {
-            # This is a special binary operator. The LHS may only be an
-            # identifier or a tuple and places expecting. Meaning this is
-            # not chainable. It is not valid inside function calls however
-            # function calls will reject it not us (as we don't know where
-            # we are being used).
-            let node: ast.Node = ast.make(ast.TAG_LOCAL_SLOT);
-            let decl: ^ast.LocalSlotDecl =
-                ast.unwrap(node) as ^ast.LocalSlotDecl;
-
-            if lhs.tag <> ast.TAG_IDENT {
-                errors.begin_error();
-                errors.fprintf(errors.stderr,
-                               "expected identifier" as ^int8);
-                errors.end();
-
-                return ast.null();
-            }
-
-            # Set the id.
-            decl.id = lhs;
-
-            # We are not mutable.
-            decl.mutable = false;
-
-            # Set the rhs as the initializer.
-            decl.initializer = rhs;
-
-            # Return our node.
-            return node;
         }
     }
 

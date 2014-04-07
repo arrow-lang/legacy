@@ -4,16 +4,17 @@
 # [X] Add `assert` built-in
 # [X] Add top-level `main`
 # [X] Remove `:=`
-# [ ] Move `.` to a postfix operator
+# [X] Move `.` to a postfix operator
 # [ ] Add semantic analysis pass for contextual type analysis
 # [ ]   - Determine the type of integer literals
 # [ ]   - Determine the type of float literals
 # [ ] Generate integral literals
 # [ ] Generate float literals
+# [ ] Generate static slot initializers
 # [ ] Parse / generate `assert` statement
 # [ ] Parse / generate logical operations (short-circuiting): "and", "or"
-# [ ] Parse / generate relational operations: "<", ">", "<=", ">="
 # [ ] Parse Inequality as "!="
+# [ ] Parse / generate relational operations: "<", ">", "<=", ">=", "!=", "=="
 # [ ] Parse / generate bitwise operations: "&", "|", "!", "^"
 # [ ] Add location spans to tokenizer, parser, generator
 # [ ] Harden with lots more parse-fail tests (at least 30)
@@ -38,3 +39,46 @@
 # [ ]   - Further determine the type of local slots
 # [ ]   - Further determine the type of integer and floating types
 # [ ] Parse / generate cast expressions
+
+
+
+
+
+
+# PASS  A - Build global symbol table consisting of "just" names and `kinds`
+#           This means that now we'll have a "_.main" entry that is identified
+#           as a "Function". All information from the AST is transferred
+#           into the IR. Flatten modules.
+
+# PASS  B - Resolve the opaque type of each "declaration" into
+#           an initial `code.*Type`.
+
+# PASS  C - Resolve the full type of each "declaration" (function parameters
+#           and return type, struct members, static type). Expand `type(X)`
+#           for type deferrence here.
+
+# PASS  D - Resolve the LLVM type of each "declaration"; detect unresolvable
+#           type reference recursion that may have happened due to `type(X)`.
+
+# PASS  E - Analyze usage and initialization of local declarations
+#           to infer type
+
+# PASS  F - Analyze context of literal expressions to infer their type
+
+# PASS  G - Generate static slot declaration initialization sequences. Note
+#           these can also be recursive as they may refer to
+#           other declarations.
+
+# Initial generation runs pass A - D and F - G. On function definition
+# generation we run pass E - F.
+
+assert(that()(20) == 40);
+
+def that() -> type(some) { some; }
+
+def some(a: type(x)) -> type(x * 2) { a * 2; }
+
+static x: uint = 40;
+
+# [ ] Traits
+# [ ] Enumerations

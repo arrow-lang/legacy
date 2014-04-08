@@ -8,8 +8,6 @@ import types;
 #
 # - [ ] Allow the dictionary to resize automatically
 # - [ ] Implement .erase("...")
-# - [ ] Implement .contains("...")
-# - [ ] Implement .iter()
 # - [ ] Implement .empty()
 # - [ ] Implement .size()
 # - [ ] Implement .clear()
@@ -25,6 +23,16 @@ type Dictionary {
     size: uint,
     capacity: uint,
     buckets: ^Bucket
+}
+
+type Iterator {
+    buckets: ^Bucket,
+    bucket: ^Bucket,
+    key: str,
+    index: uint,
+    size: uint,
+    capacity: uint,
+    count: uint
 }
 
 let BUCKET_SIZE: uint = (((0 as ^Bucket) + 1) - (0 as ^Bucket));
@@ -329,23 +337,207 @@ implement Dictionary {
         p;
     }
 
+    def iter(&mut self) -> Iterator {
+        let iter: Iterator;
+        iter.buckets = self.buckets;
+        iter.bucket = 0 as ^Bucket;
+        iter.index = 0;
+        iter.count = 0;
+        iter.capacity = self.capacity;
+        iter.size = self.size;
+        iter.key = "";
+        iter;
+    }
+
 }
 
-def make() -> Dictionary {
+implement Iterator {
+
+    def next(&mut self) -> (str, ^void) {
+
+        # Get a bucket with contents.
+        loop {
+            # Is the current bucket empty? (Initial)
+            if self.bucket == 0 as ^Bucket {
+                # Move to the first bucket.
+                self.bucket = self.buckets;
+            } else if self.bucket.next == 0 as ^Bucket {
+                # Is the current bucket exhausted?
+                # Yes; move to the next bucket in the chain.
+                self.index = self.index + 1;
+                self.bucket = self.buckets + self.index;
+            } else {
+                # Move to `next` key in the bucket.
+                self.bucket = self.bucket.next;
+            }
+
+            # Is there something in this bucket.
+            if self.bucket.key <> 0 as ^int8 { break; }
+
+            # No; keep going.
+        }
+
+        # Increment count.
+        self.count = self.count + 1;
+
+        # Get the `key` and `value` out of the bucket.
+        let key_str: str = self.bucket.key as str;
+        let val: ^void = self.bucket.value;
+        let res: (str, ^void) = (key_str, val);
+        res;
+
+    }
+
+    def next_i8(&mut self) -> (str, int8) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^int8 = ptr as ^int8;
+        let res: (str, int8) = (key, val^);
+        res;
+    }
+
+    def next_i16(&mut self) -> (str, int16) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^int16 = ptr as ^int16;
+        let res: (str, int16) = (key, val^);
+        res;
+    }
+
+    def next_i32(&mut self) -> (str, int32) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^int32 = ptr as ^int32;
+        let res: (str, int32) = (key, val^);
+        res;
+    }
+
+    def next_i64(&mut self) -> (str, int64) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^int64 = ptr as ^int64;
+        let res: (str, int64) = (key, val^);
+        res;
+    }
+
+    def next_i128(&mut self) -> (str, int128) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^int128 = ptr as ^int128;
+        let res: (str, int128) = (key, val^);
+        res;
+    }
+
+    def next_u8(&mut self) -> (str, uint8) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^uint8 = ptr as ^uint8;
+        let res: (str, uint8) = (key, val^);
+        res;
+    }
+
+    def next_u16(&mut self) -> (str, uint16) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^uint16 = ptr as ^uint16;
+        let res: (str, uint16) = (key, val^);
+        res;
+    }
+
+    def next_u32(&mut self) -> (str, uint32) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^uint32 = ptr as ^uint32;
+        let res: (str, uint32) = (key, val^);
+        res;
+    }
+
+    def next_u64(&mut self) -> (str, uint64) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^uint64 = ptr as ^uint64;
+        let res: (str, uint64) = (key, val^);
+        res;
+    }
+
+    def next_u128(&mut self) -> (str, uint128) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^uint128 = ptr as ^uint128;
+        let res: (str, uint128) = (key, val^);
+        res;
+    }
+
+    def next_int(&mut self) -> (str, int) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^int = ptr as ^int;
+        let res: (str, int) = (key, val^);
+        res;
+    }
+
+    def next_uint(&mut self) -> (str, uint) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^uint = ptr as ^uint;
+        let res: (str, uint) = (key, val^);
+        res;
+    }
+
+    def next_str(&mut self) -> (str, str) {
+        let key: str;
+        let ptr: ^void;
+        (key, ptr) = self.next();
+        let val: ^str = ptr as ^str;
+        let res: (str, str) = (key, val^);
+        res;
+    }
+
+    def empty(&self) -> bool {
+        self.count >= self.size or
+        self.index >= self.capacity;
+    }
+
+}
+
+def make(size: uint) -> Dictionary {
     let table: Dictionary;
     # FIXME: This is a fixed-size dictionary. Make it double in size
     #        when it hits 60% full or something.
-    table.buckets = libc.calloc(65535, BUCKET_SIZE) as ^Bucket;
-    table.capacity = 65535;
+    table.buckets = libc.calloc(size, BUCKET_SIZE) as ^Bucket;
+    table.capacity = size;
     table.size = 0;
     table;
 }
 
 def main() {
     # Allocate a new table.
-    let mut m: Dictionary = make();
+    let mut m: Dictionary = make(32);
     m.set_str("apple", "fruit");
-    printf("%s\n", m.get_str("apple"));
+    m.set_str("banana", "fruit");
+    m.set_str("basket", "does-not-belong");
+    m.set_str("cheese", "dairy");
+
+    # Iterate over the dictionary items.
+    let mut iter: Iterator = m.iter();
+    while not iter.empty() {
+        let key: str;
+        let value: str;
+        (key, value) = iter.next_str();
+        printf("%s: %s\n", key, value);
+    }
 
     # Dispose of the required resources for the table.
     m.dispose();

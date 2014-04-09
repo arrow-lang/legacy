@@ -12,7 +12,7 @@ sum(53, 3, 23);
 
 # Parameters may be given default values.
 # All 3 of these are valid.
-def defualt_sum1(x: int = 0, y: int) { }
+def defualt_sum1(x: int = 67, y: int) { }
 def defualt_sum2(x: int, y: int = 0) { }
 def defualt_sum3(x: int = 0, y: int = 0) { }
 

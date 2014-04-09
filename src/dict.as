@@ -180,7 +180,6 @@ implement Dictionary {
 
         # Grab the bucket offset by the result of the bounded hash function.
         let mut b: ^mut Bucket = self.buckets + hash;
-        self.size = self.size + 1;
 
         # Check if the bucket contains us.
         (b^).contains(key);
@@ -189,10 +188,13 @@ implement Dictionary {
     def set(&mut self, key: str, tag: int, value: ^void) {
         # Hash the string key.
         let hash: uint = hash_str(key) bitand (self.capacity - 1);
+        printf("hash: %s -> %u\n", key, hash);
 
         # Grab the bucket offset by the result of the bounded hash function.
         let mut b: ^mut Bucket = self.buckets + hash;
-        self.size = self.size + 1;
+
+        # Increment size if its new.
+        if not ((b^).contains(key)) { self.size = self.size + 1; }
 
         # Set this in the bucket chain.
         (b^).set(key, tag, value);
@@ -260,7 +262,6 @@ implement Dictionary {
 
         # Grab the bucket offset by the result of the bounded hash function.
         let mut b: ^mut Bucket = self.buckets + hash;
-        self.size = self.size + 1;
 
         # Get this from the bucket chain.
         let value: ^void = (b^).get(key) as ^void;
@@ -357,6 +358,7 @@ implement Iterator {
 
         # Get a bucket with contents.
         loop {
+            # printf("check: %p\n", self.bucket);
             # Is the current bucket empty? (Initial)
             if self.bucket == 0 as ^Bucket {
                 # Move to the first bucket.
@@ -525,18 +527,30 @@ def make(size: uint) -> Dictionary {
 def main() {
     # Allocate a new table.
     let mut m: Dictionary = make(32);
-    m.set_str("apple", "fruit");
-    m.set_str("banana", "fruit");
-    m.set_str("basket", "does-not-belong");
-    m.set_str("cheese", "dairy");
+    m.set_i8("bool", 10);
+    m.set_i8("int8", 10);
+    m.set_i8("int16", 10);
+    m.set_i8("int32", 10);
+    m.set_i8("int64", 10);
+    m.set_i8("int128", 10);
+    m.set_i8("uint8", 10);
+    m.set_i8("uint16", 10);
+    m.set_i8("uint32", 10);
+    m.set_i8("uint64", 10);
+    m.set_i8("uint128", 10);
+    m.set_i8("float32", 10);
+    m.set_i8("float64", 10);
+    m.set_i8("_", 10);
+    m.set_i8("_.sxxz1", 10);
+    printf("------------------------------------------------------------\n");
 
     # Iterate over the dictionary items.
     let mut iter: Iterator = m.iter();
     while not iter.empty() {
         let key: str;
-        let value: str;
-        (key, value) = iter.next_str();
-        printf("%s: %s\n", key, value);
+        let value: int8;
+        (key, value) = iter.next_i8();
+        printf("%s: %d\n", key, value);
     }
 
     # Dispose of the required resources for the table.

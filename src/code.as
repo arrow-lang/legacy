@@ -1,6 +1,7 @@
 foreign "C" import "llvm-c/Core.h";
 
 import string;
+import ast;
 import libc;
 import list;
 
@@ -106,13 +107,35 @@ def make_function_type(
     make(TAG_FUNCTION_TYPE, func as ^void);
 }
 
+# Gets if this handle is a type.
+# -----------------------------------------------------------------------------
+def is_type(handle: ^Handle) -> bool {
+    handle._tag == TAG_TYPE or
+    handle._tag == TAG_FUNCTION_TYPE or
+    handle._tag == TAG_INT_TYPE or
+    handle._tag == TAG_FLOAT_TYPE;
+}
+
+# Gets the type of the thing.
+# -----------------------------------------------------------------------------
+def type_of(handle: ^Handle) -> ^Handle {
+    if handle._tag == TAG_STATIC_SLOT {
+        let slot: ^StaticSlot = handle._object as ^StaticSlot;
+        slot.type_;
+    } else {
+        make_nil();
+    }
+}
+
 # Static Slot
 # -----------------------------------------------------------------------------
 # A slot keeps its name with it for now. It'll contain later its type and
 # other designators.
 
 type StaticSlot {
+    context: ^ast.StaticSlotDecl,
     mut name: string.String,
+    mut namespace: list.List,
     type_: ^Handle,
     handle: ^LLVMOpaqueValue
 }
@@ -120,12 +143,17 @@ type StaticSlot {
 let STATIC_SLOT_SIZE: uint = ((0 as ^StaticSlot) + 1) - (0 as ^StaticSlot);
 
 def make_static_slot(
-        &name: string.String,
+        context: ^ast.StaticSlotDecl,
+        name: str,
+        &mut namespace: list.List,
         type_: ^Handle,
         handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the slot.
     let slot: ^StaticSlot = libc.malloc(STATIC_SLOT_SIZE) as ^StaticSlot;
-    slot.name = name.clone();
+    slot.context = context;
+    slot.name = string.make();
+    slot.name.extend(name);
+    slot.namespace = namespace.clone();
     slot.handle = handle;
     slot.type_ = type_;
 
@@ -146,14 +174,21 @@ implement StaticSlot {
 # A module just keeps its name with it. Its purpose in the scope is
 # to allow name resolution.
 
-type Module { mut name: string.String }
+type Module {
+    mut name: string.String,
+    mut namespace: list.List
+}
 
 let MODULE_SIZE: uint = ((0 as ^Module) + 1) - (0 as ^Module);
 
-def make_module(&mut name: string.String) -> ^Handle {
+def make_module(
+        name: str,
+        &mut namespace: list.List) -> ^Handle {
     # Build the module.
     let mod: ^Module = libc.malloc(MODULE_SIZE) as ^Module;
-    mod.name = name.clone();
+    mod.name = string.make();
+    mod.name.extend(name);
+    mod.namespace = namespace.clone();
 
     # Wrap in a handle.
     make(TAG_MODULE, mod as ^void);
@@ -189,7 +224,9 @@ def make_value(type_: ^Handle, handle: ^LLVMOpaqueValue) -> ^Handle {
 # -----------------------------------------------------------------------------
 
 type Function {
+    context: ^ast.FuncDecl,
     handle: ^LLVMOpaqueValue,
+    mut namespace: list.List,
     mut name: string.String,
     mut type_: ^mut Handle
 }
@@ -197,13 +234,18 @@ type Function {
 let FUNCTION_SIZE: uint = ((0 as ^Function) + 1) - (0 as ^Function);
 
 def make_function(
-        handle: ^LLVMOpaqueValue,
-        &mut name: string.String,
-        type_: ^Handle) -> ^Handle {
+        context: ^ast.FuncDecl,
+        name: str,
+        &mut namespace: list.List,
+        type_: ^Handle,
+        handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the function.
     let func: ^Function = libc.malloc(FUNCTION_SIZE) as ^Function;
+    func.context = context;
     func.handle = handle;
-    func.name = name.clone();
+    func.name = string.make();
+    func.name.extend(name);
+    func.namespace = namespace.clone();
     func.type_ = type_;
 
     # Wrap in a handle.

@@ -1,6 +1,6 @@
 # Declare 3 static slots.
-static a: int = 621;
-static b: uint = 253232;
+static a: int32 = 621;
+static b: uint32 = 253232;
 static c: bool = false;
 static m: float32 = 21e32;
 
@@ -27,7 +27,7 @@ def main() {
     # Define a nested function.
     def nested() {
         # With more static data.
-        static m: int = 312;
+        static m: int32 = 312;
         static a: bool = true;
     }
 
@@ -36,6 +36,6 @@ def main() {
     # Assert the values of the "unsafe" statics.
     # FIXME: As soon as "unsafe" is implemented this stuff needs to go
     #        in an unsafe block.
-    unsafe {
-    }
+    # unsafe {
+    # }
 }

@@ -591,6 +591,47 @@ def parse_type_expr() -> ast.Node {
     if cur_tok == tokens.TOK_IDENTIFIER {
         # A simple typename.
         parse_ident();
+    } else if cur_tok == tokens.TOK_TYPE {
+        # A type deferrence expression.
+        # Declare the node.
+        let node: ast.Node = ast.make(ast.TAG_TYPE_EXPR);
+        let expr: ^ast.TypeExpr = ast.unwrap(node) as ^ast.TypeExpr;
+
+        # Consume the `type` token.
+        bump_token();
+
+        # There must be a "(" next to start the type expression.
+        if cur_tok <> tokens.TOK_LPAREN {
+            error_consume_until(tokens.TOK_RPAREN);
+            errors.begin_error();
+            errors.fprintf(errors.stderr, "expected `(`" as ^int8);
+            errors.end();
+
+            return ast.null();
+        }
+
+        # Consume the "(" token.
+        bump_token();
+
+        # Parse the expression.
+        expr.expression = parse_expr();
+        if ast.isnull(expr.expression) { return ast.null(); }
+
+        # There must be a ")" next to end the type expression.
+        if cur_tok <> tokens.TOK_RPAREN {
+            error_consume();
+            errors.begin_error();
+            errors.fprintf(errors.stderr, "expected `(`" as ^int8);
+            errors.end();
+
+            return ast.null();
+        }
+
+        # Consume the ")" token.
+        bump_token();
+
+        # Return the expr.
+        node;
     } else {
         # Currently don't parse fancy types.
         ast.null();

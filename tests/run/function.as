@@ -26,5 +26,3 @@ def main() {
     # Explicitly return nothing.
     return;
 }
-
-if ('z' >= x >= 'a') { }

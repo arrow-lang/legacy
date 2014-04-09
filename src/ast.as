@@ -1,5 +1,6 @@
 foreign "C" import "stdio.h";
 import arena;
+import libc;
 
 # AST tag defintions
 # -----------------------------------------------------------------------------
@@ -49,6 +50,7 @@ let TAG_IMPORT          : int = 42;             # Import
 let TAG_CALL            : int = 43;             # CallExpr
 let TAG_INDEX           : int = 44;             # IndexExpr
 let TAG_CALL_ARG        : int = 45;             # Argument
+let TAG_TYPE_EXPR       : int = 46;             # TypeExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -68,6 +70,10 @@ implement Node {
 # heterogeneous linked-list of nodes.
 type Nodes { self: Node, next: arena.Store }
 type NodesIterator { current: ^Nodes }
+
+def new_nodes() -> ^Nodes {
+    libc.calloc(_sizeof(TAG_NODES), 1) as ^Nodes;
+}
 
 # Expression type for integral literals with a distinct base like "2321".
 type IntegerExpr { base: int8, text: arena.Store }
@@ -101,6 +107,9 @@ type Block { mut nodes: Nodes }
 
 # Return expression.
 type ReturnExpr { expression: Node }
+
+# Type expression.
+type TypeExpr { expression: Node }
 
 # Selection expression.
 type SelectExpr { branches: Nodes }
@@ -227,6 +236,9 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_RETURN {
         let tmp: ReturnExpr;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_TYPE_EXPR {
+        let tmp: TypeExpr;
         ((&tmp + 1) - &tmp);
     }
     else { 0; }
@@ -377,6 +389,7 @@ def dump(&node: Node) {
         dump_table[TAG_INDEX] = dump_index_expr;
         dump_table[TAG_CALL] = dump_call_expr;
         dump_table[TAG_CALL_ARG] = dump_call_arg;
+        dump_table[TAG_TYPE_EXPR] = dump_type_expr;
         dump_initialized = true;
     }
 
@@ -408,7 +421,7 @@ def dump_boolean_expr(node: ^Node) {
 def dump_integer_expr(node: ^Node) {
     let x: ^IntegerExpr = unwrap(node^) as ^IntegerExpr;
     let xs: arena.Store = x.text;
-    printf("IntegerExpr <?> 'int' %s (%d)\n" as ^int8, xs._data, x.base);
+    printf("IntegerExpr <?> %s (%d)\n" as ^int8, xs._data, x.base);
 }
 
 # dump_float_expr
@@ -416,7 +429,7 @@ def dump_integer_expr(node: ^Node) {
 def dump_float_expr(node: ^Node) {
     let x: ^FloatExpr = unwrap(node^) as ^FloatExpr;
     let xs: arena.Store = x.text;
-    printf("FloatExpr <?> 'int' %s\n" as ^int8, xs._data);
+    printf("FloatExpr <?> %s\n" as ^int8, xs._data);
 }
 
 # dump_binop_expr
@@ -563,16 +576,6 @@ def dump_block_expr(node: ^Node) {
     dump_indent = dump_indent - 1;
 }
 
-# dump_type
-# -----------------------------------------------------------------------------
-def dump_type(node: ^Node) {
-    if node.tag == TAG_IDENT {
-        let x: ^Ident = unwrap(node^) as ^Ident;
-        let xs: arena.Store = x.name;
-        printf("%s" as ^int8, xs._data);
-    }
-}
-
 # dump_ident
 # -----------------------------------------------------------------------------
 def dump_ident(node: ^Node) {
@@ -589,12 +592,10 @@ def dump_static_slot(node: ^Node) {
     if x.mutable { printf("mut " as ^int8); }
     let id: ^Ident = unwrap(x.id) as ^Ident;
     let xs: arena.Store = id.name;
-    printf("%s" as ^int8, xs._data);
-    printf(" '" as ^int8);
-    dump_type(&x.type_);
-    printf("'\n" as ^int8);
+    printf("%s\n" as ^int8, xs._data);
 
     dump_indent = dump_indent + 1;
+    dump(x.type_);
     if not isnull(x.initializer) { dump(x.initializer); }
     dump_indent = dump_indent - 1;
 }
@@ -607,15 +608,10 @@ def dump_local_slot(node: ^Node) {
     if x.mutable { printf("mut " as ^int8); }
     let id: ^Ident = unwrap(x.id) as ^Ident;
     let xs: arena.Store = id.name;
-    printf("%s" as ^int8, xs._data);
-    if not isnull(x.type_) {
-        printf(" '" as ^int8);
-        dump_type(&x.type_);
-        printf("'" as ^int8);
-    }
-    printf("\n" as ^int8);
+    printf("%s\n" as ^int8, xs._data);
 
     dump_indent = dump_indent + 1;
+    dump(x.type_);
     if not isnull(x.initializer) { dump(x.initializer); }
     dump_indent = dump_indent - 1;
 }
@@ -679,16 +675,10 @@ def dump_func_decl(node: ^Node) {
     printf("FuncDecl <?> " as ^int8);
     let id: ^Ident = unwrap(x.id) as ^Ident;
     let xs: arena.Store = id.name;
-    printf("%s" as ^int8, xs._data);
-    if not isnull(x.return_type) {
-        printf(" '" as ^int8);
-        dump_type(&x.return_type);
-        printf("'\n" as ^int8);
-    } else {
-        printf("\n" as ^int8);
-    }
+    printf("%s\n" as ^int8, xs._data);
 
     dump_indent = dump_indent + 1;
+    dump(x.return_type);
     dump_nodes("Parameters", x.params);
     dump_nodes("Nodes", x.nodes);
     dump_indent = dump_indent - 1;
@@ -702,12 +692,10 @@ def dump_func_param(node: ^Node) {
     if x.mutable { printf("mut " as ^int8); }
     let id: ^Ident = unwrap(x.id) as ^Ident;
     let xs: arena.Store = id.name;
-    printf("%s" as ^int8, xs._data);
-    printf(" '" as ^int8);
-    dump_type(&x.type_);
-    printf("'\n" as ^int8);
+    printf("%s\n" as ^int8, xs._data);
 
     dump_indent = dump_indent + 1;
+    dump(x.type_);
     if not isnull(x.default) { dump(x.default); }
     dump_indent = dump_indent - 1;
 }
@@ -720,6 +708,17 @@ def dump_return_expr(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     if not isnull(x.expression) { dump(x.expression); }
+    dump_indent = dump_indent - 1;
+}
+
+# dump_type_expr
+# -----------------------------------------------------------------------------
+def dump_type_expr(node: ^Node) {
+    let x: ^TypeExpr = unwrap(node^) as ^TypeExpr;
+    printf("TypeExpr <?> \n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    dump(x.expression);
     dump_indent = dump_indent - 1;
 }
 

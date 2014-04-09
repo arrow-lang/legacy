@@ -72,13 +72,53 @@
 # Initial generation runs pass A - D and F - G. On function definition
 # generation we run pass E - F.
 
-assert(that()(20) == 40);
-
-def that() -> type(some) { some; }
-
-def some(a: type(x)) -> type(x * 2) { a * 2; }
-
-static x: uint = 40;
 
 # [ ] Traits
 # [ ] Enumerations
+# [ ] Parameterized types (bounded by Traits)
+# [ ] Parameterized functions (bounded by Traits)
+# [ ] Pattern matching `match`
+# [ ] Destructors
+
+# TODAY -----------------------------------------------------------------------
+
+# Note that `resolve_type` needs to evolve into type_check(..) in
+# in the future. Or with `type_check` and `resolve_type`.. one of them
+# needs to use the other (so we don't duplicate error handling here).
+
+# [ ] Change param `explicit` of resolve_type_* to `typename` as a typename
+#     can not appear inside of a normal expression or a type(..) expression.
+
+# [ ] Add all binary and unary operators to type resolution
+
+# [ ] Add function declarations to type resolution
+
+# [ ] Add function calling to type resolution
+
+# [ ] Add functions themselves to type resolution
+
+# [ ] Ensure paths work in type deferrence
+
+# [ ] Add function declarations to `gen_decl` pass
+
+# [ ] Add structure declarations to parser and generator
+
+# [ ] Add `gen_def` pass
+
+# [ ] Add statics to `gen_def`
+
+# [ ] Add functions to `gen_def`
+
+# [ ] Add modules to `gen_def`
+
+# [ ] Add structures to `gen_def`
+
+# [ ] Add all binary and unary operators to `gen_def`
+
+# [ ] Add at least 15 `run-fail` tests (test each error message at least twice)
+
+# [ ] Add at least 15 `parse-fail` tests (test each error message at least twice)
+
+struct Point { x: int, y: int }
+
+def some(o: Point) -> type(Point.x) { o.x }

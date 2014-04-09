@@ -131,28 +131,30 @@ def parse_expr() -> ast.Node {
 # Binary operator token precedence
 # -----------------------------------------------------------------------------
 def get_binop_tok_precedence() -> int {
-         if cur_tok == tokens.TOK_IF             { 015; }  # if
-    else if cur_tok == tokens.TOK_EQ             { 030; }  # =
-    else if cur_tok == tokens.TOK_PLUS_EQ        { 030; }  # +=
-    else if cur_tok == tokens.TOK_MINUS_EQ       { 030; }  # -=
-    else if cur_tok == tokens.TOK_STAR_EQ        { 030; }  # *=
-    else if cur_tok == tokens.TOK_FSLASH_EQ      { 030; }  # /=
-    else if cur_tok == tokens.TOK_PERCENT_EQ     { 030; }  # %=
-    else if cur_tok == tokens.TOK_RETURN         { 040; }  # return
-    else if cur_tok == tokens.TOK_AND            { 060; }  # and
-    else if cur_tok == tokens.TOK_OR             { 060; }  # or
-    else if cur_tok == tokens.TOK_EQ_EQ          { 090; }  # ==
-    else if cur_tok == tokens.TOK_LCARET_RCARET  { 090; }  # <>
-    else if cur_tok == tokens.TOK_LCARET         { 090; }  # <
-    else if cur_tok == tokens.TOK_LCARET_EQ      { 090; }  # <=
-    else if cur_tok == tokens.TOK_RCARET         { 090; }  # >
-    else if cur_tok == tokens.TOK_RCARET_EQ      { 090; }  # >=
-    else if cur_tok == tokens.TOK_PLUS           { 120; }  # +
-    else if cur_tok == tokens.TOK_MINUS          { 120; }  # -
-    else if cur_tok == tokens.TOK_STAR           { 150; }  # *
-    else if cur_tok == tokens.TOK_FSLASH         { 150; }  # /
-    else if cur_tok == tokens.TOK_PERCENT        { 150; }  # %
-    else if cur_tok == tokens.TOK_DOT            { 190; }  # .
+         if cur_tok == tokens.TOK_IF                { 015; }  # if
+    else if cur_tok == tokens.TOK_EQ                { 030; }  # =
+    else if cur_tok == tokens.TOK_PLUS_EQ           { 030; }  # +=
+    else if cur_tok == tokens.TOK_MINUS_EQ          { 030; }  # -=
+    else if cur_tok == tokens.TOK_STAR_EQ           { 030; }  # *=
+    else if cur_tok == tokens.TOK_FSLASH_EQ         { 030; }  # /=
+    else if cur_tok == tokens.TOK_FSLASH_FSLASH_EQ  { 030; }  # //=
+    else if cur_tok == tokens.TOK_PERCENT_EQ        { 030; }  # %=
+    else if cur_tok == tokens.TOK_RETURN            { 040; }  # return
+    else if cur_tok == tokens.TOK_AND               { 060; }  # and
+    else if cur_tok == tokens.TOK_OR                { 060; }  # or
+    else if cur_tok == tokens.TOK_EQ_EQ             { 090; }  # ==
+    else if cur_tok == tokens.TOK_LCARET_RCARET     { 090; }  # <>
+    else if cur_tok == tokens.TOK_LCARET            { 090; }  # <
+    else if cur_tok == tokens.TOK_LCARET_EQ         { 090; }  # <=
+    else if cur_tok == tokens.TOK_RCARET            { 090; }  # >
+    else if cur_tok == tokens.TOK_RCARET_EQ         { 090; }  # >=
+    else if cur_tok == tokens.TOK_PLUS              { 120; }  # +
+    else if cur_tok == tokens.TOK_MINUS             { 120; }  # -
+    else if cur_tok == tokens.TOK_STAR              { 150; }  # *
+    else if cur_tok == tokens.TOK_FSLASH            { 150; }  # /
+    else if cur_tok == tokens.TOK_FSLASH_FSLASH     { 150; }  # //
+    else if cur_tok == tokens.TOK_PERCENT           { 150; }  # %
+    else if cur_tok == tokens.TOK_DOT               { 190; }  # .
     else {
         # Not a binary operator.
         -1;
@@ -164,27 +166,29 @@ def get_binop_tok_precedence() -> int {
 let ASSOC_RIGHT: int = 1;
 let ASSOC_LEFT: int = 2;
 def get_binop_tok_associativity() -> int {
-         if cur_tok == tokens.TOK_DOT            { ASSOC_LEFT; }   # .
-    else if cur_tok == tokens.TOK_IF             { ASSOC_LEFT; }   # if
-    else if cur_tok == tokens.TOK_EQ             { ASSOC_RIGHT; }  # =
-    else if cur_tok == tokens.TOK_PLUS_EQ        { ASSOC_RIGHT; }  # +=
-    else if cur_tok == tokens.TOK_MINUS_EQ       { ASSOC_RIGHT; }  # -=
-    else if cur_tok == tokens.TOK_STAR_EQ        { ASSOC_RIGHT; }  # *=
-    else if cur_tok == tokens.TOK_FSLASH_EQ      { ASSOC_RIGHT; }  # /=
-    else if cur_tok == tokens.TOK_PERCENT_EQ     { ASSOC_RIGHT; }  # %=
-    else if cur_tok == tokens.TOK_AND            { ASSOC_LEFT; }   # and
-    else if cur_tok == tokens.TOK_OR             { ASSOC_LEFT; }   # or
-    else if cur_tok == tokens.TOK_EQ_EQ          { ASSOC_LEFT; }   # ==
-    else if cur_tok == tokens.TOK_LCARET_RCARET  { ASSOC_LEFT; }   # <>
-    else if cur_tok == tokens.TOK_LCARET         { ASSOC_LEFT; }   # <
-    else if cur_tok == tokens.TOK_LCARET_EQ      { ASSOC_LEFT; }   # <=
-    else if cur_tok == tokens.TOK_RCARET         { ASSOC_LEFT; }   # >
-    else if cur_tok == tokens.TOK_RCARET_EQ      { ASSOC_LEFT; }   # >=
-    else if cur_tok == tokens.TOK_PLUS           { ASSOC_LEFT; }   # +
-    else if cur_tok == tokens.TOK_MINUS          { ASSOC_LEFT; }   # -
-    else if cur_tok == tokens.TOK_STAR           { ASSOC_LEFT; }   # *
-    else if cur_tok == tokens.TOK_FSLASH         { ASSOC_LEFT; }   # /
-    else if cur_tok == tokens.TOK_PERCENT        { ASSOC_LEFT; }   # %
+         if cur_tok == tokens.TOK_DOT               { ASSOC_LEFT; }   # .
+    else if cur_tok == tokens.TOK_IF                { ASSOC_LEFT; }   # if
+    else if cur_tok == tokens.TOK_EQ                { ASSOC_RIGHT; }  # =
+    else if cur_tok == tokens.TOK_PLUS_EQ           { ASSOC_RIGHT; }  # +=
+    else if cur_tok == tokens.TOK_MINUS_EQ          { ASSOC_RIGHT; }  # -=
+    else if cur_tok == tokens.TOK_STAR_EQ           { ASSOC_RIGHT; }  # *=
+    else if cur_tok == tokens.TOK_FSLASH_EQ         { ASSOC_RIGHT; }  # /=
+    else if cur_tok == tokens.TOK_FSLASH_FSLASH_EQ  { ASSOC_RIGHT; }  # //=
+    else if cur_tok == tokens.TOK_PERCENT_EQ        { ASSOC_RIGHT; }  # %=
+    else if cur_tok == tokens.TOK_AND               { ASSOC_LEFT; }   # and
+    else if cur_tok == tokens.TOK_OR                { ASSOC_LEFT; }   # or
+    else if cur_tok == tokens.TOK_EQ_EQ             { ASSOC_LEFT; }   # ==
+    else if cur_tok == tokens.TOK_LCARET_RCARET     { ASSOC_LEFT; }   # <>
+    else if cur_tok == tokens.TOK_LCARET            { ASSOC_LEFT; }   # <
+    else if cur_tok == tokens.TOK_LCARET_EQ         { ASSOC_LEFT; }   # <=
+    else if cur_tok == tokens.TOK_RCARET            { ASSOC_LEFT; }   # >
+    else if cur_tok == tokens.TOK_RCARET_EQ         { ASSOC_LEFT; }   # >=
+    else if cur_tok == tokens.TOK_PLUS              { ASSOC_LEFT; }   # +
+    else if cur_tok == tokens.TOK_MINUS             { ASSOC_LEFT; }   # -
+    else if cur_tok == tokens.TOK_STAR              { ASSOC_LEFT; }   # *
+    else if cur_tok == tokens.TOK_FSLASH            { ASSOC_LEFT; }   # /
+    else if cur_tok == tokens.TOK_FSLASH_FSLASH     { ASSOC_LEFT; }   # //
+    else if cur_tok == tokens.TOK_PERCENT           { ASSOC_LEFT; }   # %
     else {
         # Not a binary operator.
         -1;
@@ -196,7 +200,7 @@ def get_binop_tok_associativity() -> int {
 # binop_rhs = { binop unary }
 # binop = "+"  | "-"  | "*"  | "/"  | "%" | "and" | "or" | "==" | "<>"
 #       | ">"  | "<"  | "<=" | ">=" | "=" | ":="  | "+=" | "-=" | "*="
-#       | "/=" | "%=" | "if" | "."
+#       | "/=" | "%=" | "if" | "." | "//" | "//="
 # -----------------------------------------------------------------------------
 def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> ast.Node {
     loop {
@@ -228,26 +232,28 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
 
         # Determine the AST tag.
         let tag: int =
-            if      binop == tokens.TOK_PLUS           { ast.TAG_ADD; }
-            else if binop == tokens.TOK_MINUS          { ast.TAG_SUBTRACT; }
-            else if binop == tokens.TOK_STAR           { ast.TAG_MULTIPLY; }
-            else if binop == tokens.TOK_FSLASH         { ast.TAG_DIVIDE; }
-            else if binop == tokens.TOK_PERCENT        { ast.TAG_MODULO; }
-            else if binop == tokens.TOK_AND            { ast.TAG_LOGICAL_AND; }
-            else if binop == tokens.TOK_OR             { ast.TAG_LOGICAL_OR; }
-            else if binop == tokens.TOK_EQ_EQ          { ast.TAG_EQ; }
-            else if binop == tokens.TOK_LCARET_RCARET  { ast.TAG_NE; }
-            else if binop == tokens.TOK_LCARET         { ast.TAG_LT; }
-            else if binop == tokens.TOK_LCARET_EQ      { ast.TAG_LE; }
-            else if binop == tokens.TOK_RCARET         { ast.TAG_GT; }
-            else if binop == tokens.TOK_RCARET_EQ      { ast.TAG_GE; }
-            else if binop == tokens.TOK_EQ             { ast.TAG_ASSIGN; }
-            else if binop == tokens.TOK_PLUS_EQ        { ast.TAG_ASSIGN_ADD; }
-            else if binop == tokens.TOK_MINUS_EQ       { ast.TAG_ASSIGN_SUB; }
-            else if binop == tokens.TOK_STAR_EQ        { ast.TAG_ASSIGN_MULT; }
-            else if binop == tokens.TOK_FSLASH_EQ      { ast.TAG_ASSIGN_DIV; }
-            else if binop == tokens.TOK_PERCENT_EQ     { ast.TAG_ASSIGN_MOD; }
-            else if binop == tokens.TOK_IF             { ast.TAG_SELECT_OP; }
+            if      binop == tokens.TOK_PLUS              { ast.TAG_ADD; }
+            else if binop == tokens.TOK_MINUS             { ast.TAG_SUBTRACT; }
+            else if binop == tokens.TOK_STAR              { ast.TAG_MULTIPLY; }
+            else if binop == tokens.TOK_FSLASH            { ast.TAG_DIVIDE; }
+            else if binop == tokens.TOK_FSLASH_FSLASH     { ast.TAG_INTEGER_DIVIDE; }
+            else if binop == tokens.TOK_PERCENT           { ast.TAG_MODULO; }
+            else if binop == tokens.TOK_AND               { ast.TAG_LOGICAL_AND; }
+            else if binop == tokens.TOK_OR                { ast.TAG_LOGICAL_OR; }
+            else if binop == tokens.TOK_EQ_EQ             { ast.TAG_EQ; }
+            else if binop == tokens.TOK_LCARET_RCARET     { ast.TAG_NE; }
+            else if binop == tokens.TOK_LCARET            { ast.TAG_LT; }
+            else if binop == tokens.TOK_LCARET_EQ         { ast.TAG_LE; }
+            else if binop == tokens.TOK_RCARET            { ast.TAG_GT; }
+            else if binop == tokens.TOK_RCARET_EQ         { ast.TAG_GE; }
+            else if binop == tokens.TOK_EQ                { ast.TAG_ASSIGN; }
+            else if binop == tokens.TOK_PLUS_EQ           { ast.TAG_ASSIGN_ADD; }
+            else if binop == tokens.TOK_MINUS_EQ          { ast.TAG_ASSIGN_SUB; }
+            else if binop == tokens.TOK_STAR_EQ           { ast.TAG_ASSIGN_MULT; }
+            else if binop == tokens.TOK_FSLASH_EQ         { ast.TAG_ASSIGN_DIV; }
+            else if binop == tokens.TOK_FSLASH_FSLASH_EQ  { ast.TAG_ASSIGN_INT_DIV; }
+            else if binop == tokens.TOK_PERCENT_EQ        { ast.TAG_ASSIGN_MOD; }
+            else if binop == tokens.TOK_IF                { ast.TAG_SELECT_OP; }
             else { 0; };
 
         if tag == ast.TAG_SELECT_OP and cur_tok == tokens.TOK_ELSE {

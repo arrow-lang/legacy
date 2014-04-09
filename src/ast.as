@@ -51,6 +51,8 @@ let TAG_CALL            : int = 43;             # CallExpr
 let TAG_INDEX           : int = 44;             # IndexExpr
 let TAG_CALL_ARG        : int = 45;             # Argument
 let TAG_TYPE_EXPR       : int = 46;             # TypeExpr
+let TAG_INTEGER_DIVIDE  : int = 47;             # IntDivideExpr
+let TAG_ASSIGN_INT_DIV  : int = 48;             # AssignIntDivideExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -177,6 +179,7 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_SUBTRACT
            or tag == TAG_MULTIPLY
            or tag == TAG_DIVIDE
+           or tag == TAG_INTEGER_DIVIDE
            or tag == TAG_MODULO
            or tag == TAG_LOGICAL_AND
            or tag == TAG_LOGICAL_OR
@@ -191,6 +194,7 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_ASSIGN_SUB
            or tag == TAG_ASSIGN_MULT
            or tag == TAG_ASSIGN_DIV
+           or tag == TAG_ASSIGN_INT_DIV
            or tag == TAG_ASSIGN_MOD
            or tag == TAG_SELECT_OP
            or tag == TAG_MEMBER {
@@ -353,6 +357,7 @@ def dump(&node: Node) {
         dump_table[TAG_SUBTRACT] = dump_binop_expr;
         dump_table[TAG_MULTIPLY] = dump_binop_expr;
         dump_table[TAG_DIVIDE] = dump_binop_expr;
+        dump_table[TAG_INTEGER_DIVIDE] = dump_binop_expr;
         dump_table[TAG_MODULO] = dump_binop_expr;
         dump_table[TAG_MODULE] = dump_module;
         dump_table[TAG_PROMOTE] = dump_unary_expr;
@@ -371,6 +376,7 @@ def dump(&node: Node) {
         dump_table[TAG_ASSIGN_SUB] = dump_binop_expr;
         dump_table[TAG_ASSIGN_MULT] = dump_binop_expr;
         dump_table[TAG_ASSIGN_DIV] = dump_binop_expr;
+        dump_table[TAG_ASSIGN_INT_DIV] = dump_binop_expr;
         dump_table[TAG_ASSIGN_MOD] = dump_binop_expr;
         dump_table[TAG_SELECT_OP] = dump_binop_expr;
         dump_table[TAG_STATIC_SLOT] = dump_static_slot;
@@ -444,6 +450,8 @@ def dump_binop_expr(node: ^Node) {
         printf("MultiplyExpr <?>\n" as ^int8);
     } else if node.tag == TAG_DIVIDE {
         printf("DivideExpr <?>\n" as ^int8);
+    }  else if node.tag == TAG_INTEGER_DIVIDE {
+        printf("IntDivideExpr <?>\n" as ^int8);
     } else if node.tag == TAG_MODULO {
         printf("ModuloExpr <?>\n" as ^int8);
     } else if node.tag == TAG_LOGICAL_AND {
@@ -472,6 +480,8 @@ def dump_binop_expr(node: ^Node) {
         printf("AssignMultiplyExpr <?>\n" as ^int8);
     } else if node.tag == TAG_ASSIGN_DIV {
         printf("AssignDivideExpr <?>\n" as ^int8);
+    }  else if node.tag == TAG_ASSIGN_INT_DIV {
+        printf("AssignIntDivideExpr <?>\n" as ^int8);
     } else if node.tag == TAG_ASSIGN_MOD {
         printf("AssignModuloExpr <?>\n" as ^int8);
     } else if node.tag == TAG_SELECT_OP {

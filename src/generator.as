@@ -71,6 +71,14 @@ def generate(&mut self, name: str, &node: ast.Node) {
 
     # Build the type resolution jump table.
     self.type_resolvers[ast.TAG_BOOLEAN] = resolve_bool_expr;
+    self.type_resolvers[ast.TAG_INTEGER] = resolve_int_expr;
+    self.type_resolvers[ast.TAG_FLOAT] = resolve_float_expr;
+    self.type_resolvers[ast.TAG_ADD] = resolve_add_expr;
+    self.type_resolvers[ast.TAG_SUBTRACT] = resolve_sub_expr;
+    self.type_resolvers[ast.TAG_MULTIPLY] = resolve_mul_expr;
+    self.type_resolvers[ast.TAG_DIVIDE] = resolve_div_expr;
+    self.type_resolvers[ast.TAG_INTEGER_DIVIDE] = resolve_int_div_expr;
+    self.type_resolvers[ast.TAG_MODULO] = resolve_mod_expr;
     self.type_resolvers[ast.TAG_LOGICAL_AND] = resolve_logical_expr_b;
     self.type_resolvers[ast.TAG_LOGICAL_OR] = resolve_logical_expr_b;
     self.type_resolvers[ast.TAG_LOGICAL_NEGATE] = resolve_logical_expr_u;
@@ -352,15 +360,16 @@ def _declare_type(&mut self, name: str, val: ^llvm.LLVMOpaqueType) {
 # Declare an integral type in `global` scope.
 # -----------------------------------------------------------------------------
 def _declare_int_type(&mut self, name: str, val: ^llvm.LLVMOpaqueType,
-                      signed: bool) {
-    let han: ^code.Handle = code.make_int_type(val, signed);
+                      signed: bool, bits: uint) {
+    let han: ^code.Handle = code.make_int_type(val, signed, bits);
     self.items.set_ptr(name, han as ^void);
 }
 
 # Declare a float type in `global` scope.
 # -----------------------------------------------------------------------------
-def _declare_float_type(&mut self, name: str, val: ^llvm.LLVMOpaqueType) {
-    let han: ^code.Handle = code.make_float_type(val);
+def _declare_float_type(&mut self, name: str, val: ^llvm.LLVMOpaqueType,
+                        bits: uint) {
+    let han: ^code.Handle = code.make_float_type(val, bits);
     self.items.set_ptr(name, han as ^void);
 }
 
@@ -372,22 +381,22 @@ def _declare_basic_types(&mut self) {
         llvm.LLVMInt1Type()) as ^void);
 
     # Signed machine-independent integers
-    self._declare_int_type(  "int8",   llvm.LLVMInt8Type(), true);
-    self._declare_int_type( "int16",  llvm.LLVMInt16Type(), true);
-    self._declare_int_type( "int32",  llvm.LLVMInt32Type(), true);
-    self._declare_int_type( "int64",  llvm.LLVMInt64Type(), true);
-    self._declare_int_type("int128", llvm.LLVMIntType(128), true);
+    self._declare_int_type(  "int8",   llvm.LLVMInt8Type(), true,   8);
+    self._declare_int_type( "int16",  llvm.LLVMInt16Type(), true,  16);
+    self._declare_int_type( "int32",  llvm.LLVMInt32Type(), true,  32);
+    self._declare_int_type( "int64",  llvm.LLVMInt64Type(), true,  64);
+    self._declare_int_type("int128", llvm.LLVMIntType(128), true, 128);
 
     # Unsigned machine-independent integers
-    self._declare_int_type(  "uint8",   llvm.LLVMInt8Type(), false);
-    self._declare_int_type( "uint16",  llvm.LLVMInt16Type(), false);
-    self._declare_int_type( "uint32",  llvm.LLVMInt32Type(), false);
-    self._declare_int_type( "uint64",  llvm.LLVMInt64Type(), false);
-    self._declare_int_type("uint128", llvm.LLVMIntType(128), false);
+    self._declare_int_type(  "uint8",   llvm.LLVMInt8Type(), false,   8);
+    self._declare_int_type( "uint16",  llvm.LLVMInt16Type(), false,  16);
+    self._declare_int_type( "uint32",  llvm.LLVMInt32Type(), false,  32);
+    self._declare_int_type( "uint64",  llvm.LLVMInt64Type(), false,  64);
+    self._declare_int_type("uint128", llvm.LLVMIntType(128), false, 128);
 
     # Floating-points
-    self._declare_float_type("float32", llvm.LLVMFloatType());
-    self._declare_float_type("float64", llvm.LLVMDoubleType());
+    self._declare_float_type("float32", llvm.LLVMFloatType(), 32);
+    self._declare_float_type("float64", llvm.LLVMDoubleType(), 64);
 
     # TODO: Unsigned machine-dependent integer
 
@@ -399,6 +408,58 @@ def _declare_basic_types(&mut self) {
 }
 
 } # implement Generator
+
+# Type conversion
+# =============================================================================
+
+# Attempt to resolve a single compatible type from two passed
+# types. Respects integer and float promotion rules.
+# -----------------------------------------------------------------------------
+def _type_common(a: ^code.Handle, b: ^code.Handle) -> ^code.Handle {
+    if a._tag == code.TAG_INT_TYPE and b._tag == a._tag {
+        # Determine the integer with the greatest rank.
+        let a_ty: ^code.IntegerType = a._object as ^code.IntegerType;
+        let b_ty: ^code.IntegerType = b._object as ^code.IntegerType;
+
+        # If the sign is identical then compare the bit size.
+        if a_ty.signed == b_ty.signed {
+            if a_ty.bits > b_ty.bits {
+                a;
+            } else {
+                b;
+            }
+        } else if a_ty.signed and a_ty.bits > b_ty.bits {
+            a;
+        } else if b_ty.signed and b_ty.bits > a_ty.bits {
+            b;
+        } else {
+            # The integer types are not strictly compatible.
+            # Return nil.
+            code.make_nil();
+        }
+    } else if a._tag == code.TAG_FLOAT_TYPE and b._tag == a._tag {
+        # Determine the float with the greatest rank.
+        let a_ty: ^code.FloatType = a._object as ^code.FloatType;
+        let b_ty: ^code.FloatType = b._object as ^code.FloatType;
+
+        # Chose the float type with greater rank.
+        if a_ty.bits > b_ty.bits {
+            a;
+        } else {
+            b;
+        }
+    } else if a._tag == code.TAG_FLOAT_TYPE and b._tag == code.TAG_INT_TYPE {
+        # No matter what the float or int type is the float has greater rank.
+        a;
+    } else if b._tag == code.TAG_FLOAT_TYPE and a._tag == code.TAG_INT_TYPE {
+        # No matter what the float or int type is the float has greater rank.
+        b;
+    } else {
+        # No common type resolution.
+        # Return nil.
+        code.make_nil();
+    }
+}
 
 # Type resolvers
 # =============================================================================
@@ -492,6 +553,25 @@ def resolve_bool_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
     (g^).items.get_ptr("bool") as ^code.Handle;
 }
 
+# Resolve an `integer expression` for its type.
+# -----------------------------------------------------------------------------
+def resolve_int_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
+    # NOTE: This is going to need to respect some kind of context or target
+    #   so that we can resolve literals properly (eg. in `x = 3` the type
+    #   of `3` depends on the type of `x`).
+    # FIXME: This should be `int` as soon as we can make it so.
+    (g^).items.get_ptr("int64") as ^code.Handle;
+}
+
+# Resolve a `float expression` for its type.
+# -----------------------------------------------------------------------------
+def resolve_float_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
+    # NOTE: This is going to need to respect some kind of context or target
+    #   so that we can resolve literals properly (eg. in `x = 3.2` the type
+    #   of `3.2` depends on the type of `x`).
+    (g^).items.get_ptr("float64") as ^code.Handle;
+}
+
 # Resolve a binary logical expression.
 # -----------------------------------------------------------------------------
 def resolve_logical_expr_b(g: ^mut Generator, node: ^ast.Node)
@@ -568,6 +648,132 @@ def resolve_logical_expr_u(g: ^mut Generator, node: ^ast.Node)
 
     # Return the bool type.
     (g^).items.get_ptr("bool") as ^code.Handle;
+}
+
+# Resolve an `add` expression.
+# -----------------------------------------------------------------------------
+def resolve_add_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
+    # Resolve this as an arithmetic binary expression.
+    resolve_arith_expr_b(g, node);
+}
+
+# Resolve an `sub` expression.
+# -----------------------------------------------------------------------------
+def resolve_sub_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
+    # Resolve this as an arithmetic binary expression.
+    resolve_arith_expr_b(g, node);
+}
+
+# Resolve an `mul` expression.
+# -----------------------------------------------------------------------------
+def resolve_mul_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
+    # Resolve this as an arithmetic binary expression.
+    resolve_arith_expr_b(g, node);
+}
+
+# Resolve an `mod` expression.
+# -----------------------------------------------------------------------------
+def resolve_mod_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
+    # Resolve this as an arithmetic binary expression.
+    resolve_arith_expr_b(g, node);
+}
+
+# Resolve an `int_div` expression.
+# -----------------------------------------------------------------------------
+def resolve_int_div_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
+    # Resolve this as an arithmetic binary expression.
+    resolve_arith_expr_b(g, node);
+}
+
+# Resolve an `div` expression.
+# -----------------------------------------------------------------------------
+def resolve_div_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Resolve the types of the operands.
+    let lhs: ^code.Handle = resolve_type(g, &x.lhs);
+    let rhs: ^code.Handle = resolve_type(g, &x.rhs);
+    if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
+
+    # Ensure that lhs and rhs are either int or float type.
+    if (lhs._tag == code.TAG_FLOAT_TYPE or lhs._tag == code.TAG_INT_TYPE)
+            and (rhs._tag == code.TAG_FLOAT_TYPE
+                    or rhs._tag == code.TAG_INT_TYPE) {
+        if rhs._tag == code.TAG_INT_TYPE and lhs._tag == rhs._tag {
+            # They are both integers; return a float64
+            (g^).items.get_ptr("float64") as ^code.Handle;
+        } else {
+            # Both of the types are float; resolve the common type (floats
+            # will come out).
+            _type_common(lhs, rhs);
+        }
+    } else {
+        # Get formal type names.
+        let mut lhs_name: string.String = code.typename(lhs);
+        let mut rhs_name: string.String = code.typename(rhs);
+
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "no binary operation '/' can be applied to types '%s' and '%s'" as ^int8,
+                       lhs_name.data(), rhs_name.data());
+        errors.end();
+
+        # Dispose.
+        lhs_name.dispose();
+        rhs_name.dispose();
+
+        # Return nil.
+        code.make_nil();
+    }
+}
+
+# Resolve an `arithmetic` binary expression.
+# -----------------------------------------------------------------------------
+def resolve_arith_expr_b(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Resolve the types of the operands.
+    let lhs: ^code.Handle = resolve_type(g, &x.lhs);
+    let rhs: ^code.Handle = resolve_type(g, &x.rhs);
+    if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
+
+    # Attempt to perform common type resolution between the two types.
+    let ty: ^code.Handle = _type_common(lhs, rhs);
+    if code.isnil(ty) {
+        # Determine the operation.
+        let opname: str =
+            if node.tag == ast.TAG_ADD { "+"; }
+            else if node.tag == ast.TAG_SUBTRACT { "-"; }
+            else if node.tag == ast.TAG_MULTIPLY { "*"; }
+            else if node.tag == ast.TAG_DIVIDE { "/"; }
+            else if node.tag == ast.TAG_MODULO { "%"; }
+            else if node.tag == ast.TAG_INTEGER_DIVIDE { "//"; }
+            else { "?"; };  # can't get here
+
+        # Get formal type names.
+        let mut lhs_name: string.String = code.typename(lhs);
+        let mut rhs_name: string.String = code.typename(rhs);
+
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "no binary operation '%s' can be applied to types '%s' and '%s'" as ^int8,
+                       opname, lhs_name.data(), rhs_name.data());
+        errors.end();
+
+        # Dispose.
+        lhs_name.dispose();
+        rhs_name.dispose();
+
+        # Return nil.
+        code.make_nil();
+    } else {
+        # Worked; return the type.
+        ty;
+    }
 }
 
 # Test driver using `stdin`.

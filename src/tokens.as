@@ -184,6 +184,12 @@ let TOK_FSLASH_EQ: int = -2029;
 # "%=" -- Percent followed by an equals
 let TOK_PERCENT_EQ: int = -2030;
 
+# "//" -- Forward slash followed by another forward slash
+let TOK_FSLASH_FSLASH: int = -2031;
+
+# "//=" -- Forward slash followed by another forward slash followed by an equals
+let TOK_FSLASH_FSLASH_EQ: int = -2032;
+
 # "identifier" -- Lexical identifier
 let TOK_IDENTIFIER: int = -3001;
 

@@ -28,11 +28,18 @@ type Type { handle: ^LLVMOpaqueType }
 
 type IntegerType {
     handle: ^LLVMOpaqueType,
+    bits: uint,
     signed: bool
+}
+
+type FloatType {
+    handle: ^LLVMOpaqueType,
+    bits: uint
 }
 
 let TYPE_SIZE: uint = ((0 as ^Type) + 1) - (0 as ^Type);
 let INT_TYPE_SIZE: uint = ((0 as ^IntegerType) + 1) - (0 as ^IntegerType);
+let FLOAT_TYPE_SIZE: uint = ((0 as ^FloatType) + 1) - (0 as ^FloatType);
 
 def make_type(handle: ^LLVMOpaqueType) -> ^Handle {
     # Build the module.
@@ -43,10 +50,11 @@ def make_type(handle: ^LLVMOpaqueType) -> ^Handle {
     make(TAG_TYPE, ty as ^void);
 }
 
-def make_float_type(handle: ^LLVMOpaqueType) -> ^Handle {
+def make_float_type(handle: ^LLVMOpaqueType, bits: uint) -> ^Handle {
     # Build the module.
-    let ty: ^Type = libc.malloc(TYPE_SIZE) as ^Type;
+    let ty: ^FloatType = libc.malloc(FLOAT_TYPE_SIZE) as ^FloatType;
     ty.handle = handle;
+    ty.bits = bits;
 
     # Wrap in a handle.
     make(TAG_FLOAT_TYPE, ty as ^void);
@@ -61,11 +69,13 @@ def make_bool_type(handle: ^LLVMOpaqueType) -> ^Handle {
     make(TAG_BOOL_TYPE, ty as ^void);
 }
 
-def make_int_type(handle: ^LLVMOpaqueType, signed: bool) -> ^Handle {
+def make_int_type(handle: ^LLVMOpaqueType, signed: bool,
+                  bits: uint) -> ^Handle {
     # Build the module.
     let ty: ^IntegerType = libc.malloc(INT_TYPE_SIZE) as ^IntegerType;
     ty.handle = handle;
     ty.signed = signed;
+    ty.bits = bits;
 
     # Wrap in a handle.
     make(TAG_INT_TYPE, ty as ^void);
@@ -83,15 +93,16 @@ def typename(handle: ^Handle) -> string.String {
         let int_ty: ^IntegerType = handle._object as ^IntegerType;
         if not int_ty.signed { name.append('u'); }
         name.extend("int");
-        let bits: uint64 = LLVMGetIntTypeWidth(int_ty.handle);
-        if      bits ==   8 { name.extend(  "8"); }
-        else if bits ==  16 { name.extend( "16"); }
-        else if bits ==  32 { name.extend( "32"); }
-        else if bits ==  64 { name.extend( "64"); }
-        else if bits == 128 { name.extend("128"); }
+        if      int_ty.bits ==   8 { name.extend(  "8"); }
+        else if int_ty.bits ==  16 { name.extend( "16"); }
+        else if int_ty.bits ==  32 { name.extend( "32"); }
+        else if int_ty.bits ==  64 { name.extend( "64"); }
+        else if int_ty.bits == 128 { name.extend("128"); }
     } else if handle._tag == TAG_FLOAT_TYPE {
+        let f_ty: ^FloatType = handle._object as ^FloatType;
         name.extend("float");
-        # FIXME: Store the bits on the type.
+        if      f_ty.bits == 32 { name.extend("32"); }
+        else if f_ty.bits == 64 { name.extend("64"); }
     }
 
     # Return the name.

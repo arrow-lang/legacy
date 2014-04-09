@@ -22,6 +22,14 @@ def clear(&mut self: String) {
     self.size = 0;
 }
 
+def copy(&mut dest: String, &src: String) {
+    let mut i: uint = 0;
+    while i < src.size {
+        push(dest, src.buffer[i]);
+        i = i + 1;
+    }
+}
+
 def push(&mut self: String, c: int) {
     # Push a new ASCII character on to the string buffer.
     self.buffer[self.size] = c as int8;

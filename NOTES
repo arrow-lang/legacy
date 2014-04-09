@@ -122,3 +122,75 @@
 struct Point { x: int, y: int }
 
 def some(o: Point) -> type(Point.x) { o.x }
+
+
+# explicitly contravariant
+def f<out T>() { }
+
+# explicitly covariant
+def f<in T>() { }
+
+# explicitly invariant
+def f<mut T>() { }
+
+# parameters
+def g(x: int) { }           # by-ref/val [optimization] (immutable)
+def g(mut x: int) { }       # by-val (mutable)
+def g(&x: int) { }          # by-ref (immutable)
+def g(&mut x: int) { }      # by-ref (mutable)
+
+
+# [ ] Not handling type(type(..)) in the parser
+
+
+# MILESTONE 1 =================================================================
+# Have type inference, local scope, and turing complete done by
+# friday night.
+#   [ ] Type deferrence `type(..)`
+#   [ ] Type inspection `type(..).size()`
+#   [ ] Type equality `type(..) == type(..)`
+#   [ ] Type literals
+#   [ ] Generate defs for static slots
+#   [ ] Generate decls / defs for functions
+#   [ ] First-class functions
+#   [ ] Get "tests/run/type.as" to pass
+#   [ ] Local slot decls
+# Basically get all tests/* to pass
+# =============================================================================
+
+# MILESTONE 2 =================================================================
+# Get `struct`, `sized array`, and `tuples` to work
+# =============================================================================
+
+# MILESTONE 3 =================================================================
+# Get all of the previous tests to work (except imports)
+# =============================================================================
+
+# MILESTONE 4 =================================================================
+# Harden, location information, driver, etc.
+# =============================================================================
+
+# MILESTONE 5 =================================================================
+# Implement
+# =============================================================================
+
+# MILESTONE 6 =================================================================
+# Trait
+# =============================================================================
+
+# MILESTONE 7 =================================================================
+# Enumeration
+# =============================================================================
+
+# MILESTONE 8 =================================================================
+# Parameterized types and functions
+# =============================================================================
+
+# MILESTONE 9 =================================================================
+# Polish
+#   [ ] 100 run-fail tests
+#   [ ] 100 run tests
+#   [ ] 100 parse-fail tests
+#   [ ] 100 parse tests
+#   [ ] Type aliasing
+# =============================================================================

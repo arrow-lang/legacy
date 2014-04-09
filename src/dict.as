@@ -188,7 +188,6 @@ implement Dictionary {
     def set(&mut self, key: str, tag: int, value: ^void) {
         # Hash the string key.
         let hash: uint = hash_str(key) bitand (self.capacity - 1);
-        printf("hash: %s -> %u\n", key, hash);
 
         # Grab the bucket offset by the result of the bounded hash function.
         let mut b: ^mut Bucket = self.buckets + hash;

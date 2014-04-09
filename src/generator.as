@@ -71,6 +71,9 @@ def generate(&mut self, name: str, &node: ast.Node) {
 
     # Build the type resolution jump table.
     self.type_resolvers[ast.TAG_BOOLEAN] = resolve_bool_expr;
+    self.type_resolvers[ast.TAG_LOGICAL_AND] = resolve_logical_expr_b;
+    self.type_resolvers[ast.TAG_LOGICAL_OR] = resolve_logical_expr_b;
+    self.type_resolvers[ast.TAG_LOGICAL_NEGATE] = resolve_logical_expr_u;
     self.type_resolvers[ast.TAG_IDENT] = resolve_type_ident;
     self.type_resolvers[ast.TAG_TYPE_EXPR] = resolve_type_expr;
 
@@ -365,7 +368,8 @@ def _declare_float_type(&mut self, name: str, val: ^llvm.LLVMOpaqueType) {
 # -----------------------------------------------------------------------------
 def _declare_basic_types(&mut self) {
     # Boolean
-    self._declare_type("bool", llvm.LLVMInt1Type());
+    self.items.set_ptr("bool", code.make_bool_type(
+        llvm.LLVMInt1Type()) as ^void);
 
     # Signed machine-independent integers
     self._declare_int_type(  "int8",   llvm.LLVMInt8Type(), true);
@@ -453,7 +457,6 @@ def resolve_type_ident(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
         return code.make_nil();
     }
 
-
     if not code.is_type(item) {
         # Extract type from identifier.
         if item._tag == code.TAG_STATIC_SLOT {
@@ -486,6 +489,84 @@ def resolve_type_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
 # -----------------------------------------------------------------------------
 def resolve_bool_expr(g: ^mut Generator, node: ^ast.Node) -> ^code.Handle {
     # Wonder what the type of this is.
+    (g^).items.get_ptr("bool") as ^code.Handle;
+}
+
+# Resolve a binary logical expression.
+# -----------------------------------------------------------------------------
+def resolve_logical_expr_b(g: ^mut Generator, node: ^ast.Node)
+        -> ^code.Handle {
+
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Resolve the types of the operands.
+    let lhs: ^code.Handle = resolve_type(g, &x.lhs);
+    let rhs: ^code.Handle = resolve_type(g, &x.rhs);
+    if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
+
+    # Ensure that we are dealing strictly with booleans.
+    if lhs._tag <> code.TAG_BOOL_TYPE or rhs._tag <> code.TAG_BOOL_TYPE {
+        # Determine the operation.
+        let opname: str =
+            if node.tag == ast.TAG_LOGICAL_AND { "and"; }
+            else { "or"; };
+
+        # Get formal type names.
+        let mut lhs_name: string.String = code.typename(lhs);
+        let mut rhs_name: string.String = code.typename(rhs);
+
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "binary operation '%s' cannot be applied to types '%s' and '%s'" as ^int8,
+                       opname, lhs_name.data(), rhs_name.data());
+        errors.end();
+
+        # Dispose.
+        lhs_name.dispose();
+        rhs_name.dispose();
+
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Return the bool type.
+    (g^).items.get_ptr("bool") as ^code.Handle;
+}
+
+# Resolve an unary logical expression.
+# -----------------------------------------------------------------------------
+def resolve_logical_expr_u(g: ^mut Generator, node: ^ast.Node)
+        -> ^code.Handle {
+
+    # Unwrap the node to its proper type.
+    let x: ^ast.UnaryExpr = (node^).unwrap() as ^ast.UnaryExpr;
+
+    # Resolve the types of the operand.
+    let operand: ^code.Handle = resolve_type(g, &x.operand);
+    if code.isnil(operand) { return code.make_nil(); }
+
+    # Ensure that we are dealing strictly with a boolean.
+    if operand._tag <> code.TAG_BOOL_TYPE {
+        # Get formal type name.
+        let mut name: string.String = code.typename(operand);
+
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "unary operation 'not' cannot be applied to type '%s'" as ^int8,
+                       name.data());
+        errors.end();
+
+        # Dispose.
+        name.dispose();
+
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Return the bool type.
     (g^).items.get_ptr("bool") as ^code.Handle;
 }
 

@@ -69,30 +69,15 @@
 # def neg(a: type(s2)) -> type(not a) { not a; }
 
 # Declare some static slots that are deferred to various expressions.
-# static  s2: type(s1 or false) = false;
+static  s2: type(s11 or false) = false;
 # static s10: type(s8 // s8) = 235;
 # static  s5: type(20) = 186;
 # static  s9: type(s8 * s8) = s8;
 static  s0: bool = true;
 static s11: type(s0) = false;
 static  s1: type(false) = true;
-# static  s6: uint128 = 625789;
+static  s6: uint128 = 625789;
 # static  s7: type(10 / s5) = 31.12;
 # static  s3: type(type(s2)) = false;
-# static  s8: type(float32) = 12.15;
-# static  s4: type(not s3) = true;
-
-
-
-
-type Function {
-    # [..]
-    scope: Scope,
-}
-
-let fn;
-# do x 1;
-# do assert false;
-fn.scope.push();
-# fn.scope.set("name", );
-fn.scope.pop();
+static  s8: type(float32) = 12.15;
+static  s4: type(not s2) = true;

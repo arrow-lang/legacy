@@ -22,6 +22,9 @@ let mut nchar: int = asciz.ord(' ');
 # The 2-character look-ahead buffer.
 let mut nnchar: int = asciz.ord(' ');
 
+# The current buffer to play with by the tokenizer.
+let mut current_buf: asciz.String;
+
 # The current identifier being consumed by the tokenizer.
 let mut current_id: asciz.String;
 
@@ -83,13 +86,13 @@ def consume_whitespace() { while is_whitespace(lchar) { bump(); } }
 # identifier = [A-Za-z_][A-Za-z_0-9]*
 # -----------------------------------------------------------------------------
 def scan_identifier() -> int {
-    # Clear the identifier buffer.
-    asciz.clear(current_id);
+    # Clear the buffer.
+    asciz.clear(current_buf);
 
     # Continue through the input stream until we are no longer part
     # of a possible identifier.
     loop {
-        asciz.push(current_id, bump());
+        asciz.push(current_buf, bump());
         if not is_alphanumeric(lchar) and
                 not lchar == asciz.ord('_') {
             break;
@@ -98,35 +101,40 @@ def scan_identifier() -> int {
 
     # Check for and return keyword tokens instead of the identifier.
     # TODO: A hash-table would better serve this.
-    if asciz.eq_str(current_id, "def")      { return tokens.TOK_DEF; }
-    if asciz.eq_str(current_id, "let")      { return tokens.TOK_LET; }
-    if asciz.eq_str(current_id, "static")   { return tokens.TOK_STATIC; }
-    if asciz.eq_str(current_id, "mut")      { return tokens.TOK_MUT; }
-    if asciz.eq_str(current_id, "true")     { return tokens.TOK_TRUE; }
-    if asciz.eq_str(current_id, "false")    { return tokens.TOK_FALSE; }
-    if asciz.eq_str(current_id, "self")     { return tokens.TOK_SELF; }
-    if asciz.eq_str(current_id, "as")       { return tokens.TOK_AS; }
-    if asciz.eq_str(current_id, "and")      { return tokens.TOK_AND; }
-    if asciz.eq_str(current_id, "or")       { return tokens.TOK_OR; }
-    if asciz.eq_str(current_id, "not")      { return tokens.TOK_NOT; }
-    if asciz.eq_str(current_id, "if")       { return tokens.TOK_IF; }
-    if asciz.eq_str(current_id, "else")     { return tokens.TOK_ELSE; }
-    if asciz.eq_str(current_id, "for")      { return tokens.TOK_FOR; }
-    if asciz.eq_str(current_id, "while")    { return tokens.TOK_WHILE; }
-    if asciz.eq_str(current_id, "loop")     { return tokens.TOK_LOOP; }
-    if asciz.eq_str(current_id, "match")    { return tokens.TOK_MATCH; }
-    if asciz.eq_str(current_id, "break")    { return tokens.TOK_BREAK; }
-    if asciz.eq_str(current_id, "continue") { return tokens.TOK_CONTINUE; }
-    if asciz.eq_str(current_id, "return")   { return tokens.TOK_RETURN; }
-    if asciz.eq_str(current_id, "type")     { return tokens.TOK_TYPE; }
-    if asciz.eq_str(current_id, "enum")     { return tokens.TOK_ENUM; }
-    if asciz.eq_str(current_id, "module")   { return tokens.TOK_MODULE; }
-    if asciz.eq_str(current_id, "import")   { return tokens.TOK_IMPORT; }
-    if asciz.eq_str(current_id, "use")      { return tokens.TOK_USE; }
-    if asciz.eq_str(current_id, "foreign")  { return tokens.TOK_FOREIGN; }
-    if asciz.eq_str(current_id, "unsafe")   { return tokens.TOK_UNSAFE; }
+    if asciz.eq_str(current_buf, "def")      { return tokens.TOK_DEF; }
+    if asciz.eq_str(current_buf, "let")      { return tokens.TOK_LET; }
+    if asciz.eq_str(current_buf, "static")   { return tokens.TOK_STATIC; }
+    if asciz.eq_str(current_buf, "mut")      { return tokens.TOK_MUT; }
+    if asciz.eq_str(current_buf, "true")     { return tokens.TOK_TRUE; }
+    if asciz.eq_str(current_buf, "false")    { return tokens.TOK_FALSE; }
+    if asciz.eq_str(current_buf, "self")     { return tokens.TOK_SELF; }
+    if asciz.eq_str(current_buf, "as")       { return tokens.TOK_AS; }
+    if asciz.eq_str(current_buf, "and")      { return tokens.TOK_AND; }
+    if asciz.eq_str(current_buf, "or")       { return tokens.TOK_OR; }
+    if asciz.eq_str(current_buf, "not")      { return tokens.TOK_NOT; }
+    if asciz.eq_str(current_buf, "if")       { return tokens.TOK_IF; }
+    if asciz.eq_str(current_buf, "else")     { return tokens.TOK_ELSE; }
+    if asciz.eq_str(current_buf, "for")      { return tokens.TOK_FOR; }
+    if asciz.eq_str(current_buf, "while")    { return tokens.TOK_WHILE; }
+    if asciz.eq_str(current_buf, "loop")     { return tokens.TOK_LOOP; }
+    if asciz.eq_str(current_buf, "match")    { return tokens.TOK_MATCH; }
+    if asciz.eq_str(current_buf, "break")    { return tokens.TOK_BREAK; }
+    if asciz.eq_str(current_buf, "continue") { return tokens.TOK_CONTINUE; }
+    if asciz.eq_str(current_buf, "return")   { return tokens.TOK_RETURN; }
+    if asciz.eq_str(current_buf, "type")     { return tokens.TOK_TYPE; }
+    if asciz.eq_str(current_buf, "enum")     { return tokens.TOK_ENUM; }
+    if asciz.eq_str(current_buf, "module")   { return tokens.TOK_MODULE; }
+    if asciz.eq_str(current_buf, "import")   { return tokens.TOK_IMPORT; }
+    if asciz.eq_str(current_buf, "use")      { return tokens.TOK_USE; }
+    if asciz.eq_str(current_buf, "foreign")  { return tokens.TOK_FOREIGN; }
+    if asciz.eq_str(current_buf, "unsafe")   { return tokens.TOK_UNSAFE; }
 
     # Scanned identifier does not match any defined keyword.
+    # Update the current_id.
+    asciz.clear(current_id);
+    asciz.copy(current_id, current_buf);
+
+    # Return the id label.
     return tokens.TOK_IDENTIFIER;
 }
 

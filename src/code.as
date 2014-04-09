@@ -18,6 +18,7 @@ let TAG_FLOAT_TYPE: int = 6;
 let TAG_FUNCTION_TYPE: int = 7;
 let TAG_FUNCTION: int = 8;
 let TAG_PARAMETER: int = 9;
+let TAG_BOOL_TYPE: int = 10;
 
 # Type
 # -----------------------------------------------------------------------------
@@ -51,6 +52,15 @@ def make_float_type(handle: ^LLVMOpaqueType) -> ^Handle {
     make(TAG_FLOAT_TYPE, ty as ^void);
 }
 
+def make_bool_type(handle: ^LLVMOpaqueType) -> ^Handle {
+    # Build the module.
+    let ty: ^Type = libc.malloc(TYPE_SIZE) as ^Type;
+    ty.handle = handle;
+
+    # Wrap in a handle.
+    make(TAG_BOOL_TYPE, ty as ^void);
+}
+
 def make_int_type(handle: ^LLVMOpaqueType, signed: bool) -> ^Handle {
     # Build the module.
     let ty: ^IntegerType = libc.malloc(INT_TYPE_SIZE) as ^IntegerType;
@@ -59,6 +69,33 @@ def make_int_type(handle: ^LLVMOpaqueType, signed: bool) -> ^Handle {
 
     # Wrap in a handle.
     make(TAG_INT_TYPE, ty as ^void);
+}
+
+def typename(handle: ^Handle) -> string.String {
+    let ty: ^Type = handle._object as ^Type;
+
+    # Allocate some space for the name.
+    let mut name: string.String = string.make();
+
+    # Figure out what we are.
+    if      handle._tag == TAG_BOOL_TYPE { name.extend("bool"); }
+    else if handle._tag == TAG_INT_TYPE {
+        let int_ty: ^IntegerType = handle._object as ^IntegerType;
+        if not int_ty.signed { name.append('u'); }
+        name.extend("int");
+        let bits: uint64 = LLVMGetIntTypeWidth(int_ty.handle);
+        if      bits ==   8 { name.extend(  "8"); }
+        else if bits ==  16 { name.extend( "16"); }
+        else if bits ==  32 { name.extend( "32"); }
+        else if bits ==  64 { name.extend( "64"); }
+        else if bits == 128 { name.extend("128"); }
+    } else if handle._tag == TAG_FLOAT_TYPE {
+        name.extend("float");
+        # FIXME: Store the bits on the type.
+    }
+
+    # Return the name.
+    name;
 }
 
 # Function type
@@ -111,6 +148,7 @@ def make_function_type(
 # -----------------------------------------------------------------------------
 def is_type(handle: ^Handle) -> bool {
     handle._tag == TAG_TYPE or
+    handle._tag == TAG_BOOL_TYPE or
     handle._tag == TAG_FUNCTION_TYPE or
     handle._tag == TAG_INT_TYPE or
     handle._tag == TAG_FLOAT_TYPE;

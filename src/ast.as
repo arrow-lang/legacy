@@ -688,7 +688,7 @@ def dump_func_decl(node: ^Node) {
     printf("%s\n" as ^int8, xs._data);
 
     dump_indent = dump_indent + 1;
-    dump(x.return_type);
+    if not isnull(x.return_type) { dump(x.return_type); }
     dump_nodes("Parameters", x.params);
     dump_nodes("Nodes", x.nodes);
     dump_indent = dump_indent - 1;

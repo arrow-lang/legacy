@@ -185,6 +185,9 @@ def type_of(handle: ^Handle) -> ^Handle {
     } else if handle._tag == TAG_VALUE {
         let val: ^Value = handle._object as ^Value;
         val.type_;
+    } else if handle._tag == TAG_PARAMETER {
+        let val: ^Parameter = handle._object as ^Parameter;
+        val.type_;
     } else {
         make_nil();
     }

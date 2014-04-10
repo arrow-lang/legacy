@@ -31,6 +31,9 @@ type Generator {
     # The stack of namespaces that represent our current "item" scope.
     mut ns: list.List,
 
+    # The top-level namespace.
+    mut top_ns: string.String,
+
     # Jump table for the type resolver.
     mut type_resolvers: (def (^mut Generator, ^code.Handle, ^ast.Node) -> ^code.Handle)[100],
 
@@ -71,6 +74,7 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.items = dict.make(65535);
     self.nodes = dict.make(65535);
     self.ns = list.make(types.STR);
+    self.top_ns = string.make();
 
     # Build the type resolution jump table.
     self.type_resolvers[ast.TAG_BOOLEAN] = resolve_bool_expr;
@@ -88,6 +92,9 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.type_resolvers[ast.TAG_IDENT] = resolve_type_ident;
     self.type_resolvers[ast.TAG_TYPE_EXPR] = resolve_type_expr;
     self.type_resolvers[ast.TAG_RETURN] = resolve_type_id;
+    self.type_resolvers[ast.TAG_CALL] = resolve_call_expr;
+    self.type_resolvers[ast.TAG_EQ] = resolve_eq_expr;
+    self.type_resolvers[ast.TAG_NE] = resolve_ne_expr;
 
     # Build the builder jump table.
     self.builders[ast.TAG_BOOLEAN] = build_bool_expr;
@@ -101,9 +108,15 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.builders[ast.TAG_MULTIPLY] = build_mul_expr;
     self.builders[ast.TAG_MODULO] = build_mod_expr;
     self.builders[ast.TAG_RETURN] = build_ret;
+    self.builders[ast.TAG_CALL] = build_call_expr;
+    self.builders[ast.TAG_EQ] = build_eq_expr;
+    self.builders[ast.TAG_NE] = build_ne_expr;
 
     # Add basic type definitions.
     self._declare_basic_types();
+
+    # Add `assert` built-in.
+    self._declare_assert();
 
     # Generation is a complex beast. So we first need to break apart
     # the declarations or "items" from the nodes. As all nodes are owned
@@ -123,6 +136,9 @@ def generate(&mut self, name: str, &node: ast.Node) {
     # Next we generate defs for each "item".
     self._gen_defs();
     if errors.count > 0 { return; }
+
+    # Generate a main function.
+    self._declare_main();
 }
 
 # Coerce an arbitary handle to a value.
@@ -377,6 +393,7 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
 
     # Iterate over the nodes in the function.
     let mut iter: ast.NodesIterator = ast.iter_nodes(nodes^);
+    let mut res: ^code.Handle = code.make_nil();
     while not ast.iter_empty(iter) {
         let node: ast.Node = ast.iter_next(iter);
         # Resolve the type of the node.
@@ -388,8 +405,31 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
         let han: ^code.Handle = build_in(
             &self, target, &node, &ns);
 
-        # Drop it.
-        code.dispose(han);
+        if ast.iter_empty(iter) {
+            # Set the last handle as our value.
+            res = han;
+        }
+    }
+
+    # Has the function been terminated?
+    let last_block: ^llvm.LLVMOpaqueBasicBlock =
+        llvm.LLVMGetLastBasicBlock(x.handle);
+    let last_terminator: ^llvm.LLVMOpaqueValue =
+        llvm.LLVMGetBasicBlockTerminator(last_block);
+    if last_terminator == 0 as ^llvm.LLVMOpaqueValue {
+        # Not terminated; we need to close the function.
+        if code.isnil(res) {
+            llvm.LLVMBuildRetVoid(self.irb);
+        } else {
+            let val_han: ^code.Handle = self._to_value(res, false);
+            let typ: ^code.Handle = code.type_of(val_han) as ^code.Handle;
+            if typ._tag == code.TAG_VOID_TYPE {
+                llvm.LLVMBuildRetVoid(self.irb);
+            } else {
+                let val: ^code.Value = val_han._object as ^code.Value;
+                llvm.LLVMBuildRet(self.irb, val.handle);
+            }
+        }
     }
 
     # Dispose.
@@ -436,12 +476,15 @@ def _gen_decl_static_slot(&mut self, qname: str, x: ^code.StaticSlot) {
 }
 
 def _gen_decl_function(&mut self, qname: str, x: ^code.Function) {
-    # Get the type node out of the handle.
-    let type_: ^code.FunctionType = x.type_._object as ^code.FunctionType;
+    if x.handle == 0 as ^llvm.LLVMOpaqueValue {
+        # Get the type node out of the handle.
+        let type_: ^code.FunctionType = x.type_._object as ^code.FunctionType;
 
-    # Add the function to the module.
-    # TODO: Set priv, vis, etc.
-    x.handle = llvm.LLVMAddFunction(self.mod, qname as ^int8, type_.handle);
+        # Add the function to the module.
+        # TODO: Set priv, vis, etc.
+        x.handle = llvm.LLVMAddFunction(self.mod, qname as ^int8,
+                                        type_.handle);
+    }
 }
 
 # Generate the `type` of each declaration "item".
@@ -534,19 +577,56 @@ def _gen_type_func(&mut self, x: ^code.Function) -> ^code.Handle {
             ret_typ_han = ret_typ.handle;
         }
 
+        # Resolve the type of each parameter.
+        let mut params: list.List = list.make(types.PTR);
+        let mut param_type_handles: list.List = list.make(types.PTR);
+        let mut piter: ast.NodesIterator = ast.iter_nodes(x.context.params);
+        let mut error: bool = false;
+        while not ast.iter_empty(piter) {
+            let pnode: ast.Node = ast.iter_next(piter);
+            let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
 
-        # Build the LLVM type handle.
-        let val: ^llvm.LLVMOpaqueType;
-        val = llvm.LLVMFunctionType(
-            ret_typ_han, 0 as ^^llvm.LLVMOpaqueType, 0, 0);
+            # Resolve the type.
+            let ptype_handle: ^code.Handle = resolve_type_in(
+                &self, &p.type_, code.make_nil(), &x.namespace);
+            if code.isnil(ptype_handle) { error = true; break; }
+            let ptype_obj: ^code.Type = ptype_handle._object as ^code.Type;
 
-        # Create and store our type.
-        let han: ^code.Handle;
-        han = code.make_function_type(val, ret_han, list.make(types.PTR));
-        x.type_ = han;
+            # Emplace the type handle.
+            param_type_handles.push_ptr(ptype_obj.handle as ^void);
 
-        # Return the type handle.
-        han;
+            # Unwrap the parameter name.
+            let param_id: ^ast.Ident = p.id.unwrap() as ^ast.Ident;
+            let param_name: ast.arena.Store = param_id.name;
+
+            # Emplace a solid parameter.
+            params.push_ptr(code.make_parameter(
+                param_name._data as str,
+                ptype_handle,
+                code.make_nil()) as ^void);
+        }
+
+        if error { code.make_nil(); }
+        else {
+            # Build the LLVM type handle.
+            let val: ^llvm.LLVMOpaqueType;
+            val = llvm.LLVMFunctionType(
+                ret_typ_han,
+                param_type_handles.elements as ^^llvm.LLVMOpaqueType,
+                param_type_handles.size as uint32,
+                0);
+
+            # Create and store our type.
+            let han: ^code.Handle;
+            han = code.make_function_type(val, ret_han, params);
+            x.type_ = han;
+
+            # Dispose of dynamic memory.
+            param_type_handles.dispose();
+
+            # Return the type handle.
+            han;
+        }
     } else {
         # Return nil.
         code.make_nil();
@@ -597,6 +677,11 @@ def _extract_item_mod(&mut self, x: ^ast.ModuleDecl) {
 
     # Set us as an `item`.
     self.items.set_ptr(qname.data() as str, han as ^void);
+
+    # Set us as the `top` namespace if there isn't one yet.
+    if self.top_ns.size() == 0  {
+        self.top_ns.extend(name._data as str);
+    }
 
     # Push our name onto the namespace stack.
     self.ns.push_str(name._data as str);
@@ -721,6 +806,126 @@ def _declare_basic_types(&mut self) {
     # TODO: UTF-8 String
 }
 
+# Declare `assert` built-in function
+# -----------------------------------------------------------------------------
+def _declare_assert(&mut self) {
+    # Build the LLVM type for the `abort` fn.
+    let abort_type: ^llvm.LLVMOpaqueType = llvm.LLVMFunctionType(
+        llvm.LLVMVoidType(), 0 as ^^llvm.LLVMOpaqueType, 0, 0);
+
+    # Build the LLVM function for `abort`.
+    let abort_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMAddFunction(
+        self.mod, "abort" as ^int8, abort_type);
+
+    # Build the LLVM type.
+    let param: ^llvm.LLVMOpaqueType = llvm.LLVMInt1Type();
+    let type_obj: ^llvm.LLVMOpaqueType = llvm.LLVMFunctionType(
+        llvm.LLVMVoidType(), &param, 1, 0);
+
+    # Create a `solid` handle to the parameter.
+    let phandle: ^code.Handle = self.items.get_ptr("bool") as ^code.Handle;
+
+    # Create a `solid` handle to the parameters.
+    let mut params: list.List = list.make(types.PTR);
+    params.push_ptr(code.make_parameter(
+        "condition", phandle, code.make_nil()) as ^void);
+
+    # Create a `solid` handle to the function type.
+    let type_: ^code.Handle = code.make_function_type(
+        type_obj, code.make_void_type(llvm.LLVMVoidType()), params);
+
+    # Build the LLVM function declaration.
+    let val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMAddFunction(self.mod, "assert" as ^int8, type_obj);
+
+    # Create a `solid` handle to the function.
+    let mut ns: list.List = list.make(types.STR);
+    let fn: ^code.Handle = code.make_function(
+        0 as ^ast.FuncDecl, "assert", ns, type_, val);
+
+    # Set in the global scope.
+    self.items.set_ptr("assert", fn as ^void);
+
+    # Build the LLVM function definition.
+    # Add the basic blocks.
+    let entry_block: ^llvm.LLVMOpaqueBasicBlock;
+    let then_block: ^llvm.LLVMOpaqueBasicBlock;
+    let merge_block: ^llvm.LLVMOpaqueBasicBlock;
+    entry_block = llvm.LLVMAppendBasicBlock(val, "" as ^int8);
+    then_block = llvm.LLVMAppendBasicBlock(val, "" as ^int8);
+    merge_block = llvm.LLVMAppendBasicBlock(val, "" as ^int8);
+
+    # Grab the single argument.
+    llvm.LLVMPositionBuilderAtEnd(self.irb, entry_block);
+    let phandle: ^llvm.LLVMOpaqueValue = llvm.LLVMGetParam(val, 0);
+
+    # Add a conditional branch on the single argument.
+    llvm.LLVMBuildCondBr(self.irb, phandle, merge_block, then_block);
+
+    # Add the call to `abort`.
+    llvm.LLVMPositionBuilderAtEnd(self.irb, then_block);
+    llvm.LLVMBuildCall(self.irb, abort_fn, 0 as ^^llvm.LLVMOpaqueValue, 0,
+                       "" as ^int8);
+    llvm.LLVMBuildBr(self.irb, merge_block);
+
+    # Add the `ret void` instruction to terminate the function.
+    llvm.LLVMPositionBuilderAtEnd(self.irb, merge_block);
+    llvm.LLVMBuildRetVoid(self.irb);
+}
+
+# Declare the `main` function.
+# -----------------------------------------------------------------------------
+def _declare_main(&mut self) {
+
+    # Qualify a module main name.
+    let mut name: string.String = string.make();
+    name.extend(self.top_ns.data() as str);
+    name.append('.');
+    name.extend("main");
+
+    # Was their a main function defined?
+    let module_main_fn: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
+    if self.items.contains(name.data() as str) {
+        let module_main_han: ^code.Handle;
+        module_main_han = self.items.get_ptr(name.data() as str) as ^code.Handle;
+        let module_main_fn_han: ^code.Function;
+        module_main_fn_han = module_main_han._object as ^code.Function;
+        module_main_fn = module_main_fn_han.handle;
+    }
+
+    # Build the LLVM type for the `main` fn.
+    let main_type: ^llvm.LLVMOpaqueType = llvm.LLVMFunctionType(
+        llvm.LLVMInt32Type(), 0 as ^^llvm.LLVMOpaqueType, 0, 0);
+
+    # Build the LLVM function for `main`.
+    let main_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMAddFunction(
+        self.mod, "main" as ^int8, main_type);
+
+    # Build the LLVM function definition.
+    let entry_block: ^llvm.LLVMOpaqueBasicBlock;
+    entry_block = llvm.LLVMAppendBasicBlock(main_fn, "" as ^int8);
+    llvm.LLVMPositionBuilderAtEnd(self.irb, entry_block);
+
+    if module_main_fn <> 0 as ^llvm.LLVMOpaqueValue {
+        # Create a `call` to the module main method.
+        llvm.LLVMBuildCall(
+            self.irb, module_main_fn,
+            0 as ^^llvm.LLVMOpaqueValue, 0,
+            "" as ^int8);
+    }
+
+    # Create a constant 0.
+    let zero: ^llvm.LLVMOpaqueValue;
+    zero = llvm.LLVMConstInt(llvm.LLVMInt32Type(), 0, false);
+
+    # Add the `ret void` instruction to terminate the function.
+    llvm.LLVMBuildRet(self.irb, zero);
+
+    # Dispose.
+    name.dispose();
+
+}
+
 } # implement Generator
 
 # Type conversion
@@ -743,14 +948,14 @@ def _type_common(a_ctx: ^ast.Node, a: ^code.Handle,
             } else {
                 b;
             }
-        } else if a_ty.signed and a_ty.bits > b_ty.bits {
-            a;
-        } else if b_ty.signed and b_ty.bits > a_ty.bits {
-            b;
         } else if a_ctx.tag == ast.TAG_INTEGER {
             b;
         } else if b_ctx.tag == ast.TAG_INTEGER {
             a;
+        } else if a_ty.signed and a_ty.bits > b_ty.bits {
+            a;
+        } else if b_ty.signed and b_ty.bits > a_ty.bits {
+            b;
         } else {
             # The integer types are not strictly compatible.
             # Return nil.
@@ -778,6 +983,35 @@ def _type_common(a_ctx: ^ast.Node, a: ^code.Handle,
         # Return nil.
         code.make_nil();
     }
+}
+
+def _type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
+    # Get the type handles.
+    let s_ty: ^code.Type = s._object as ^code.Type;
+    let d_ty: ^code.Type = d._object as ^code.Type;
+
+    # If these are the `same` then were okay.
+    if s_ty == d_ty { return true; }
+    else if s_ty.handle == d_ty.handle { return true; }
+    else if s._tag == code.TAG_INT_TYPE and d._tag == code.TAG_INT_TYPE {
+        return true;
+    }
+
+    # Report error.
+    let mut s_typename: string.String = code.typename(s);
+    let mut d_typename: string.String = code.typename(d);
+    errors.begin_error();
+    errors.fprintf(errors.stderr,
+                   "mismatched types: expected '%s' but found '%s'" as ^int8,
+                   d_typename.data(), s_typename.data());
+    errors.end();
+
+    # Dispose.
+    s_typename.dispose();
+    d_typename.dispose();
+
+    # Return false.
+    false;
 }
 
 # Type resolvers
@@ -825,8 +1059,19 @@ def resolve_type_in(g: ^mut Generator, node: ^ast.Node, target: ^code.Handle,
     # Unset.
     g.ns = old_ns;
 
-    # Return the resolved type.
-    han;
+    # Ensure that we are type compatible.
+    let mut error: bool = false;
+    if not code.isnil(han) {
+        if not code.isnil(target) {
+            if not _type_compatible(target, han) {
+                error = true;
+            }
+        }
+    }
+
+    # Return our handle or nil.
+    if error { code.make_nil(); }
+    else { han; }
 }
 
 # Resolve an `identifier` for a type.
@@ -859,6 +1104,10 @@ def resolve_type_ident(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
             # This is a static slot; get its type.
             (g^)._gen_type_static_slot(
                 item._object as ^code.StaticSlot);
+        } else if item._tag == code.TAG_FUNCTION {
+            # This is a function; get its type.
+            (g^)._gen_type_func(
+                item._object as ^code.Function);
         } else {
             # Return nil.
             code.make_nil();
@@ -902,12 +1151,18 @@ def resolve_bool_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 # -----------------------------------------------------------------------------
 def resolve_int_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
-    if code.isnil(target) {
+    if not code.isnil(target) {
+        if (target._tag == code.TAG_INT_TYPE
+                or target._tag == code.TAG_FLOAT_TYPE) {
+            # Return the targeted type.
+            target;
+        } else {
+            # FIXME: This should be `int` as soon as we can make it so.
+            (g^).items.get_ptr("int64") as ^code.Handle;
+        }
+    } else {
         # FIXME: This should be `int` as soon as we can make it so.
         (g^).items.get_ptr("int64") as ^code.Handle;
-    } else {
-        # Return the targeted type.
-        target;
     }
 }
 
@@ -916,11 +1171,15 @@ def resolve_int_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
 def resolve_float_expr(g: ^mut Generator, target: ^code.Handle,
                        node: ^ast.Node)
         -> ^code.Handle {
-    if code.isnil(target) {
-        (g^).items.get_ptr("float64") as ^code.Handle;
+    if not code.isnil(target) {
+        if target._tag == code.TAG_FLOAT_TYPE {
+            # Return the targeted type.
+            target;
+        } else {
+            (g^).items.get_ptr("float64") as ^code.Handle;
+        }
     } else {
-        # Return the targeted type.
-        target;
+        (g^).items.get_ptr("float64") as ^code.Handle;
     }
 }
 
@@ -1137,6 +1396,65 @@ def resolve_arith_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     }
 }
 
+# Resolve an `EQ` expression.
+# -----------------------------------------------------------------------------
+def resolve_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Resolve this as an arithmetic binary expression.
+    resolve_arith_expr_b(g, code.make_nil(), node);
+
+    # Then ignore the resultant type and send back a boolean.
+    (g^).items.get_ptr("bool") as ^code.Handle;
+}
+
+# Resolve an `NE` expression.
+# -----------------------------------------------------------------------------
+def resolve_ne_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Resolve this as an arithmetic binary expression.
+    resolve_arith_expr_b(g, _, node);
+
+    # Then ignore the resultant type and send back a boolean.
+    (g^).items.get_ptr("bool") as ^code.Handle;
+}
+
+# Resolve a `call` expression.
+# -----------------------------------------------------------------------------
+def resolve_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
+
+    # Resolve the type of the call expression.
+    let expr: ^code.Handle = resolve_type(g, &x.expression);
+    if code.isnil(expr) { return code.make_nil(); }
+
+    # Ensure that we are dealing strictly with a function type.
+    if expr._tag <> code.TAG_FUNCTION_TYPE {
+        # Get formal type name.
+        let mut name: string.String = code.typename(expr);
+
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "type '%s' is not a function" as ^int8,
+                       name.data());
+        errors.end();
+
+        # Dispose.
+        name.dispose();
+
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Get it as a function type.
+    let ty: ^code.FunctionType = expr._object as ^code.FunctionType;
+
+    # Return the already resolve return type.
+    ty.return_type;
+}
+
 # Builders
 # =============================================================================
 
@@ -1293,16 +1611,19 @@ def build_ret(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 # Build the operands for a binary expression.
 # -----------------------------------------------------------------------------
 def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
-        -> (^code.Handle, ^code.Handle, ^code.Handle) {
-    let res: (^code.Handle, ^code.Handle, ^code.Handle) = (
-        code.make_nil(), code.make_nil(), code.make_nil());
+        -> (^code.Handle, ^code.Handle) {
+    let res: (^code.Handle, ^code.Handle) = (code.make_nil(), code.make_nil());
 
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
+    # Resolve each operand for its type.
+    let lhs_ty: ^code.Handle = resolve_targeted_type(g, _, &x.lhs);
+    let rhs_ty: ^code.Handle = resolve_targeted_type(g, _, &x.rhs);
+
     # Build each operand.
-    let lhs: ^code.Handle = build(g, _, &x.lhs);
-    let rhs: ^code.Handle = build(g, _, &x.rhs);
+    let lhs: ^code.Handle = build(g, lhs_ty, &x.lhs);
+    let rhs: ^code.Handle = build(g, rhs_ty, &x.rhs);
     if code.isnil(lhs) or code.isnil(rhs) { return res; }
 
     # Coerce the operands to values.
@@ -1310,19 +1631,8 @@ def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     let rhs_val_han: ^code.Handle = (g^)._to_value(rhs, false);
     if code.isnil(lhs_val_han) or code.isnil(rhs_val_han) { return res; }
 
-    # Resolve our type.
-    let target: ^code.Handle = resolve_targeted_type(g, _, node);
-
-    # Cast each operand to the target type.
-    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, target);
-    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, target);
-
-    # Dispose.
-    code.dispose(lhs_val_han);
-    code.dispose(rhs_val_han);
-
     # Create a tuple result.
-    res = (target, lhs_han, rhs_han);
+    res = (lhs_val_han, rhs_val_han);
     res;
 }
 
@@ -1331,10 +1641,16 @@ def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
-    let type_: ^code.Handle;
-    let lhs_han: ^code.Handle;
-    let rhs_han: ^code.Handle;
-    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+
+    # Resolve our type.
+    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+
+    # Cast each operand to the target type.
+    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1355,6 +1671,8 @@ def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     han = code.make_value(type_, val);
 
     # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
     code.dispose(lhs_han);
     code.dispose(rhs_han);
 
@@ -1367,10 +1685,16 @@ def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
-    let type_: ^code.Handle;
-    let lhs_han: ^code.Handle;
-    let rhs_han: ^code.Handle;
-    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+
+    # Resolve our type.
+    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+
+    # Cast each operand to the target type.
+    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1391,6 +1715,8 @@ def build_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     han = code.make_value(type_, val);
 
     # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
     code.dispose(lhs_han);
     code.dispose(rhs_han);
 
@@ -1403,10 +1729,16 @@ def build_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
-    let type_: ^code.Handle;
-    let lhs_han: ^code.Handle;
-    let rhs_han: ^code.Handle;
-    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+
+    # Resolve our type.
+    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+
+    # Cast each operand to the target type.
+    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1427,6 +1759,8 @@ def build_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     han = code.make_value(type_, val);
 
     # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
     code.dispose(lhs_han);
     code.dispose(rhs_han);
 
@@ -1439,10 +1773,16 @@ def build_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
-    let type_: ^code.Handle;
-    let lhs_han: ^code.Handle;
-    let rhs_han: ^code.Handle;
-    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+
+    # Resolve our type.
+    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+
+    # Cast each operand to the target type.
+    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1470,6 +1810,8 @@ def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     han = code.make_value(type_, val);
 
     # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
     code.dispose(lhs_han);
     code.dispose(rhs_han);
 
@@ -1482,10 +1824,16 @@ def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
-    let type_: ^code.Handle;
-    let lhs_han: ^code.Handle;
-    let rhs_han: ^code.Handle;
-    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+
+    # Resolve our type.
+    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+
+    # Cast each operand to the target type.
+    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1501,6 +1849,8 @@ def build_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     han = code.make_value(type_, val);
 
     # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
     code.dispose(lhs_han);
     code.dispose(rhs_han);
 
@@ -1513,10 +1863,16 @@ def build_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_mod_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
-    let type_: ^code.Handle;
-    let lhs_han: ^code.Handle;
-    let rhs_han: ^code.Handle;
-    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+
+    # Resolve our type.
+    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+
+    # Cast each operand to the target type.
+    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1543,11 +1899,290 @@ def build_mod_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     han = code.make_value(type_, val);
 
     # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
     code.dispose(lhs_han);
     code.dispose(rhs_han);
 
     # Return our wrapped result.
     han;
+}
+
+# Build an `EQ` expression.
+# -----------------------------------------------------------------------------
+def build_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Build each operand.
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, code.make_nil(), node);
+
+    # Resolve our type.
+    let type_: ^code.Handle = _type_common(
+        &x.lhs, code.type_of(lhs_val_han), &x.rhs, code.type_of(rhs_val_han));
+    if code.isnil(type_) {
+        code.make_nil();
+    } else {
+        # Cast each operand to the target type.
+        let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
+        let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
+
+        # Cast to values.
+        let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+        # Build the `EQ` instruction.
+        let val: ^llvm.LLVMOpaqueValue;
+        if type_._tag == code.TAG_INT_TYPE {
+            val = llvm.LLVMBuildICmp(
+                g.irb,
+                32, # IntEQ
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if type_._tag == code.TAG_FLOAT_TYPE {
+            val = llvm.LLVMBuildFCmp(
+                g.irb,
+                1, # RealOEQ
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        }
+
+        # Wrap and return the value.
+        let han: ^code.Handle;
+        han = code.make_value(_, val);
+
+        # Dispose.
+        code.dispose(lhs_val_han);
+        code.dispose(rhs_val_han);
+        code.dispose(lhs_han);
+        code.dispose(rhs_han);
+
+        # Return our wrapped result.
+        han;
+    }
+}
+
+# Build a `NE` expression.
+# -----------------------------------------------------------------------------
+def build_ne_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Build each operand.
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, code.make_nil(), node);
+
+    # Resolve our type.
+    let type_: ^code.Handle = _type_common(
+        &x.lhs, code.type_of(lhs_val_han), &x.rhs, code.type_of(rhs_val_han));
+    if code.isnil(type_) {
+        code.make_nil();
+    } else {
+        # Cast each operand to the target type.
+        let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
+        let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
+
+        # Cast to values.
+        let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+        # Build the `EQ` instruction.
+        let val: ^llvm.LLVMOpaqueValue;
+        if type_._tag == code.TAG_INT_TYPE {
+            val = llvm.LLVMBuildICmp(
+                g.irb,
+                33, # IntNE
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if type_._tag == code.TAG_FLOAT_TYPE {
+            val = llvm.LLVMBuildFCmp(
+                g.irb,
+                6, # RealONE
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        }
+
+        # Wrap and return the value.
+        let han: ^code.Handle;
+        han = code.make_value(_, val);
+
+        # Dispose.
+        code.dispose(lhs_val_han);
+        code.dispose(rhs_val_han);
+        code.dispose(lhs_han);
+        code.dispose(rhs_han);
+
+        # Return our wrapped result.
+        han;
+    }
+}
+
+# Build a `call` expression.
+# -----------------------------------------------------------------------------
+def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
+
+    # Build the called expression.
+    let expr: ^code.Handle = build(g, _, &x.expression);
+    if code.isnil(expr) { return code.make_nil(); }
+
+    # Get the function handle.
+    let fn: ^llvm.LLVMOpaqueValue;
+    let type_: ^code.FunctionType;
+    if expr._tag == code.TAG_FUNCTION {
+        let fn_han: ^code.Function = expr._object as ^code.Function;
+        type_ = fn_han.type_._object as ^code.FunctionType;
+        fn = fn_han.handle;
+    }
+
+    # Wrap and return the value.
+    # First we create a list to hold the entire argument list.
+    let mut args: list.List = list.make(types.PTR);
+
+    # Enumerate the parameters and push an equivalent amount
+    # of blank arguments.
+    let mut i: int = 0;
+    while i as uint < type_.parameters.size {
+        args.push_ptr(0 as ^void);
+        i = i + 1;
+    }
+
+    # Enumerate the arguments and set the parameters in turn to each
+    # generated argument expression.
+    let data: ^mut ^llvm.LLVMOpaqueValue
+        = args.elements as ^^llvm.LLVMOpaqueValue;
+    i = 0;
+    let mut iter: ast.NodesIterator = ast.iter_nodes(x.arguments);
+    let mut error: bool = false;
+    while not error and not ast.iter_empty(iter) {
+        let anode: ast.Node = ast.iter_next(iter);
+        let a: ^ast.Argument = anode.unwrap() as ^ast.Argument;
+
+        # Find the parameter index.
+        let mut pi: int = 0;
+        # NOTE: The parser handles making sure no positional arg
+        #   comes after a keyword arg.
+        if ast.isnull(a.name) {
+            # Push the value as an argument in sequence.
+            pi = i;
+            i = i + 1;
+        } else {
+            # Get the name data for the id.
+            let id: ^ast.Ident = a.name.unwrap() as ^ast.Ident;
+            let name: ast.arena.Store = id.name;
+
+            # Find the parameter index.
+            pi = 0;
+            while pi as uint < type_.parameters.size {
+                let prm_han: ^code.Handle =
+                    type_.parameters.at_ptr(pi) as ^code.Handle;
+                let prm: ^code.Parameter =
+                    prm_han._object as ^code.Parameter;
+                if prm.name.eq_str(name._data as str) {
+                    break;
+                }
+                pi = pi + 1;
+            }
+
+            # If we didn't find one ...
+            if pi as uint == type_.parameters.size {
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "unexpected keyword argument '%s'" as ^int8,
+                               name._data);
+                errors.end();
+                error = true;
+            }
+
+            # If we already have one ...
+            if (data + pi)^ <> 0 as ^llvm.LLVMOpaqueValue {
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "got multiple values for argument '%s'" as ^int8,
+                               name._data);
+                errors.end();
+                error = true;
+            }
+
+            # TODO: Detect dup keyword args
+        }
+
+        # Resolve the type of the node.
+        let target: ^code.Handle = resolve_targeted_type(
+            g, code.type_of(type_.parameters.at_ptr(pi) as ^code.Handle),
+            &a.expression);
+        if code.isnil(target) { error = true; break; }
+
+        # Build the node.
+        let han: ^code.Handle = build(g, target, &a.expression);
+        if code.isnil(han) { error = true; break; }
+
+        # Coerce this to a value.
+        let val_han: ^code.Handle = (g^)._to_value(han, true);
+
+        # Cast the value to the target type.
+        let cast_han: ^code.Handle = (g^)._cast(val_han, target);
+        let cast_val: ^code.Value = cast_han._object as ^code.Value;
+
+        # Emplace in the argument list.
+        (data + pi)^ = cast_val.handle;
+
+        # Dispose.
+        code.dispose(val_han);
+        code.dispose(cast_han);
+    }
+
+    if not error {
+        # Check for missing arguments.
+        i = 0;
+        while i as uint < args.size {
+            let arg: ^llvm.LLVMOpaqueValue = (data + i)^;
+            if arg == 0 as ^llvm.LLVMOpaqueValue {
+                # Get formal name
+                let prm_han: ^code.Handle =
+                    type_.parameters.at_ptr(i) as ^code.Handle;
+                let prm: ^code.Parameter =
+                    prm_han._object as ^code.Parameter;
+
+                # Report
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "missing required parameter '%s'" as ^int8,
+                               prm.name.data());
+                errors.end();
+                error = true;
+            }
+
+            i = i + 1;
+        }
+
+        if not error {
+            # Build the `call` instruction.
+            let val: ^llvm.LLVMOpaqueValue;
+            val = llvm.LLVMBuildCall(g.irb, fn, data,
+                                     args.size as uint32, "" as ^int8);
+
+            # Dispose of dynamic memory.
+            args.dispose();
+
+            if code.isnil(type_.return_type) {
+                # Return nil.
+                code.make_nil();
+            } else {
+                # Wrap and return the value.
+                code.make_value(type_.return_type, val);
+            }
+        } else {
+            # Return nil.
+            code.make_nil();
+        }
+    } else {
+        # Return nil.
+        code.make_nil();
+    }
 }
 
 # Test driver using `stdin`.
@@ -1556,9 +2191,6 @@ def main() {
     # Parse the AST from the standard input.
     let unit: ast.Node = parser.parse();
     if errors.count > 0 { libc.exit(-1); }
-
-    # Insert an `assert` function.
-    # _declare_assert();
 
     # Declare the generator.
     let mut g: Generator;

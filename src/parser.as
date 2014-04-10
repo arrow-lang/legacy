@@ -553,6 +553,8 @@ def parse_primary_expr() -> ast.Node {
         parse_ident();
     } else if cur_tok == tokens.TOK_IF {
         parse_select_expr();
+    } else if cur_tok == tokens.TOK_TYPE {
+        parse_type_expr();
     } else {
         if cur_tok == tokens.TOK_RETURN {
             bump_token();

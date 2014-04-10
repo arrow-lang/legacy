@@ -1,15 +1,18 @@
-# def main() {
-#     # Assert the values of the static slots.
-#     assert(s1);
-#     assert(not s2);
-#     assert(not s3);
-#     assert(s4);
-#     assert(s5 == 186);
-#     assert(s6 == 625789);
-#     assert(s7 == 31.12);
-#     assert(s8 == 12.15);
-#     assert(s9 == s8 * s8);
-#     assert(s10 == 235);
+def main() {
+    # s5 + s9;
+    s14 + s9 + s7;
+    return;
+    # Assert the values of the static slots.
+    # assert(s1);
+    # assert(not s2);
+    # assert(not s3);
+    # assert(s4);
+    # assert(s5 == 186);
+    # assert(s6 == 625789);
+    # assert(s7 == 31.12);
+    # assert(s8 == 12.15);
+    # assert(s9 == s8 * s8);
+    # assert(s10 == 235);
 
 #     # Assert some type properties of various expressions.
 #     assert(type(s1).size() >= 1);
@@ -59,7 +62,7 @@
 #     assert(that()(a=s2));
 
 #     # TODO: Assert typenames once `type(..).name()` is a thing
-# }
+}
 
 # Declare a function that returns the `neg` function.
 # def that() -> type(neg) { neg; }
@@ -71,6 +74,7 @@
 # Declare some static slots that are deferred to various expressions.
 static  s2: type(s11 or false) = false;
 static s18: type(s5 % s14) = 12;
+static s21: type(s5) = s5;
 static  s5: type(20) = 186;
 static s12: type(1.21) = 15.1;
 static s16: type(s13 / s8) = 31.15;
@@ -81,11 +85,12 @@ static s13: type(s5 + s14) = 682;
 static s11: type(s0) = false;
 static s14: uint32 = 682;
 static  s1: type(false) = true;
-static s15: type(s13 * s8) = 42.1;
+static s15: type(s13 * s8 + s6) = 42.1;
 static  s6: uint128 = 625789;
 static  s7: type(10 / s5) = 31.12;
-# static  s3: type(type(s2)) = false;
+static  s3: type(type(s2)) = false;
 static  s8: type(float32) = 12.15;
+static s23: type(s8) = 3012;
 static s17: type(s13 // s8) = 15;
 static  s4: type(not s2) = true;
 static s19: type(s5 % s8) = 12.12;

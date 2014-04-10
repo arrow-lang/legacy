@@ -19,6 +19,7 @@ let TAG_FUNCTION_TYPE: int = 7;
 let TAG_FUNCTION: int = 8;
 let TAG_PARAMETER: int = 9;
 let TAG_BOOL_TYPE: int = 10;
+let TAG_VOID_TYPE: int = 11;
 
 # Type
 # -----------------------------------------------------------------------------
@@ -48,6 +49,15 @@ def make_type(handle: ^LLVMOpaqueType) -> ^Handle {
 
     # Wrap in a handle.
     make(TAG_TYPE, ty as ^void);
+}
+
+def make_void_type(handle: ^LLVMOpaqueType) -> ^Handle {
+    # Build the module.
+    let ty: ^Type = libc.malloc(TYPE_SIZE) as ^Type;
+    ty.handle = handle;
+
+    # Wrap in a handle.
+    make(TAG_VOID_TYPE, ty as ^void);
 }
 
 def make_float_type(handle: ^LLVMOpaqueType, bits: uint) -> ^Handle {
@@ -148,6 +158,7 @@ def make_function_type(
         parameters: list.List) -> ^Handle {
     # Build the function.
     let func: ^FunctionType = libc.malloc(FUNCTION_TYPE_SIZE) as ^FunctionType;
+    func.handle = handle;
     func.return_type = return_type;
     func.parameters = parameters;
 
@@ -171,6 +182,9 @@ def type_of(handle: ^Handle) -> ^Handle {
     if handle._tag == TAG_STATIC_SLOT {
         let slot: ^StaticSlot = handle._object as ^StaticSlot;
         slot.type_;
+    } else if handle._tag == TAG_VALUE {
+        let val: ^Value = handle._object as ^Value;
+        val.type_;
     } else {
         make_nil();
     }
@@ -301,29 +315,6 @@ def make_function(
     make(TAG_FUNCTION, func as ^void);
 }
 
-# Coerce an arbitary handle to a value.
-# -----------------------------------------------------------------------------
-# This can cause a LOAD.
-def to_value(b: ^LLVMOpaqueBuilder, handle: ^Handle) -> ^Handle {
-    if handle._tag == TAG_STATIC_SLOT {
-        let slot: ^StaticSlot = handle._object as ^StaticSlot;
-
-        # Load the static slot value.
-        let val: ^LLVMOpaqueValue;
-        val = LLVMBuildLoad(b, slot.handle, "" as ^int8);
-
-        # Wrap it in a handle.
-        make_value(slot.type_, val);
-    } else if handle._tag == TAG_VALUE {
-        # Clone the value object.
-        let val: ^Value = handle._object as ^Value;
-        make_value(val.type_, val.handle);
-    } else {
-        # No idea how to handle this.
-        make_nil();
-    }
-}
-
 # Handle
 # -----------------------------------------------------------------------------
 # A handle is an intermediary `handle` to a pre-code-generation object such
@@ -435,4 +426,14 @@ def make_nil() -> ^Handle { 0 as ^Handle; }
 
 # Test for a NIL handle.
 # -----------------------------------------------------------------------------
-def isnil(handle: ^Handle) -> bool { handle == 0 as ^Handle; }
+def isnil(handle: ^Handle) -> bool {
+    (handle == 0 as ^Handle) or ispoison(handle);
+}
+
+# Create a POISON handle that is used to indicate a failed generation.
+# -----------------------------------------------------------------------------
+def make_poison() -> ^Handle { -1 as ^Handle; }
+
+# Test for a POISON handle.
+# -----------------------------------------------------------------------------
+def ispoison(handle: ^Handle) -> bool { handle == -1 as ^Handle; }

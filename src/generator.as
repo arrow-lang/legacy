@@ -371,22 +371,29 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
     # Pull out the nodes that correspond to this function.
     let nodes: ^ast.Nodes = self.nodes.get_ptr(qname) as ^ast.Nodes;
 
+    # Create a namespace for the function definition.
+    let mut ns: list.List = x.namespace.clone();
+    ns.push_str(x.name.data() as str);
+
     # Iterate over the nodes in the function.
     let mut iter: ast.NodesIterator = ast.iter_nodes(nodes^);
     while not ast.iter_empty(iter) {
         let node: ast.Node = ast.iter_next(iter);
         # Resolve the type of the node.
         let target: ^code.Handle = resolve_type_in(
-            &self, &node, type_.return_type, &x.namespace);
+            &self, &node, type_.return_type, &ns);
         if code.isnil(target) { continue; }
 
         # Build the node.
         let han: ^code.Handle = build_in(
-            &self, target, &node, &x.namespace);
+            &self, target, &node, &ns);
 
         # Drop it.
         code.dispose(han);
     }
+
+    # Dispose.
+    ns.dispose();
 
     # Reset to the old insert block.
     llvm.LLVMPositionBuilderAtEnd(self.irb, cur_block);
@@ -423,6 +430,9 @@ def _gen_decl_static_slot(&mut self, qname: str, x: ^code.StaticSlot) {
     # Add the global slot declaration to the IR.
     # TODO: Set priv, vis, etc.
     x.handle = llvm.LLVMAddGlobal(self.mod, type_.handle, qname as ^int8);
+
+    # Set if this is constant.
+    llvm.LLVMSetGlobalConstant(x.handle, not x.context.mutable);
 }
 
 def _gen_decl_function(&mut self, qname: str, x: ^code.Function) {
@@ -719,7 +729,8 @@ def _declare_basic_types(&mut self) {
 # Attempt to resolve a single compatible type from two passed
 # types. Respects integer and float promotion rules.
 # -----------------------------------------------------------------------------
-def _type_common(a: ^code.Handle, b: ^code.Handle) -> ^code.Handle {
+def _type_common(a_ctx: ^ast.Node, a: ^code.Handle,
+                 b_ctx: ^ast.Node, b: ^code.Handle) -> ^code.Handle {
     if a._tag == code.TAG_INT_TYPE and b._tag == a._tag {
         # Determine the integer with the greatest rank.
         let a_ty: ^code.IntegerType = a._object as ^code.IntegerType;
@@ -736,6 +747,10 @@ def _type_common(a: ^code.Handle, b: ^code.Handle) -> ^code.Handle {
             a;
         } else if b_ty.signed and b_ty.bits > a_ty.bits {
             b;
+        } else if a_ctx.tag == ast.TAG_INTEGER {
+            b;
+        } else if b_ctx.tag == ast.TAG_INTEGER {
+            a;
         } else {
             # The integer types are not strictly compatible.
             # Return nil.
@@ -1051,7 +1066,7 @@ def resolve_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         } else {
             # Both of the types are float; resolve the common type (floats
             # will come out).
-            _type_common(lhs, rhs);
+            _type_common(&x.lhs, lhs, &x.rhs, rhs);
         }
     } else {
         # Get formal type names.
@@ -1087,7 +1102,7 @@ def resolve_arith_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
 
     # Attempt to perform common type resolution between the two types.
-    let ty: ^code.Handle = _type_common(lhs, rhs);
+    let ty: ^code.Handle = _type_common(&x.lhs, lhs, &x.rhs, rhs);
     if code.isnil(ty) {
         # Determine the operation.
         let opname: str =
@@ -1278,8 +1293,9 @@ def build_ret(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 # Build the operands for a binary expression.
 # -----------------------------------------------------------------------------
 def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
-        -> (^code.Handle, ^code.Handle) {
-    let res: (^code.Handle, ^code.Handle) = (code.make_nil(), code.make_nil());
+        -> (^code.Handle, ^code.Handle, ^code.Handle) {
+    let res: (^code.Handle, ^code.Handle, ^code.Handle) = (
+        code.make_nil(), code.make_nil(), code.make_nil());
 
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
@@ -1294,18 +1310,19 @@ def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     let rhs_val_han: ^code.Handle = (g^)._to_value(rhs, false);
     if code.isnil(lhs_val_han) or code.isnil(rhs_val_han) { return res; }
 
+    # Resolve our type.
+    let target: ^code.Handle = resolve_targeted_type(g, _, node);
+
     # Cast each operand to the target type.
-    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, _);
-    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, _);
+    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, target);
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, target);
 
     # Dispose.
-    code.dispose(lhs);
-    code.dispose(rhs);
     code.dispose(lhs_val_han);
     code.dispose(rhs_val_han);
 
     # Create a tuple result.
-    res = (lhs_han, rhs_han);
+    res = (target, lhs_han, rhs_han);
     res;
 }
 
@@ -1314,9 +1331,10 @@ def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
+    let type_: ^code.Handle;
     let lhs_han: ^code.Handle;
     let rhs_han: ^code.Handle;
-    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1324,17 +1342,17 @@ def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Build the `add` instruction.
     let val: ^llvm.LLVMOpaqueValue;
-    if _._tag == code.TAG_INT_TYPE {
+    if type_._tag == code.TAG_INT_TYPE {
         val = llvm.LLVMBuildAdd(g.irb,
                                 lhs_val.handle, rhs_val.handle, "" as ^int8);
-    } else if _._tag == code.TAG_FLOAT_TYPE {
+    } else if type_._tag == code.TAG_FLOAT_TYPE {
         val = llvm.LLVMBuildFAdd(g.irb,
                                  lhs_val.handle, rhs_val.handle, "" as ^int8);
     }
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(_, val);
+    han = code.make_value(type_, val);
 
     # Dispose.
     code.dispose(lhs_han);
@@ -1349,9 +1367,10 @@ def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
+    let type_: ^code.Handle;
     let lhs_han: ^code.Handle;
     let rhs_han: ^code.Handle;
-    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1359,17 +1378,17 @@ def build_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Build the `sub` instruction.
     let val: ^llvm.LLVMOpaqueValue;
-    if _._tag == code.TAG_INT_TYPE {
+    if type_._tag == code.TAG_INT_TYPE {
         val = llvm.LLVMBuildSub(g.irb,
                                 lhs_val.handle, rhs_val.handle, "" as ^int8);
-    } else if _._tag == code.TAG_FLOAT_TYPE {
+    } else if type_._tag == code.TAG_FLOAT_TYPE {
         val = llvm.LLVMBuildFSub(g.irb,
                                  lhs_val.handle, rhs_val.handle, "" as ^int8);
     }
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(_, val);
+    han = code.make_value(type_, val);
 
     # Dispose.
     code.dispose(lhs_han);
@@ -1384,9 +1403,10 @@ def build_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
+    let type_: ^code.Handle;
     let lhs_han: ^code.Handle;
     let rhs_han: ^code.Handle;
-    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1394,17 +1414,17 @@ def build_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Build the `mul` instruction.
     let val: ^llvm.LLVMOpaqueValue;
-    if _._tag == code.TAG_INT_TYPE {
+    if type_._tag == code.TAG_INT_TYPE {
         val = llvm.LLVMBuildMul(g.irb,
                                 lhs_val.handle, rhs_val.handle, "" as ^int8);
-    } else if _._tag == code.TAG_FLOAT_TYPE {
+    } else if type_._tag == code.TAG_FLOAT_TYPE {
         val = llvm.LLVMBuildFMul(g.irb,
                                  lhs_val.handle, rhs_val.handle, "" as ^int8);
     }
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(_, val);
+    han = code.make_value(type_, val);
 
     # Dispose.
     code.dispose(lhs_han);
@@ -1419,9 +1439,10 @@ def build_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
+    let type_: ^code.Handle;
     let lhs_han: ^code.Handle;
     let rhs_han: ^code.Handle;
-    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1429,8 +1450,8 @@ def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Build the `int div` instruction.
     let val: ^llvm.LLVMOpaqueValue;
-    if _._tag == code.TAG_INT_TYPE {
-        let int_ty: ^code.IntegerType = _._object as ^code.IntegerType;
+    if type_._tag == code.TAG_INT_TYPE {
+        let int_ty: ^code.IntegerType = type_._object as ^code.IntegerType;
         if int_ty.signed {
             val = llvm.LLVMBuildSDiv(
                 g.irb, lhs_val.handle, rhs_val.handle, "" as ^int8);
@@ -1438,7 +1459,7 @@ def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
             val = llvm.LLVMBuildUDiv(
                 g.irb, lhs_val.handle, rhs_val.handle, "" as ^int8);
         }
-    } else if _._tag == code.TAG_FLOAT_TYPE {
+    } else if type_._tag == code.TAG_FLOAT_TYPE {
         val = llvm.LLVMBuildFDiv(g.irb,
                                  lhs_val.handle, rhs_val.handle, "" as ^int8);
         # FIXME: Insert FLOOR intrinsic here!
@@ -1446,7 +1467,7 @@ def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(_, val);
+    han = code.make_value(type_, val);
 
     # Dispose.
     code.dispose(lhs_han);
@@ -1461,9 +1482,10 @@ def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
+    let type_: ^code.Handle;
     let lhs_han: ^code.Handle;
     let rhs_han: ^code.Handle;
-    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1476,7 +1498,7 @@ def build_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(_, val);
+    han = code.make_value(type_, val);
 
     # Dispose.
     code.dispose(lhs_han);
@@ -1491,9 +1513,10 @@ def build_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def build_mod_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
+    let type_: ^code.Handle;
     let lhs_han: ^code.Handle;
     let rhs_han: ^code.Handle;
-    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+    (type_, lhs_han, rhs_han) = build_expr_b(g, _, node);
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1501,8 +1524,8 @@ def build_mod_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Build the `mod` instruction.
     let val: ^llvm.LLVMOpaqueValue;
-    if _._tag == code.TAG_INT_TYPE {
-        let int_ty: ^code.IntegerType = _._object as ^code.IntegerType;
+    if type_._tag == code.TAG_INT_TYPE {
+        let int_ty: ^code.IntegerType = type_._object as ^code.IntegerType;
         if int_ty.signed {
             val = llvm.LLVMBuildSRem(
                 g.irb, lhs_val.handle, rhs_val.handle, "" as ^int8);
@@ -1510,14 +1533,14 @@ def build_mod_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
             val = llvm.LLVMBuildURem(
                 g.irb, lhs_val.handle, rhs_val.handle, "" as ^int8);
         }
-    } else if _._tag == code.TAG_FLOAT_TYPE {
+    } else if type_._tag == code.TAG_FLOAT_TYPE {
         val = llvm.LLVMBuildFRem(g.irb,
                                  lhs_val.handle, rhs_val.handle, "" as ^int8);
     }
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(_, val);
+    han = code.make_value(type_, val);
 
     # Dispose.
     code.dispose(lhs_han);

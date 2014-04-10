@@ -382,7 +382,7 @@ implement Parameter { # HACK: Re-arrange when we can.
 
 # Dispose the handle and its bound object.
 # -----------------------------------------------------------------------------
-def dispose(self: ^Handle) {
+def dispose(&self: ^Handle) {
     # Return if we are nil.
     if isnil(self) { return; }
 
@@ -406,9 +406,13 @@ def dispose(self: ^Handle) {
 
     # Free the object.
     libc.free(self._object);
+    if self._object <> 0 as ^void {
+        # Free ourself.
+        libc.free(self as ^void);
+    }
 
-    # Free ourself.
-    libc.free(self as ^void);
+    # Remember.
+    self._object = 0 as ^void;
 }
 
 # Create a handle allocation

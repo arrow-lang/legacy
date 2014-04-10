@@ -1,18 +1,15 @@
 def main() {
-    # s5 + s9;
-    s14 + s9 + s7;
-    return;
     # Assert the values of the static slots.
     # assert(s1);
     # assert(not s2);
     # assert(not s3);
     # assert(s4);
-    # assert(s5 == 186);
-    # assert(s6 == 625789);
-    # assert(s7 == 31.12);
-    # assert(s8 == 12.15);
-    # assert(s9 == s8 * s8);
-    # assert(s10 == 235);
+    assert(s5 == 186);
+    assert(s6 == 625789);
+    assert(s7 == 31.12);
+    assert(s8 == 12.15);
+    assert(s9 == s8 * s8);
+    assert(s10 == 235);
 
 #     # Assert some type properties of various expressions.
 #     assert(type(s1).size() >= 1);

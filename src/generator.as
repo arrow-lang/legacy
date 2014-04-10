@@ -95,6 +95,11 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.builders[ast.TAG_FLOAT] = build_float_expr;
     self.builders[ast.TAG_IDENT] = build_ident_expr;
     self.builders[ast.TAG_ADD] = build_add_expr;
+    self.builders[ast.TAG_INTEGER_DIVIDE] = build_int_div_expr;
+    self.builders[ast.TAG_DIVIDE] = build_div_expr;
+    self.builders[ast.TAG_SUBTRACT] = build_sub_expr;
+    self.builders[ast.TAG_MULTIPLY] = build_mul_expr;
+    self.builders[ast.TAG_MODULO] = build_mod_expr;
     self.builders[ast.TAG_RETURN] = build_ret;
 
     # Add basic type definitions.
@@ -1270,32 +1275,52 @@ def build_ret(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     code.make_nil();
 }
 
-# Build an `add` expression.
+# Build the operands for a binary expression.
 # -----------------------------------------------------------------------------
-def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
-        -> ^code.Handle {
+def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> (^code.Handle, ^code.Handle) {
+    let res: (^code.Handle, ^code.Handle) = (code.make_nil(), code.make_nil());
+
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
     # Build each operand.
     let lhs: ^code.Handle = build(g, _, &x.lhs);
     let rhs: ^code.Handle = build(g, _, &x.rhs);
-    if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
+    if code.isnil(lhs) or code.isnil(rhs) { return res; }
 
     # Coerce the operands to values.
     let lhs_val_han: ^code.Handle = (g^)._to_value(lhs, false);
     let rhs_val_han: ^code.Handle = (g^)._to_value(rhs, false);
-    if code.isnil(lhs_val_han) or code.isnil(rhs_val_han) {
-        return code.make_nil();
-    }
+    if code.isnil(lhs_val_han) or code.isnil(rhs_val_han) { return res; }
 
     # Cast each operand to the target type.
-    let lhs_val_han_cast: ^code.Handle = (g^)._cast(lhs_val_han, _);
-    let rhs_val_han_cast: ^code.Handle = (g^)._cast(rhs_val_han, _);
+    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, _);
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, _);
+
+    # Dispose.
+    code.dispose(lhs);
+    code.dispose(rhs);
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
+
+    # Create a tuple result.
+    res = (lhs_han, rhs_han);
+    res;
+}
+
+# Build an `add` expression.
+# -----------------------------------------------------------------------------
+def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Build each operand.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = build_expr_b(g, _, node);
 
     # Cast to values.
-    let lhs_val: ^code.Value = lhs_val_han_cast._object as ^code.Value;
-    let rhs_val: ^code.Value = rhs_val_han_cast._object as ^code.Value;
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
 
     # Build the `add` instruction.
     let val: ^llvm.LLVMOpaqueValue;
@@ -1312,12 +1337,191 @@ def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     han = code.make_value(_, val);
 
     # Dispose.
-    code.dispose(lhs);
-    code.dispose(rhs);
-    code.dispose(lhs_val_han_cast);
-    code.dispose(rhs_val_han_cast);
-    code.dispose(lhs_val_han);
-    code.dispose(rhs_val_han);
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Build an `sub` expression.
+# -----------------------------------------------------------------------------
+def build_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Build each operand.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+
+    # Cast to values.
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Build the `sub` instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    if _._tag == code.TAG_INT_TYPE {
+        val = llvm.LLVMBuildSub(g.irb,
+                                lhs_val.handle, rhs_val.handle, "" as ^int8);
+    } else if _._tag == code.TAG_FLOAT_TYPE {
+        val = llvm.LLVMBuildFSub(g.irb,
+                                 lhs_val.handle, rhs_val.handle, "" as ^int8);
+    }
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(_, val);
+
+    # Dispose.
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Build an `mul` expression.
+# -----------------------------------------------------------------------------
+def build_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Build each operand.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+
+    # Cast to values.
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Build the `mul` instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    if _._tag == code.TAG_INT_TYPE {
+        val = llvm.LLVMBuildMul(g.irb,
+                                lhs_val.handle, rhs_val.handle, "" as ^int8);
+    } else if _._tag == code.TAG_FLOAT_TYPE {
+        val = llvm.LLVMBuildFMul(g.irb,
+                                 lhs_val.handle, rhs_val.handle, "" as ^int8);
+    }
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(_, val);
+
+    # Dispose.
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Build an `int div` expression.
+# -----------------------------------------------------------------------------
+def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Build each operand.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+
+    # Cast to values.
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Build the `int div` instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    if _._tag == code.TAG_INT_TYPE {
+        let int_ty: ^code.IntegerType = _._object as ^code.IntegerType;
+        if int_ty.signed {
+            val = llvm.LLVMBuildSDiv(
+                g.irb, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else {
+            val = llvm.LLVMBuildUDiv(
+                g.irb, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        }
+    } else if _._tag == code.TAG_FLOAT_TYPE {
+        val = llvm.LLVMBuildFDiv(g.irb,
+                                 lhs_val.handle, rhs_val.handle, "" as ^int8);
+        # FIXME: Insert FLOOR intrinsic here!
+    }
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(_, val);
+
+    # Dispose.
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Build an `div` expression.
+# -----------------------------------------------------------------------------
+def build_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Build each operand.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+
+    # Cast to values.
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Build the `div` instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMBuildFDiv(g.irb,
+                             lhs_val.handle, rhs_val.handle, "" as ^int8);
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(_, val);
+
+    # Dispose.
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Build an `mod` expression.
+# -----------------------------------------------------------------------------
+def build_mod_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Build each operand.
+    let lhs_han: ^code.Handle;
+    let rhs_han: ^code.Handle;
+    (lhs_han, rhs_han) = build_expr_b(g, _, node);
+
+    # Cast to values.
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Build the `mod` instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    if _._tag == code.TAG_INT_TYPE {
+        let int_ty: ^code.IntegerType = _._object as ^code.IntegerType;
+        if int_ty.signed {
+            val = llvm.LLVMBuildSRem(
+                g.irb, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else {
+            val = llvm.LLVMBuildURem(
+                g.irb, lhs_val.handle, rhs_val.handle, "" as ^int8);
+        }
+    } else if _._tag == code.TAG_FLOAT_TYPE {
+        val = llvm.LLVMBuildFRem(g.irb,
+                                 lhs_val.handle, rhs_val.handle, "" as ^int8);
+    }
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(_, val);
+
+    # Dispose.
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
 
     # Return our wrapped result.
     han;

@@ -2,10 +2,11 @@ ModuleDecl <?> _
   Nodes <?> 
     UnsafeBlock <?>
       Nodes <?> 
-    StaticSlotDecl <?> mut data_race 'int'
-      IntegerExpr <?> 'int' 0 (10)
+    StaticSlotDecl <?> mut data_race
+      Ident <?> int
+      IntegerExpr <?> 0 (10)
     UnsafeBlock <?>
       Nodes <?> 
         AssignAddExpr <?>
           Ident <?> data_race
-          IntegerExpr <?> 'int' 21 (10)
+          IntegerExpr <?> 21 (10)

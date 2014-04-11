@@ -1,4 +1,4 @@
-foreign "C" import "stdlib.h";
+import libc;
 import tokenizer;
 import tokens;
 import ast;
@@ -52,12 +52,7 @@ def parse_integer_expr() -> ast.Node {
         else { 0; };  # NOTE: Not possible to get here
 
     # Store the text for the integer literal.
-    expr.text = ast.arena.alloc(tokenizer.current_num.size + 1);
-    let xs: &ast.arena.Store = expr.text;
-    tokenizer.asciz.memcpy(
-        xs._data as ^void,
-        &tokenizer.current_num.buffer[0] as ^void,
-        tokenizer.current_num.size);
+    expr.text.extend(tokenizer.current_num.data() as str);
 
     # Consume our token.
     bump_token();
@@ -76,12 +71,7 @@ def parse_float_expr() -> ast.Node {
     let expr: ^ast.FloatExpr = ast.unwrap(node) as ^ast.FloatExpr;
 
     # Store the text for the float literal.
-    expr.text = ast.arena.alloc(tokenizer.current_num.size + 1);
-    let xs: &ast.arena.Store = expr.text;
-    tokenizer.asciz.memcpy(
-        xs._data as ^void,
-        &tokenizer.current_num.buffer[0] as ^void,
-        tokenizer.current_num.size);
+    expr.text.extend(tokenizer.current_num.data() as str);
 
     # Consume our token.
     bump_token();
@@ -392,7 +382,7 @@ def parse_call_expr(mut lhs: ast.Node) -> ast.Node {
         if ast.isnull(arg.expression) { return ast.null(); }
 
         # Push the argument onto the arguments list.
-        ast.push(cal.arguments, arg_node);
+        cal.arguments.push(arg_node);
 
         # Is there a "," to continue the argument list.
         if cur_tok == tokens.TOK_COMMA {
@@ -577,12 +567,7 @@ def parse_ident() -> ast.Node {
     let decl: ^ast.Ident = ast.unwrap(node) as ^ast.Ident;
 
     # Store the text for the identifier.
-    decl.name = ast.arena.alloc(tokenizer.current_id.size + 1);
-    let xs: &ast.arena.Store = decl.name;
-    tokenizer.asciz.memcpy(
-        xs._data as ^void,
-        &tokenizer.current_id.buffer[0] as ^void,
-        tokenizer.current_id.size);
+    decl.name.extend(tokenizer.current_id.data() as str);
 
     # Consume the "ident" token.
     bump_token();
@@ -802,7 +787,7 @@ def parse_select_expr() -> ast.Node {
         if ast.isnull(branch) { return ast.null(); }
 
         # Append the branch to the selection expression.
-        ast.push(select.branches, branch);
+        select.branches.push(branch);
 
         # Check for an "else" branch.
         if cur_tok == tokens.TOK_ELSE {
@@ -832,7 +817,7 @@ def parse_select_expr() -> ast.Node {
         if ast.isnull(branch) { return ast.null(); }
 
         # Append the branch to the selection expression.
-        ast.push(select.branches, branch);
+        select.branches.push(branch);
     }
 
     # Return the parsed node.
@@ -913,7 +898,7 @@ def parse_params(&mut params: ast.Nodes) -> bool {
         if ast.isnull(param) { return false; }
 
         # Append the branch to the selection expression.
-        ast.push(params, param);
+        params.push(param);
 
         # Is there a "," to continue the parameter list.
         if cur_tok == tokens.TOK_COMMA {
@@ -1070,7 +1055,7 @@ def parse_import() -> ast.Node {
 
         # Parse the identifier token and push it onto the collection.
         let id: ast.Node = parse_ident();
-        ast.push(imp.ids, id);
+        imp.ids.push(id);
 
         # Continue if there is a `.` next.
         if cur_tok == tokens.TOK_DOT {
@@ -1188,7 +1173,7 @@ def parse_block(&mut nodes: ast.Nodes) -> bool {
         }
 
         # Matched the full sub-rule; append the node to the module.
-        ast.push(nodes, matched);
+        nodes.push(matched);
     }
 
     # There must be a "}" next to start the block.
@@ -1252,10 +1237,7 @@ def parse_top() -> ast.Node {
     # FIXME: Set the name of the module to the basename of the file.
     mod.id = ast.make(ast.TAG_IDENT);
     let id_decl: ^ast.Ident = ast.unwrap(mod.id) as ^ast.Ident;
-    id_decl.name = ast.arena.alloc(
-        tokenizer.asciz.strlen("_" as ^int8) + 1);
-    let id_xs: &ast.arena.Store = id_decl.name;
-    tokenizer.asciz.strcpy(id_xs._data as ^int8, "_" as ^int8);
+    id_decl.name.extend("_");
 
     # Iterate and attempt to match statements.
     let mut matched: ast.Node;
@@ -1274,7 +1256,7 @@ def parse_top() -> ast.Node {
         }
 
         # Matched the full sub-rule; append the node to the module.
-        ast.push(mod.nodes, matched);
+        mod.nodes.push(matched);
     }
 
     # Return our node.
@@ -1303,9 +1285,9 @@ def main() {
         ast.dump(node);
 
         # Exit and return success.
-        exit(0);
+        libc.exit(0);
     } else {
         # Return failure.
-        exit(-1);
+        libc.exit(-1);
     }
 }

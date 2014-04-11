@@ -4,8 +4,9 @@ ModuleDecl <?> _
       Parameters <?> 
       Nodes <?> 
         ReturnExpr <?> 
-    FuncDecl <?> some 'int'
+    FuncDecl <?> some
+      Ident <?> int
       Parameters <?> 
       Nodes <?> 
         ReturnExpr <?> 
-          IntegerExpr <?> 'int' 4 (10)
+          IntegerExpr <?> 4 (10)

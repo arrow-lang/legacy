@@ -139,18 +139,34 @@ def _check_expected_stderr(filename, stderr):
 
 _passed = 0
 _failed = 0
+_xfailed = 0
+_xpassed = 0
 
 def _report(filename, status):
     global _passed
     global _failed
+    global _xfailed
+    global _xpassed
+
+    # Check if we are "expected" to fail
+    xfail = _read_suffix(filename, ".xfail") is not None
+
     filename = path.relpath(filename)
     if not status:
-        _failed += 1
-        print("\033[31m{:<72}: {}\033[0m".format(filename, 'FAIL'))
+        if xfail:
+            _xfailed += 1
+            print("\033[30;1m{:<72}: {}\033[0m".format(filename, 'XFAIL'))
+        else:
+            _failed += 1
+            print("\033[31m{:<72}: {}\033[0m".format(filename, 'FAIL'))
 
     else:
-        _passed += 1
-        print("{:<72}: \033[32m{}\033[0m".format(filename, 'PASS'))
+        if xfail:
+            _xpassed += 1
+            print("\033[31m{:<72}: {}\033[0m".format(filename, 'XPASS'))
+        else:
+            _passed += 1
+            print("{:<72}: \033[32m{}\033[0m".format(filename, 'PASS'))
 
 def _test_tokenizer(ctx):
     for fixture in glob("tests/tokenize/*.as"):
@@ -213,9 +229,17 @@ def _test_run(ctx):
 def _print_report():
     print()
 
-    message = "{} passed".format(_passed)
+    message = []
+    if _passed:
+        message.append("{} passed".format(_passed))
     if _failed:
-        message += ", {} failed".format(_failed)
+        message.append("{} failed".format(_failed))
+    if _xfailed:
+        message.append("{} xfailed".format(_xfailed))
+    if _xpassed:
+        message.append("{} xpassed".format(_xpassed))
+
+    message = ', '.join(message)
 
     if not _failed:
         sys.stdout.write("\033[1;32m")

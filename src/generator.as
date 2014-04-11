@@ -370,6 +370,12 @@ def _gen_def_static_slot(&mut self, qname: str, x: ^code.StaticSlot)
 def _gen_def_function(&mut self, qname: str, x: ^code.Function)
         -> ^code.Handle {
 
+    # Has this function been generated?
+    if llvm.LLVMCountBasicBlocks(x.handle) > 0 {
+        # Yes; skip.
+        return code.make_nil();
+    }
+
     # Create a basic block for the function definition.
     let entry: ^llvm.LLVMOpaqueBasicBlock;
     entry = llvm.LLVMAppendBasicBlock(x.handle, "" as ^int8);
@@ -392,10 +398,12 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
     ns.push_str(x.name.data() as str);
 
     # Iterate over the nodes in the function.
-    let mut iter: ast.NodesIterator = ast.iter_nodes(nodes^);
+    let mut i: int = 0;
     let mut res: ^code.Handle = code.make_nil();
-    while not ast.iter_empty(iter) {
-        let node: ast.Node = ast.iter_next(iter);
+    while i as uint < (nodes^).size() {
+        let node: ast.Node = (nodes^).get(i);
+        i = i + 1;
+
         # Resolve the type of the node.
         let target: ^code.Handle = resolve_type_in(
             &self, &node, type_.return_type, &ns);
@@ -405,8 +413,8 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
         let han: ^code.Handle = build_in(
             &self, target, &node, &ns);
 
-        if ast.iter_empty(iter) {
-            # Set the last handle as our value.
+        # Set the last handle as our value.
+        if i as uint >= (nodes^).size() {
             res = han;
         }
     }
@@ -580,10 +588,11 @@ def _gen_type_func(&mut self, x: ^code.Function) -> ^code.Handle {
         # Resolve the type of each parameter.
         let mut params: list.List = list.make(types.PTR);
         let mut param_type_handles: list.List = list.make(types.PTR);
-        let mut piter: ast.NodesIterator = ast.iter_nodes(x.context.params);
+        let mut i: int = 0;
         let mut error: bool = false;
-        while not ast.iter_empty(piter) {
-            let pnode: ast.Node = ast.iter_next(piter);
+        while i as uint < x.context.params.size() {
+            let pnode: ast.Node = x.context.params.get(i);
+            i = i + 1;
             let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
 
             # Resolve the type.
@@ -595,13 +604,10 @@ def _gen_type_func(&mut self, x: ^code.Function) -> ^code.Handle {
             # Emplace the type handle.
             param_type_handles.push_ptr(ptype_obj.handle as ^void);
 
-            # Unwrap the parameter name.
-            let param_id: ^ast.Ident = p.id.unwrap() as ^ast.Ident;
-            let param_name: ast.arena.Store = param_id.name;
-
             # Emplace a solid parameter.
+            let param_id: ^ast.Ident = p.id.unwrap() as ^ast.Ident;
             params.push_ptr(code.make_parameter(
-                param_name._data as str,
+                param_id.name.data() as str,
                 ptype_handle,
                 code.make_nil()) as ^void);
         }
@@ -655,11 +661,12 @@ def _extract_item(&mut self, node: ast.Node) -> bool {
 
 def _extract_items(&mut self, extra: ^mut ast.Nodes, &nodes: ast.Nodes) {
     # Enumerate through each node and forward them to `_extract_item`.
-    let mut iter: ast.NodesIterator = ast.iter_nodes(nodes);
-    while not ast.iter_empty(iter) {
-        let node: ast.Node = ast.iter_next(iter);
+    let mut i: int = 0;
+    while i as uint < nodes.size() {
+        let node: ast.Node = nodes.get(i);
+        i = i + 1;
         if not self._extract_item(node) {
-            ast.push(extra^, node);
+            (extra^).push(node);
         }
     }
 }
@@ -667,24 +674,25 @@ def _extract_items(&mut self, extra: ^mut ast.Nodes, &nodes: ast.Nodes) {
 def _extract_item_mod(&mut self, x: ^ast.ModuleDecl) {
     # Unwrap the name for the module.
     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
-    let name: ast.arena.Store = id.name;
 
     # Build the qual name for this module.
-    let mut qname: string.String = self._qualify_name(name._data as str);
+    let mut qname: string.String = self._qualify_name(
+        id.name.data() as str);
 
     # Create a solid handle for the module.
-    let han: ^code.Handle = code.make_module(name._data as str, self.ns);
+    let han: ^code.Handle = code.make_module(
+        id.name.data() as str, self.ns);
 
     # Set us as an `item`.
     self.items.set_ptr(qname.data() as str, han as ^void);
 
     # Set us as the `top` namespace if there isn't one yet.
     if self.top_ns.size() == 0  {
-        self.top_ns.extend(name._data as str);
+        self.top_ns.extend(id.name.data() as str);
     }
 
     # Push our name onto the namespace stack.
-    self.ns.push_str(name._data as str);
+    self.ns.push_str(id.name.data() as str);
 
     # Generate each node in the module and place items that didn't
     # get extracted into the new node block.
@@ -702,21 +710,20 @@ def _extract_item_mod(&mut self, x: ^ast.ModuleDecl) {
 def _extract_item_func(&mut self, x: ^ast.FuncDecl) {
     # Unwrap the name for the function.
     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
-    let name: ast.arena.Store = id.name;
 
     # Build the qual name for this function.
-    let mut qname: string.String = self._qualify_name(name._data as str);
+    let mut qname: string.String = self._qualify_name(id.name.data() as str);
 
     # Create a solid handle for the function (ignoring the type for now).
     let han: ^code.Handle = code.make_function(
-        x, name._data as str, self.ns, code.make_nil(),
+        x, id.name.data() as str, self.ns, code.make_nil(),
         0 as ^llvm.LLVMOpaqueValue);
 
     # Set us as an `item`.
     self.items.set_ptr(qname.data() as str, han as ^void);
 
     # Push our name onto the namespace stack.
-    self.ns.push_str(name._data as str);
+    self.ns.push_str(id.name.data() as str);
 
     # Generate each node in the module and place items that didn't
     # get extracted into the new node block.
@@ -734,14 +741,13 @@ def _extract_item_func(&mut self, x: ^ast.FuncDecl) {
 def _extract_item_static_slot(&mut self, x: ^ast.StaticSlotDecl) {
     # Unwrap the name for the slot.
     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
-    let name: ast.arena.Store = id.name;
 
     # Build the qual name for this slot.
-    let mut qname: string.String = self._qualify_name(name._data as str);
+    let mut qname: string.String = self._qualify_name(id.name.data() as str);
 
     # Create a solid handle for the slot (ignoring the type for now).
     let han: ^code.Handle = code.make_static_slot(
-        x, name._data as str, self.ns,
+        x, id.name.data() as str, self.ns,
         code.make_nil(),
         0 as ^llvm.LLVMOpaqueValue);
 
@@ -1083,16 +1089,16 @@ def resolve_type_ident(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Unwrap the name for the id.
     let id: ^ast.Ident = (node^).unwrap() as ^ast.Ident;
-    let name: ast.arena.Store = id.name;
 
     # Retrieve the item with scope resolution rules.
-    let item: ^code.Handle = (g^)._get_scoped_item_in(name._data as str, g.ns);
+    let item: ^code.Handle = (g^)._get_scoped_item_in(
+        id.name.data() as str, g.ns);
 
     if item == 0 as ^code.Handle {
         errors.begin_error();
         errors.fprintf(errors.stderr,
                        "name '%s' is not defined" as ^int8,
-                       name._data);
+                       id.name.data());
         errors.end();
 
         return code.make_nil();
@@ -1513,16 +1519,13 @@ def build_int_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
     # Get the type handle from the target.
     let typ: ^code.Type = target._object as ^code.Type;
 
-    # Get the text out of the node.
-    let text: ast.arena.Store = x.text;
-
     # Build a llvm val for the boolean expression.
     let val: ^llvm.LLVMOpaqueValue;
     if target._tag == code.TAG_INT_TYPE {
-        val = llvm.LLVMConstIntOfString(typ.handle, text._data,
+        val = llvm.LLVMConstIntOfString(typ.handle, x.text.data(),
                                         x.base as uint8);
     } else {
-        val = llvm.LLVMConstRealOfString(typ.handle, text._data);
+        val = llvm.LLVMConstRealOfString(typ.handle, x.text.data());
     }
 
     # Wrap and return the value.
@@ -1539,12 +1542,9 @@ def build_float_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
     # Get the type handle from the target.
     let typ: ^code.Type = target._object as ^code.Type;
 
-    # Get the text out of the node.
-    let text: ast.arena.Store = x.text;
-
     # Build a llvm val for the boolean expression.
     let val: ^llvm.LLVMOpaqueValue;
-    val = llvm.LLVMConstRealOfString(typ.handle, text._data);
+    val = llvm.LLVMConstRealOfString(typ.handle, x.text.data());
 
     # Wrap and return the value.
     code.make_value(target, val);
@@ -1557,16 +1557,14 @@ def build_ident_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
     # Unwrap the node to its proper type.
     let x: ^ast.Ident = (node^).unwrap() as ^ast.Ident;
 
-    # Unwrap the name for the id.
-    let name: ast.arena.Store = x.name;
-
     # Retrieve the item with scope resolution rules.
-    let item: ^code.Handle = (g^)._get_scoped_item_in(name._data as str, g.ns);
+    let item: ^code.Handle = (g^)._get_scoped_item_in(
+        x.name.data() as str, g.ns);
     if item == 0 as ^code.Handle {
         errors.begin_error();
         errors.fprintf(errors.stderr,
                        "name '%s' is not defined" as ^int8,
-                       name._data);
+                       x.name.data());
         errors.end();
 
         return code.make_nil();
@@ -2055,10 +2053,11 @@ def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     let data: ^mut ^llvm.LLVMOpaqueValue
         = args.elements as ^^llvm.LLVMOpaqueValue;
     i = 0;
-    let mut iter: ast.NodesIterator = ast.iter_nodes(x.arguments);
+    let mut j: int = 0;
     let mut error: bool = false;
-    while not error and not ast.iter_empty(iter) {
-        let anode: ast.Node = ast.iter_next(iter);
+    while not error and j as uint < x.arguments.size() {
+        let anode: ast.Node = x.arguments.get(j);
+        j = j + 1;
         let a: ^ast.Argument = anode.unwrap() as ^ast.Argument;
 
         # Find the parameter index.
@@ -2072,7 +2071,6 @@ def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         } else {
             # Get the name data for the id.
             let id: ^ast.Ident = a.name.unwrap() as ^ast.Ident;
-            let name: ast.arena.Store = id.name;
 
             # Find the parameter index.
             pi = 0;
@@ -2081,7 +2079,7 @@ def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
                     type_.parameters.at_ptr(pi) as ^code.Handle;
                 let prm: ^code.Parameter =
                     prm_han._object as ^code.Parameter;
-                if prm.name.eq_str(name._data as str) {
+                if prm.name.eq_str(id.name.data() as str) {
                     break;
                 }
                 pi = pi + 1;
@@ -2092,7 +2090,7 @@ def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
                 errors.begin_error();
                 errors.fprintf(errors.stderr,
                                "unexpected keyword argument '%s'" as ^int8,
-                               name._data);
+                               id.name.data());
                 errors.end();
                 error = true;
             }
@@ -2102,7 +2100,7 @@ def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
                 errors.begin_error();
                 errors.fprintf(errors.stderr,
                                "got multiple values for argument '%s'" as ^int8,
-                               name._data);
+                               id.name.data());
                 errors.end();
                 error = true;
             }

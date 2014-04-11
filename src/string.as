@@ -25,6 +25,10 @@ implement String {
     # -------------------------------------------------------------------------
     def dispose(&mut self) { self._data.dispose(); }
 
+    # Clear the string.
+    # -------------------------------------------------------------------------
+    def clear(&mut self) { self._data.clear(); }
+
     # Gets the number of characters in the string.
     # -------------------------------------------------------------------------
     def size(&self) -> uint { self._data.size; }
@@ -39,11 +43,17 @@ implement String {
 
     # Append a character onto the string.
     # -------------------------------------------------------------------------
-    def append(&mut self, c: char) { self._data.push_i8(c as int8); }
+    def append(&mut self, c: char) {
+        self._data.element_size = types.sizeof(types.I8);
+        self._data.push_i8(c as int8);
+    }
 
     # Extend this buffer with the passed string.
     # -------------------------------------------------------------------------
     def extend(&mut self, s: str) {
+        # Ensure were good on size.
+        self._data.element_size = types.sizeof(types.I8);
+
         # Get the list.
         let &mut l: list.List = self._data;
 
@@ -84,6 +94,10 @@ implement String {
     }
 
 }
+
+# Get the ordinal value of an ASCII character.
+# -----------------------------------------------------------------------------
+def ord(c: char) -> int8 { c as int8; }
 
 # Join a list of strings into one string separated by a character.
 # -----------------------------------------------------------------------------

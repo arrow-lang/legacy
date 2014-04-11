@@ -1,6 +1,8 @@
-foreign "C" import "stdio.h";
-import arena;
 import libc;
+import list;
+import string;
+
+# [ ] Add '.dispose' methods to dispose of memory
 
 # AST tag defintions
 # -----------------------------------------------------------------------------
@@ -59,29 +61,45 @@ let TAG_ASSIGN_INT_DIV  : int = 48;             # AssignIntDivideExpr
 
 # Generic AST "node" that can store a node generically.
 # NOTE: This is filthy polymorphism.
-type Node { tag: int, data: arena.Store }
+type Node { tag: int, data: ^void }
 
 implement Node {
-    def unwrap(&self) -> ^int8 {
-        let store: arena.Store = self.data;
-        store._data as ^int8;
-    }
+    def unwrap(&self) -> ^void { self.data; }
 }
 
 # Generic collection of AST "nodes" that can store a
 # heterogeneous linked-list of nodes.
-type Nodes { self: Node, next: arena.Store }
-type NodesIterator { current: ^Nodes }
+type Nodes { mut elements: list.List }
 
 def new_nodes() -> ^Nodes {
-    libc.calloc(_sizeof(TAG_NODES), 1) as ^Nodes;
+    let node: Node = make(TAG_NODES);
+    node.data as ^Nodes;
+}
+
+implement Nodes {
+
+    def size(&self) -> uint { self.elements.size; }
+
+    def push(&mut self, el: Node) {
+        # Ensure our `element_size` is set correctly.
+        self.elements.element_size = _sizeof(TAG_NODE);
+
+        # Push the node onto our list.
+        self.elements.push(&el as ^void);
+    }
+
+    def get(&self, i: int) -> Node {
+        let ptr: ^Node = self.elements.at(i) as ^Node;
+        ptr^;
+    }
+
 }
 
 # Expression type for integral literals with a distinct base like "2321".
-type IntegerExpr { base: int8, text: arena.Store }
+type IntegerExpr { base: int8, mut text: string.String }
 
 # Expression type for float literals.
-type FloatExpr { text: arena.Store }
+type FloatExpr { mut text: string.String }
 
 # Expression type for a boolean literal
 type BooleanExpr { value: bool }
@@ -114,7 +132,7 @@ type ReturnExpr { expression: Node }
 type TypeExpr { expression: Node }
 
 # Selection expression.
-type SelectExpr { branches: Nodes }
+type SelectExpr { mut branches: Nodes }
 
 # Selection branch.
 type SelectBranch { condition: Node, mut nodes: Nodes }
@@ -152,18 +170,18 @@ type LocalSlotDecl {
 }
 
 # Call expression
-type CallExpr { expression: Node, arguments: Nodes }
+type CallExpr { expression: Node, mut arguments: Nodes }
 
 # Call arguments
 type Argument { expression: Node, name: Node }
 
 # Identifier.
-type Ident { name: arena.Store }
+type Ident { mut name: string.String }
 
 # Import
 # ids: ordered collection of the identifiers that make up the `x.y.z` name
 #      to import.
-type Import { ids: Nodes }
+type Import { mut ids: Nodes }
 
 # sizeof -- Get the size required for a specific node tag.
 # -----------------------------------------------------------------------------
@@ -256,7 +274,7 @@ def make(tag: int) -> Node {
     node.tag = tag;
 
     # Allocate a store on the arena.
-    node.data = arena.alloc(_sizeof(tag));
+    node.data = libc.calloc(_sizeof(tag), 1);
 
     # Return the node.
     node;
@@ -264,84 +282,20 @@ def make(tag: int) -> Node {
 
 # unwrap -- Pull out the actual node data of a generic AST node.
 # -----------------------------------------------------------------------------
-def unwrap(&node: Node) -> ^int8 {
-    let store: arena.Store = node.data;
-    store._data as ^int8;
-}
+def unwrap(&node: Node) -> ^void { node.unwrap(); }
 
 # null -- Get a null node.
 # -----------------------------------------------------------------------------
 def null() -> Node {
     let mut node: Node;
-    let &node_store: arena.Store = node.data;
     node.tag = 0;
-    node_store._size = 0;
-    node_store._data = 0 as ^int8;
+    node.data = 0 as ^void;
     node;
 }
 
 # isnull -- Check for a null node.
 # -----------------------------------------------------------------------------
-def isnull(&node: Node) -> bool {
-    node.tag == 0;
-}
-
-# push -- Push a node to the end of the Nodes list.
-# -----------------------------------------------------------------------------
-def push(&nodes: Nodes, &node: Node) {
-    # Is this the initial node?
-    if isnull(nodes.self) {
-        # Yes; just store it in the block.
-        nodes.self = node;
-        return;
-    }
-
-    # Create a Nodes block to store the node.
-    let m: Node = make(TAG_NODES);
-    let block: ^Nodes = unwrap(m) as ^Nodes;
-    block.self = node;
-
-    # Find the end.
-    let iter: ^Nodes = &nodes;
-    loop {
-        let &m2: arena.Store = iter.next;
-        if m2._data == 0 as ^int8 { break; }
-        iter = m2._data as ^Nodes;
-    }
-
-    # Set the next pointer.
-    block.next = iter.next;
-    iter.next = m.data;
-}
-
-# iter_nodes -- Make an iterator over Nodes.
-# -----------------------------------------------------------------------------
-def iter_nodes(&nodes: Nodes) -> NodesIterator {
-    let mut iter: NodesIterator;
-    iter.current = &nodes;
-    iter;
-}
-
-# iter_empty -- Check if the iterator is empty.
-# -----------------------------------------------------------------------------
-def iter_empty(&iter: NodesIterator) -> bool {
-    if iter.current == 0 as ^Nodes {
-        true;
-    } else if isnull(iter.current.self) {
-        true;
-    } else {
-        false;
-    }
-}
-
-# iter_next -- Advance the iterator.
-# -----------------------------------------------------------------------------
-def iter_next(&mut iter: NodesIterator) -> Node {
-    let n: Node = iter.current.self;
-    let m: arena.Store = iter.current.next;
-    iter.current = m._data as ^Nodes;
-    n;
-}
+def isnull(&node: Node) -> bool { node.tag == 0; }
 
 # dump -- Dump a textual representation of the node to stdout.
 # -----------------------------------------------------------------------------
@@ -410,7 +364,7 @@ def dump(&node: Node) {
 def print_indent() {
     let mut dump_indent_i: int = 0;
     while dump_indent > dump_indent_i {
-        printf("  " as ^int8);
+        printf("  ");
         dump_indent_i = dump_indent_i + 1;
     }
 }
@@ -419,23 +373,21 @@ def print_indent() {
 # -----------------------------------------------------------------------------
 def dump_boolean_expr(node: ^Node) {
     let x: ^BooleanExpr = unwrap(node^) as ^BooleanExpr;
-    printf("BooleanExpr <?> %s\n" as ^int8, "true" if x.value else "false");
+    printf("BooleanExpr <?> %s\n", "true" if x.value else "false");
 }
 
 # dump_integer_expr
 # -----------------------------------------------------------------------------
 def dump_integer_expr(node: ^Node) {
     let x: ^IntegerExpr = unwrap(node^) as ^IntegerExpr;
-    let xs: arena.Store = x.text;
-    printf("IntegerExpr <?> %s (%d)\n" as ^int8, xs._data, x.base);
+    printf("IntegerExpr <?> %s (%d)\n", x.text.data(), x.base);
 }
 
 # dump_float_expr
 # -----------------------------------------------------------------------------
 def dump_float_expr(node: ^Node) {
     let x: ^FloatExpr = unwrap(node^) as ^FloatExpr;
-    let xs: arena.Store = x.text;
-    printf("FloatExpr <?> %s\n" as ^int8, xs._data);
+    printf("FloatExpr <?> %s\n", x.text.data());
 }
 
 # dump_binop_expr
@@ -443,51 +395,51 @@ def dump_float_expr(node: ^Node) {
 def dump_binop_expr(node: ^Node) {
     let x: ^BinaryExpr = unwrap(node^) as ^BinaryExpr;
     if node.tag == TAG_ADD {
-        printf("AddExpr <?>\n" as ^int8);
+        printf("AddExpr <?>\n");
     } else if node.tag == TAG_SUBTRACT {
-        printf("SubtractExpr <?>\n" as ^int8);
+        printf("SubtractExpr <?>\n");
     } else if node.tag == TAG_MULTIPLY {
-        printf("MultiplyExpr <?>\n" as ^int8);
+        printf("MultiplyExpr <?>\n");
     } else if node.tag == TAG_DIVIDE {
-        printf("DivideExpr <?>\n" as ^int8);
+        printf("DivideExpr <?>\n");
     }  else if node.tag == TAG_INTEGER_DIVIDE {
-        printf("IntDivideExpr <?>\n" as ^int8);
+        printf("IntDivideExpr <?>\n");
     } else if node.tag == TAG_MODULO {
-        printf("ModuloExpr <?>\n" as ^int8);
+        printf("ModuloExpr <?>\n");
     } else if node.tag == TAG_LOGICAL_AND {
-        printf("LogicalAndExpr <?>\n" as ^int8);
+        printf("LogicalAndExpr <?>\n");
     } else if node.tag == TAG_LOGICAL_OR {
-        printf("LogicalOrExpr <?>\n" as ^int8);
+        printf("LogicalOrExpr <?>\n");
     } else if node.tag == TAG_EQ {
-        printf("EQExpr <?>\n" as ^int8);
+        printf("EQExpr <?>\n");
     } else if node.tag == TAG_NE {
-        printf("NEExpr <?>\n" as ^int8);
+        printf("NEExpr <?>\n");
     } else if node.tag == TAG_LT {
-        printf("LTExpr <?>\n" as ^int8);
+        printf("LTExpr <?>\n");
     } else if node.tag == TAG_LE {
-        printf("LEExpr <?>\n" as ^int8);
+        printf("LEExpr <?>\n");
     } else if node.tag == TAG_GT {
-        printf("GTExpr <?>\n" as ^int8);
+        printf("GTExpr <?>\n");
     } else if node.tag == TAG_GE {
-        printf("GEExpr <?>\n" as ^int8);
+        printf("GEExpr <?>\n");
     } else if node.tag == TAG_ASSIGN {
-        printf("AssignExpr <?>\n" as ^int8);
+        printf("AssignExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_ADD {
-        printf("AssignAddExpr <?>\n" as ^int8);
+        printf("AssignAddExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_SUB {
-        printf("AssignSubtractExpr <?>\n" as ^int8);
+        printf("AssignSubtractExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_MULT {
-        printf("AssignMultiplyExpr <?>\n" as ^int8);
+        printf("AssignMultiplyExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_DIV {
-        printf("AssignDivideExpr <?>\n" as ^int8);
+        printf("AssignDivideExpr <?>\n");
     }  else if node.tag == TAG_ASSIGN_INT_DIV {
-        printf("AssignIntDivideExpr <?>\n" as ^int8);
+        printf("AssignIntDivideExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_MOD {
-        printf("AssignModuloExpr <?>\n" as ^int8);
+        printf("AssignModuloExpr <?>\n");
     } else if node.tag == TAG_SELECT_OP {
-        printf("SelectOpExpr <?>\n" as ^int8);
+        printf("SelectOpExpr <?>\n");
     } else if node.tag == TAG_MEMBER {
-        printf("MemberExpr <?>\n" as ^int8);
+        printf("MemberExpr <?>\n");
     }
     dump_indent = dump_indent + 1;
     dump(x.lhs);
@@ -499,7 +451,7 @@ def dump_binop_expr(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_index_expr(node: ^Node) {
     let x: ^IndexExpr = unwrap(node^) as ^IndexExpr;
-    printf("IndexExpr <?>\n" as ^int8);
+    printf("IndexExpr <?>\n");
     dump_indent = dump_indent + 1;
     dump(x.expression);
     dump(x.subscript);
@@ -510,13 +462,12 @@ def dump_index_expr(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_call_arg(node: ^Node) {
     let x: ^Argument = unwrap(node^) as ^Argument;
-    printf("Argument <?>" as ^int8);
+    printf("Argument <?>");
     if not isnull(x.name) {
         let id: ^Ident = unwrap(x.name) as ^Ident;
-        let xs: arena.Store = id.name;
-        printf(" %s" as ^int8, xs._data);
+        printf(" %s", id.name.data());
     }
-    printf("\n" as ^int8);
+    printf("\n");
     dump_indent = dump_indent + 1;
     dump(x.expression);
     dump_indent = dump_indent - 1;
@@ -526,7 +477,7 @@ def dump_call_arg(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_call_expr(node: ^Node) {
     let x: ^CallExpr = unwrap(node^) as ^CallExpr;
-    printf("CallExpr <?>\n" as ^int8);
+    printf("CallExpr <?>\n");
     dump_indent = dump_indent + 1;
     dump(x.expression);
     dump_nodes("Arguments", x.arguments);
@@ -538,11 +489,11 @@ def dump_call_expr(node: ^Node) {
 def dump_unary_expr(node: ^Node) {
     let x: ^UnaryExpr = unwrap(node^) as ^UnaryExpr;
     if node.tag == TAG_PROMOTE {
-        printf("NumericPromoteExpr <?>\n" as ^int8);
+        printf("NumericPromoteExpr <?>\n");
     } else if node.tag == TAG_NUMERIC_NEGATE {
-        printf("NumericNegateExpr <?>\n" as ^int8);
+        printf("NumericNegateExpr <?>\n");
     } else if node.tag == TAG_LOGICAL_NEGATE {
-        printf("LogicalNegateExpr <?>\n" as ^int8);
+        printf("LogicalNegateExpr <?>\n");
     }
     dump_indent = dump_indent + 1;
     dump(x.operand);
@@ -553,11 +504,10 @@ def dump_unary_expr(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_module(node: ^Node) {
     let x: ^ModuleDecl = unwrap(node^) as ^ModuleDecl;
-    printf("ModuleDecl <?> " as ^int8);
+    printf("ModuleDecl <?> ");
     let id: ^Ident = unwrap(x.id) as ^Ident;
-    let xs: arena.Store = id.name;
-    printf("%s" as ^int8, xs._data);
-    printf("\n" as ^int8);
+    printf("%s", id.name.data());
+    printf("\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes("Nodes", x.nodes);
@@ -568,7 +518,7 @@ def dump_module(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_unsafe_block(node: ^Node) {
     let x: ^UnsafeBlock = unwrap(node^) as ^UnsafeBlock;
-    printf("UnsafeBlock <?>\n" as ^int8);
+    printf("UnsafeBlock <?>\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes("Nodes", x.nodes);
@@ -579,7 +529,7 @@ def dump_unsafe_block(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_block_expr(node: ^Node) {
     let x: ^Block = unwrap(node^) as ^Block;
-    printf("Block <?>\n" as ^int8);
+    printf("Block <?>\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes("Nodes", x.nodes);
@@ -590,19 +540,17 @@ def dump_block_expr(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_ident(node: ^Node) {
     let x: ^Ident = unwrap(node^) as ^Ident;
-    let xs: arena.Store = x.name;
-    printf("Ident <?> %s\n" as ^int8, xs._data);
+    printf("Ident <?> %s\n", x.name.data());
 }
 
 # dump_static_slot
 # -----------------------------------------------------------------------------
 def dump_static_slot(node: ^Node) {
     let x: ^StaticSlotDecl = unwrap(node^) as ^StaticSlotDecl;
-    printf("StaticSlotDecl <?> " as ^int8);
-    if x.mutable { printf("mut " as ^int8); }
+    printf("StaticSlotDecl <?> ");
+    if x.mutable { printf("mut "); }
     let id: ^Ident = unwrap(x.id) as ^Ident;
-    let xs: arena.Store = id.name;
-    printf("%s\n" as ^int8, xs._data);
+    printf("%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
     dump(x.type_);
@@ -614,14 +562,13 @@ def dump_static_slot(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_local_slot(node: ^Node) {
     let x: ^LocalSlotDecl = unwrap(node^) as ^LocalSlotDecl;
-    printf("LocalSlotDecl <?> " as ^int8);
-    if x.mutable { printf("mut " as ^int8); }
+    printf("LocalSlotDecl <?> ");
+    if x.mutable { printf("mut "); }
     let id: ^Ident = unwrap(x.id) as ^Ident;
-    let xs: arena.Store = id.name;
-    printf("%s\n" as ^int8, xs._data);
+    printf("%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
-    dump(x.type_);
+    if not isnull(x.type_) { dump(x.type_); }
     if not isnull(x.initializer) { dump(x.initializer); }
     dump_indent = dump_indent - 1;
 }
@@ -630,14 +577,15 @@ def dump_local_slot(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_nodes(name: str, &nodes: Nodes) {
     print_indent();
-    printf("%s <?> \n" as ^int8, name);
+    printf("%s <?> \n", name);
 
     # Enumerate through each node.
     dump_indent = dump_indent + 1;
-    let mut iter: NodesIterator = iter_nodes(nodes);
-    while not iter_empty(iter) {
-        let node: Node = iter_next(iter);
+    let mut i: int = 0;
+    while i as uint < nodes.size() {
+        let node: Node = nodes.get(i);
         dump(node);
+        i = i + 1;
     }
     dump_indent = dump_indent - 1;
 }
@@ -646,7 +594,7 @@ def dump_nodes(name: str, &nodes: Nodes) {
 # -----------------------------------------------------------------------------
 def dump_select_expr(node: ^Node) {
     let x: ^SelectExpr = unwrap(node^) as ^SelectExpr;
-    printf("SelectExpr <?> \n" as ^int8);
+    printf("SelectExpr <?> \n");
 
     dump_indent = dump_indent + 1;
     dump_nodes("Branches", x.branches);
@@ -657,7 +605,7 @@ def dump_select_expr(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_select_branch(node: ^Node) {
     let x: ^SelectBranch = unwrap(node^) as ^SelectBranch;
-    printf("SelectBranch <?> \n" as ^int8);
+    printf("SelectBranch <?> \n");
 
     dump_indent = dump_indent + 1;
     if not isnull(x.condition) { dump(x.condition); }
@@ -669,7 +617,7 @@ def dump_select_branch(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_conditional_expr(node: ^Node) {
     let x: ^ConditionalExpr = unwrap(node^) as ^ConditionalExpr;
-    printf("ConditionalExpr <?> \n" as ^int8);
+    printf("ConditionalExpr <?> \n");
 
     dump_indent = dump_indent + 1;
     dump(x.condition);
@@ -682,10 +630,9 @@ def dump_conditional_expr(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_func_decl(node: ^Node) {
     let x: ^FuncDecl = unwrap(node^) as ^FuncDecl;
-    printf("FuncDecl <?> " as ^int8);
+    printf("FuncDecl <?> ");
     let id: ^Ident = unwrap(x.id) as ^Ident;
-    let xs: arena.Store = id.name;
-    printf("%s\n" as ^int8, xs._data);
+    printf("%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
     if not isnull(x.return_type) { dump(x.return_type); }
@@ -698,11 +645,10 @@ def dump_func_decl(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_func_param(node: ^Node) {
     let x: ^FuncParam = unwrap(node^) as ^FuncParam;
-    printf("FuncParam <?> " as ^int8);
-    if x.mutable { printf("mut " as ^int8); }
+    printf("FuncParam <?> ");
+    if x.mutable { printf("mut "); }
     let id: ^Ident = unwrap(x.id) as ^Ident;
-    let xs: arena.Store = id.name;
-    printf("%s\n" as ^int8, xs._data);
+    printf("%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
     dump(x.type_);
@@ -714,7 +660,7 @@ def dump_func_param(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_return_expr(node: ^Node) {
     let x: ^ReturnExpr = unwrap(node^) as ^ReturnExpr;
-    printf("ReturnExpr <?> \n" as ^int8);
+    printf("ReturnExpr <?> \n");
 
     dump_indent = dump_indent + 1;
     if not isnull(x.expression) { dump(x.expression); }
@@ -725,7 +671,7 @@ def dump_return_expr(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_type_expr(node: ^Node) {
     let x: ^TypeExpr = unwrap(node^) as ^TypeExpr;
-    printf("TypeExpr <?> \n" as ^int8);
+    printf("TypeExpr <?> \n");
 
     dump_indent = dump_indent + 1;
     dump(x.expression);
@@ -736,18 +682,16 @@ def dump_type_expr(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_import(node: ^Node) {
     let x: ^Import = unwrap(node^) as ^Import;
-    printf("Import <?> " as ^int8);
+    printf("Import <?> ");
 
-    let mut iter: NodesIterator = iter_nodes(x.ids);
     let mut i: int = 0;
-    while not iter_empty(iter) {
-        let node: Node = iter_next(iter);
+    while i as uint < x.ids.size() {
+        let node: Node = x.ids.get(i);
         let id: ^Ident = node.unwrap() as ^Ident;
-        let xs: arena.Store = id.name;
-        if i > 0 { printf("." as ^int8); }
-        printf("%s" as ^int8, xs._data);
+        if i > 0 { printf("."); }
+        printf("%s", id.name.data());
         i = i + 1;
     }
 
-    printf("\n" as ^int8);
+    printf("\n");
 }

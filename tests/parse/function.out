@@ -8,89 +8,104 @@ ModuleDecl <?> _
       Arguments <?> 
     FuncDecl <?> sum
       Parameters <?> 
-        FuncParam <?> x 'int'
-        FuncParam <?> y 'int'
-        FuncParam <?> y 'int'
+        FuncParam <?> x
+          Ident <?> int
+        FuncParam <?> y
+          Ident <?> int
+        FuncParam <?> y
+          Ident <?> int
       Nodes <?> 
     CallExpr <?>
       Ident <?> sum
       Arguments <?> 
         Argument <?>
-          IntegerExpr <?> 'int' 53 (10)
+          IntegerExpr <?> 53 (10)
         Argument <?>
-          IntegerExpr <?> 'int' 3 (10)
+          IntegerExpr <?> 3 (10)
         Argument <?>
-          IntegerExpr <?> 'int' 23 (10)
+          IntegerExpr <?> 23 (10)
     FuncDecl <?> defualt_sum1
       Parameters <?> 
-        FuncParam <?> x 'int'
-          IntegerExpr <?> 'int' 0 (10)
-        FuncParam <?> y 'int'
+        FuncParam <?> x
+          Ident <?> int
+          IntegerExpr <?> 67 (10)
+        FuncParam <?> y
+          Ident <?> int
       Nodes <?> 
     FuncDecl <?> defualt_sum2
       Parameters <?> 
-        FuncParam <?> x 'int'
-        FuncParam <?> y 'int'
-          IntegerExpr <?> 'int' 0 (10)
+        FuncParam <?> x
+          Ident <?> int
+        FuncParam <?> y
+          Ident <?> int
+          IntegerExpr <?> 0 (10)
       Nodes <?> 
     FuncDecl <?> defualt_sum3
       Parameters <?> 
-        FuncParam <?> x 'int'
-          IntegerExpr <?> 'int' 0 (10)
-        FuncParam <?> y 'int'
-          IntegerExpr <?> 'int' 0 (10)
+        FuncParam <?> x
+          Ident <?> int
+          IntegerExpr <?> 0 (10)
+        FuncParam <?> y
+          Ident <?> int
+          IntegerExpr <?> 0 (10)
       Nodes <?> 
     CallExpr <?>
       Ident <?> defualt_sum1
       Arguments <?> 
         Argument <?> y
-          IntegerExpr <?> 'int' 320 (10)
+          IntegerExpr <?> 320 (10)
     CallExpr <?>
       Ident <?> defualt_sum2
       Arguments <?> 
         Argument <?>
-          IntegerExpr <?> 'int' 320 (10)
+          IntegerExpr <?> 320 (10)
     CallExpr <?>
       Ident <?> defualt_sum2
       Arguments <?> 
         Argument <?> x
-          IntegerExpr <?> 'int' 320 (10)
+          IntegerExpr <?> 320 (10)
     CallExpr <?>
       Ident <?> defualt_sum3
       Arguments <?> 
         Argument <?> y
-          IntegerExpr <?> 'int' 320 (10)
+          IntegerExpr <?> 320 (10)
         Argument <?> x
-          IntegerExpr <?> 'int' 32 (10)
-    FuncDecl <?> read 'int'
+          IntegerExpr <?> 32 (10)
+    FuncDecl <?> read
+      Ident <?> int
       Parameters <?> 
       Nodes <?> 
-    FuncDecl <?> some 'bool'
+    FuncDecl <?> some
+      Ident <?> bool
       Parameters <?> 
       Nodes <?> 
-        StaticSlotDecl <?> y 'int'
-          IntegerExpr <?> 'int' 32 (10)
-        LocalSlotDecl <?> x 'int'
-          IntegerExpr <?> 'int' 43 (10)
-        LocalSlotDecl <?> y 'int'
+        StaticSlotDecl <?> y
+          Ident <?> int
+          IntegerExpr <?> 32 (10)
+        LocalSlotDecl <?> x
+          Ident <?> int
+          IntegerExpr <?> 43 (10)
+        LocalSlotDecl <?> y
+          Ident <?> int
         AssignExpr <?>
           Ident <?> y
-          IntegerExpr <?> 'int' 436 (10)
+          IntegerExpr <?> 436 (10)
         BooleanExpr <?> true
     EQExpr <?>
       MemberExpr <?>
         Ident <?> some
         Ident <?> y
-      IntegerExpr <?> 'int' 32 (10)
+      IntegerExpr <?> 32 (10)
     FuncDecl <?> main
       Parameters <?> 
       Nodes <?> 
-        FuncDecl <?> nested 'int'
+        FuncDecl <?> nested
+          Ident <?> int
           Parameters <?> 
           Nodes <?> 
-            IntegerExpr <?> 'int' 432 (10)
-    MemberExpr <?>
-      Ident <?> main
-      CallExpr <?>
+            IntegerExpr <?> 432 (10)
+    CallExpr <?>
+      MemberExpr <?>
+        Ident <?> main
         Ident <?> nested
-        Arguments <?> 
+      Arguments <?> 

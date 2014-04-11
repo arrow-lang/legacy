@@ -1,9 +1,9 @@
 ModuleDecl <?> _
   Nodes <?> 
-    FloatExpr <?> 'int' 43.43626
-    FloatExpr <?> 'int' 3246.3427237
-    FloatExpr <?> 'int' 345.4327237
-    FloatExpr <?> 'int' 3242e329
-    FloatExpr <?> 'int' 23E2
-    FloatExpr <?> 'int' 42.234E32
-    FloatExpr <?> 'int' 324.3e32
+    FloatExpr <?> 43.43626
+    FloatExpr <?> 3246.3427237
+    FloatExpr <?> 345.4327237
+    FloatExpr <?> 3242e329
+    FloatExpr <?> 23E2
+    FloatExpr <?> 42.234E32
+    FloatExpr <?> 324.3e32

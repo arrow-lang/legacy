@@ -2,23 +2,23 @@ ModuleDecl <?> _
   Nodes <?> 
     IndexExpr <?>
       Ident <?> a
-      IntegerExpr <?> 'int' 2 (10)
+      IntegerExpr <?> 2 (10)
     AssignExpr <?>
       IndexExpr <?>
         Ident <?> a
-        IntegerExpr <?> 'int' 5 (10)
-      IntegerExpr <?> 'int' 3420 (10)
+        IntegerExpr <?> 5 (10)
+      IntegerExpr <?> 3420 (10)
     IndexExpr <?>
       IndexExpr <?>
         Ident <?> d
-        IntegerExpr <?> 'int' 4 (10)
-      IntegerExpr <?> 'int' 41 (10)
+        IntegerExpr <?> 4 (10)
+      IntegerExpr <?> 41 (10)
     IndexExpr <?>
       IndexExpr <?>
         Ident <?> d
         IndexExpr <?>
           Ident <?> a
-          IntegerExpr <?> 'int' 1 (10)
+          IntegerExpr <?> 1 (10)
       IndexExpr <?>
         Ident <?> a
-        IntegerExpr <?> 'int' 2 (10)
+        IntegerExpr <?> 2 (10)

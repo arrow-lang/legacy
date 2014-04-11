@@ -1,12 +1,13 @@
 ModuleDecl <?> _
   Nodes <?> 
-    FuncDecl <?> f 'int'
+    FuncDecl <?> f
+      Ident <?> int
       Parameters <?> 
       Nodes <?> 
         Block <?>
           Nodes <?> 
             ReturnExpr <?> 
-              IntegerExpr <?> 'int' 3 (10)
+              IntegerExpr <?> 3 (10)
     Block <?>
       Nodes <?> 
         FuncDecl <?> main

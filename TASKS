@@ -1,0 +1,26 @@
+# [X] Positional argument resolution / generation
+# [X] Keyword argument resolution / generation
+# [ ] Remove `asciz` and `arena` (use `string` and smart pointers for nodes)
+# [ ] Local scope chain (list [stack] of dicts) on each `code.Function`
+# [ ] Parameters are in the local scope
+# [ ] Recursive resolution of parameter types
+# [ ] Resolution of return type using parameter types
+# [ ] Structures
+# [ ] Pointers
+# [ ] References
+# [ ] Assignment (lval / rval, etc.)
+# [ ] Selection expressions (`if`)
+# [ ] Iteration statements (`while`, `loop`)
+# [ ] Sized arrays
+# [ ] Strings
+# [ ] Characters
+# [ ] Enumerations
+# [ ] Pattern matching
+# [ ] Traits
+# [ ] Parameteric types
+# [ ] Parameteric functions
+# [ ] Implement
+# [ ] Parameteric implement
+# [ ] Alias
+# [ ] Parameteric alias `use Name<T> = Other<int, T>`
+#                       `use nil<T> = 0 as *T`

@@ -26,8 +26,8 @@ def reserve(mut n: uint) {
     # we are already at a sufficient capacity.
     if n <= _capacity { return; }
 
-    # Ensure that we reserve space in chunks of 4 KiB.
-    n = n + (n % 0x1000);
+    # Ensure that we reserve space in chunks of 40 KiB.
+    n = n + (0x10000 - n % 0x10000);
 
     # Reallocate memory to the new requested capacity.
     _data = realloc(_data as ^void, n) as ^int8;

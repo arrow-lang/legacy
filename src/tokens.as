@@ -94,6 +94,9 @@ let TOK_FOREIGN: int = -1026;
 # "unsafe" -- Unsafe indicator
 let TOK_UNSAFE: int = -1027;
 
+# "global" -- Global scope resolution indicator
+let TOK_GLOBAL: int = -1028;
+
 # "->" -- Function return type declarator
 let TOK_RARROW: int = -2001;
 

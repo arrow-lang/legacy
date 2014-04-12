@@ -128,6 +128,7 @@ def scan_identifier() -> int {
     if current_buf.eq_str("use")      { return tokens.TOK_USE; }
     if current_buf.eq_str("foreign")  { return tokens.TOK_FOREIGN; }
     if current_buf.eq_str("unsafe")   { return tokens.TOK_UNSAFE; }
+    if current_buf.eq_str("global")   { return tokens.TOK_GLOBAL; }
 
     # Scanned identifier does not match any defined keyword.
     # Update the current_id.

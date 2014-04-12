@@ -55,6 +55,7 @@ let TAG_CALL_ARG        : int = 45;             # Argument
 let TAG_TYPE_EXPR       : int = 46;             # TypeExpr
 let TAG_INTEGER_DIVIDE  : int = 47;             # IntDivideExpr
 let TAG_ASSIGN_INT_DIV  : int = 48;             # AssignIntDivideExpr
+let TAG_GLOBAL          : int = 49;             # Global
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -183,6 +184,9 @@ type Ident { mut name: string.String }
 #      to import.
 type Import { mut ids: Nodes }
 
+# Global
+type Empty { }
+
 # sizeof -- Get the size required for a specific node tag.
 # -----------------------------------------------------------------------------
 # FIXME: Replace this monster with type(T).size as soon as humanely possible
@@ -261,6 +265,9 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_TYPE_EXPR {
         let tmp: TypeExpr;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_GLOBAL {
+        let tmp: Empty;
         ((&tmp + 1) - &tmp);
     }
     else { 0; }
@@ -350,6 +357,7 @@ def dump(&node: Node) {
         dump_table[TAG_CALL] = dump_call_expr;
         dump_table[TAG_CALL_ARG] = dump_call_arg;
         dump_table[TAG_TYPE_EXPR] = dump_type_expr;
+        dump_table[TAG_GLOBAL] = dump_global;
         dump_initialized = true;
     }
 
@@ -676,6 +684,12 @@ def dump_type_expr(node: ^Node) {
     dump_indent = dump_indent + 1;
     dump(x.expression);
     dump_indent = dump_indent - 1;
+}
+
+# dump_global
+# -----------------------------------------------------------------------------
+def dump_global(node: ^Node) {
+    printf("Global <?> \n");
 }
 
 # dump_import

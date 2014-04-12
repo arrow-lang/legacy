@@ -95,6 +95,8 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.type_resolvers[ast.TAG_CALL] = resolve_call_expr;
     self.type_resolvers[ast.TAG_EQ] = resolve_eq_expr;
     self.type_resolvers[ast.TAG_NE] = resolve_ne_expr;
+    self.type_resolvers[ast.TAG_MEMBER] = resolve_member_expr;
+    self.type_resolvers[ast.TAG_GLOBAL] = resolve_global;
 
     # Build the builder jump table.
     self.builders[ast.TAG_BOOLEAN] = build_bool_expr;
@@ -111,6 +113,8 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.builders[ast.TAG_CALL] = build_call_expr;
     self.builders[ast.TAG_EQ] = build_eq_expr;
     self.builders[ast.TAG_NE] = build_ne_expr;
+    self.builders[ast.TAG_MEMBER] = build_member_expr;
+    self.builders[ast.TAG_LOGICAL_NEGATE] = build_logical_neg_expr;
 
     # Add basic type definitions.
     self._declare_basic_types();
@@ -942,6 +946,12 @@ def _declare_main(&mut self) {
 # -----------------------------------------------------------------------------
 def _type_common(a_ctx: ^ast.Node, a: ^code.Handle,
                  b_ctx: ^ast.Node, b: ^code.Handle) -> ^code.Handle {
+    # If the types are the same, bail.
+    let a_ty: ^code.Type = a._object as ^code.Type;
+    let b_ty: ^code.Type = b._object as ^code.Type;
+    if a == b { return a; }
+
+    # Figure out a common type.
     if a._tag == code.TAG_INT_TYPE and b._tag == a._tag {
         # Determine the integer with the greatest rank.
         let a_ty: ^code.IntegerType = a._object as ^code.IntegerType;
@@ -1080,6 +1090,30 @@ def resolve_type_in(g: ^mut Generator, node: ^ast.Node, target: ^code.Handle,
     else { han; }
 }
 
+# Resolve a type from an item.
+# -----------------------------------------------------------------------------
+def _type_of(g: ^mut Generator, item: ^code.Handle) -> ^code.Handle {
+    if not code.is_type(item) {
+        # Extract type from identifier.
+        if item._tag == code.TAG_STATIC_SLOT {
+            # This is a static slot; get its type.
+            (g^)._gen_type_static_slot(item._object as ^code.StaticSlot);
+        } else if item._tag == code.TAG_FUNCTION {
+            # This is a function; get its type.
+            (g^)._gen_type_func(item._object as ^code.Function);
+        } else if item._tag == code.TAG_MODULE {
+            # This is a module; deal with it.
+            item;
+        } else {
+            # Return nil.
+            code.make_nil();
+        }
+    } else {
+        # Return the type reference.
+        item;
+    }
+}
+
 # Resolve an `identifier` for a type.
 # -----------------------------------------------------------------------------
 def resolve_type_ident(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
@@ -1104,24 +1138,8 @@ def resolve_type_ident(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         return code.make_nil();
     }
 
-    if not code.is_type(item) {
-        # Extract type from identifier.
-        if item._tag == code.TAG_STATIC_SLOT {
-            # This is a static slot; get its type.
-            (g^)._gen_type_static_slot(
-                item._object as ^code.StaticSlot);
-        } else if item._tag == code.TAG_FUNCTION {
-            # This is a function; get its type.
-            (g^)._gen_type_func(
-                item._object as ^code.Function);
-        } else {
-            # Return nil.
-            code.make_nil();
-        }
-    } else {
-        # Return the type reference.
-        item;
-    }
+    # Resolve the item for its type.
+    _type_of(g, item);
 }
 
 # Resolve the identity type.
@@ -1407,7 +1425,8 @@ def resolve_arith_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def resolve_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Resolve this as an arithmetic binary expression.
-    resolve_arith_expr_b(g, code.make_nil(), node);
+    let han: ^code.Handle = resolve_arith_expr_b(g, code.make_nil(), node);
+    if code.isnil(han) { return code.make_nil(); }
 
     # Then ignore the resultant type and send back a boolean.
     (g^).items.get_ptr("bool") as ^code.Handle;
@@ -1418,7 +1437,8 @@ def resolve_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 def resolve_ne_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         -> ^code.Handle {
     # Resolve this as an arithmetic binary expression.
-    resolve_arith_expr_b(g, _, node);
+    let han: ^code.Handle = resolve_arith_expr_b(g, code.make_nil(), node);
+    if code.isnil(han) { return code.make_nil(); }
 
     # Then ignore the resultant type and send back a boolean.
     (g^).items.get_ptr("bool") as ^code.Handle;
@@ -1459,6 +1479,88 @@ def resolve_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Return the already resolve return type.
     ty.return_type;
+}
+
+# Resolve a `global`.
+# -----------------------------------------------------------------------------
+def resolve_global(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    printf("resolve_global\n");
+    # Return the targeted type.
+    _;
+}
+
+# Resolve a `member` expression.
+# -----------------------------------------------------------------------------
+def resolve_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Get the name out of the rhs.
+    let rhs_id: ^ast.Ident = x.rhs.unwrap() as ^ast.Ident;
+
+    # Check if this is a special member resolution (`global.`)
+    let mut item: ^code.Handle;
+    if x.lhs.tag == ast.TAG_GLOBAL {
+        # Build the namespace.
+        let mut ns: list.List = list.make(types.STR);
+        ns.push_str(g.top_ns.data() as str);
+
+        # Attempt to resolve the member.
+        item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, ns);
+
+        # Do we have this item?
+        if item == 0 as ^code.Handle {
+            # No; report and bail.
+             errors.begin_error();
+             errors.fprintf(errors.stderr,
+                            "name '%s' is not defined" as ^int8,
+                            rhs_id.name.data());
+             errors.end();
+             return code.make_nil();
+        }
+
+        # Dispose.
+        ns.dispose();
+    } else {
+        # Resolve the type of the lhs.
+        let lhs: ^code.Handle = resolve_type(g, &x.lhs);
+        if code.isnil(lhs) { return code.make_nil(); }
+
+        # Attempt to get an `item` out of the LHS.
+        if lhs._tag == code.TAG_MODULE {
+            let mod: ^code.Module = lhs._object as ^code.Module;
+
+            # Build the namespace.
+            let mut ns: list.List = mod.namespace.clone();
+            ns.push_str(mod.name.data() as str);
+
+            # Attempt to resolve the member.
+            item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, ns);
+
+            # Do we have this item?
+            if item == 0 as ^code.Handle {
+                # No; report and bail.
+                 errors.begin_error();
+                 errors.fprintf(errors.stderr,
+                                "module '%s' has no member '%s'" as ^int8,
+                                mod.name.data(), rhs_id.name.data());
+                 errors.end();
+                 return code.make_nil();
+            }
+
+            # Dispose.
+            ns.dispose();
+        } else {
+            # Not sure how to resolve this.
+            # NOTE: Should be impossible to get here.
+            return code.make_nil();
+        }
+    }
+
+    # Resolve the item for its type.
+    _type_of(g, item);
 }
 
 # Builders
@@ -1934,7 +2036,8 @@ def build_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
         # Build the `EQ` instruction.
         let val: ^llvm.LLVMOpaqueValue;
-        if type_._tag == code.TAG_INT_TYPE {
+        if type_._tag == code.TAG_INT_TYPE
+                or type_._tag == code.TAG_BOOL_TYPE {
             val = llvm.LLVMBuildICmp(
                 g.irb,
                 32, # IntEQ
@@ -2014,6 +2117,44 @@ def build_ne_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         # Return our wrapped result.
         han;
     }
+}
+
+# Build a `not` expression.
+# -----------------------------------------------------------------------------
+def build_logical_neg_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.UnaryExpr = (node^).unwrap() as ^ast.UnaryExpr;
+
+    # Resolve each operand for its type.
+    let op_ty: ^code.Handle = resolve_targeted_type(
+        g, g.items.get_ptr("bool") as ^code.Handle, &x.operand);
+
+    # Build each operand.
+    let op: ^code.Handle = build(g, op_ty, &x.operand);
+    if code.isnil(op) { return code.make_nil(); }
+
+    # Coerce the operands to values.
+    let op_val_han: ^code.Handle = (g^)._to_value(op, false);
+    if code.isnil(op_val_han) { return code.make_nil(); }
+
+    # Cast to values.
+    let op_val: ^code.Value = op_val_han._object as ^code.Value;
+
+    # Build the `NEG` instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMBuildXor(
+        g.irb,
+        op_val.handle,
+        llvm.LLVMConstInt(llvm.LLVMInt1Type(), 1, false),
+        "" as ^int8);
+
+    # Dispose.
+    code.dispose(op_val_han);
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(_, val);
 }
 
 # Build a `call` expression.
@@ -2181,6 +2322,57 @@ def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         # Return nil.
         code.make_nil();
     }
+}
+
+# Build a `member` expression.
+# -----------------------------------------------------------------------------
+def build_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+        -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Get the name out of the rhs.
+    let rhs_id: ^ast.Ident = x.rhs.unwrap() as ^ast.Ident;
+
+    # Check if this is a special member resolution (`global.`)
+    let mut item: ^code.Handle;
+    if x.lhs.tag == ast.TAG_GLOBAL {
+        # Build the namespace.
+        let mut ns: list.List = list.make(types.STR);
+        ns.push_str(g.top_ns.data() as str);
+
+        # Attempt to resolve the member.
+        item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, ns);
+
+        # Dispose.
+        ns.dispose();
+    } else {
+        # Resolve the operand for its type.
+        let lhs_ty: ^code.Handle = resolve_targeted_type(
+            g, code.make_nil(), &x.lhs);
+
+        # Build each operand.
+        let lhs: ^code.Handle = build(g, lhs_ty, &x.lhs);
+        if code.isnil(lhs) { return code.make_nil(); }
+
+        # Attempt to get an `item` out of the LHS.
+        if lhs._tag == code.TAG_MODULE {
+            let mod: ^code.Module = lhs._object as ^code.Module;
+
+            # Extend our namespace.
+            let mut ns: list.List = mod.namespace.clone();
+            ns.push_str(mod.name.data() as str);
+
+            # Attempt to resolve the member.
+            item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, ns);
+
+            # Dispose.
+            ns.dispose();
+        }
+    }
+
+    # Return our item.
+    item;
 }
 
 # Test driver using `stdin`.

@@ -1,6 +1,6 @@
 # [X] Positional argument resolution / generation
 # [X] Keyword argument resolution / generation
-# [ ] Remove `asciz` and `arena` (use `string` and smart pointers for nodes)
+# [X] Remove `asciz` and `arena` (use `string` and smart pointers for nodes)
 # [ ] Local scope chain (list [stack] of dicts) on each `code.Function`
 # [ ] Parameters are in the local scope
 # [ ] Recursive resolution of parameter types

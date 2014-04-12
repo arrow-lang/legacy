@@ -545,6 +545,8 @@ def parse_primary_expr() -> ast.Node {
         parse_select_expr();
     } else if cur_tok == tokens.TOK_TYPE {
         parse_type_expr();
+    } else if cur_tok == tokens.TOK_GLOBAL {
+        parse_global_expr();
     } else {
         if cur_tok == tokens.TOK_RETURN {
             bump_token();
@@ -570,6 +572,21 @@ def parse_ident() -> ast.Node {
     decl.name.extend(tokenizer.current_id.data() as str);
 
     # Consume the "ident" token.
+    bump_token();
+
+    # Return our constructed node.
+    node;
+}
+
+# Global
+# -----------------------------------------------------------------------------
+# global-ident = "global"
+# -----------------------------------------------------------------------------
+def parse_global_expr() -> ast.Node {
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_GLOBAL);
+
+    # Consume the "global" token.
     bump_token();
 
     # Return our constructed node.

@@ -4,6 +4,7 @@ import string;
 import ast;
 import libc;
 import list;
+import dict;
 
 # Tags
 # -----------------------------------------------------------------------------
@@ -20,6 +21,42 @@ let TAG_FUNCTION: int = 8;
 let TAG_PARAMETER: int = 9;
 let TAG_BOOL_TYPE: int = 10;
 let TAG_VOID_TYPE: int = 11;
+
+# Scope chain
+# -----------------------------------------------------------------------------
+# This internally is a list of dictinoaries that are for managing
+# the local scope of a specific function.
+
+type Scope {
+    # The list of dictionaries that comprise the scope chain.
+    chain: list.List
+}
+
+implement Scope {
+
+    # Insert an item into the current block in the scope chain.
+    # -------------------------------------------------------------------------
+    def insert(&mut self, name: str, handle: ^code.Handle) {
+    }
+
+    # Push another scope into the chain.
+    # -------------------------------------------------------------------------
+    def push(&mut self) {
+        let m: ^mut dict.Dictonary = libc.malloc(
+            ((0 as ^dict.Dictonary) + 1) - (0 as ^dict.Dictonary));
+        m^ = dict.make(2048);
+        self.chain.push_ptr(&m);
+    }
+
+    # Pop a scope from the chain.
+    # -------------------------------------------------------------------------
+    def pop(&mut self) {
+        let m: ^mut dict.Dictonary = self.chain.at_ptr(-1) as ^dict.Dictonary;
+        (m^).dispose();
+        self.chain.erase(-1);
+    }
+
+}
 
 # Type
 # -----------------------------------------------------------------------------

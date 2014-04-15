@@ -203,7 +203,8 @@ def typename(handle: ^Handle) -> string.String {
     let mut name: string.String = string.make();
 
     # Figure out what we are.
-    if      handle._tag == TAG_BOOL_TYPE { name.extend("bool"); }
+    if      handle._tag == TAG_VOID_TYPE { name.extend("nothing"); }
+    else if handle._tag == TAG_BOOL_TYPE { name.extend("bool"); }
     else if handle._tag == TAG_INT_TYPE {
         let int_ty: ^IntegerType = handle._object as ^IntegerType;
         if not int_ty.signed { name.append('u'); }

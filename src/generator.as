@@ -98,6 +98,7 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.type_resolvers[ast.TAG_NE] = resolve_ne_expr;
     self.type_resolvers[ast.TAG_MEMBER] = resolve_member_expr;
     self.type_resolvers[ast.TAG_GLOBAL] = resolve_global;
+    self.type_resolvers[ast.TAG_CONDITIONAL] = resolve_conditional_expr;
 
     # Build the builder jump table.
     self.builders[ast.TAG_BOOLEAN] = build_bool_expr;
@@ -117,6 +118,7 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.builders[ast.TAG_MEMBER] = build_member_expr;
     self.builders[ast.TAG_LOGICAL_NEGATE] = build_logical_neg_expr;
     self.builders[ast.TAG_LOCAL_SLOT] = build_local_slot;
+    self.builders[ast.TAG_CONDITIONAL] = build_conditional_expr;
 
     # Add basic type definitions.
     self._declare_basic_types();
@@ -1531,6 +1533,15 @@ def resolve_eq_expr(g: ^mut Generator, _: ^code.Handle,
     (g^).items.get_ptr("bool") as ^code.Handle;
 }
 
+# Resolve a conditional expression.
+# -----------------------------------------------------------------------------
+def resolve_conditional_expr(g: ^mut Generator, _: ^code.Handle,
+                    scope: ^code.Scope, node: ^ast.Node)
+        -> ^code.Handle {
+    # Resolve this as an arithmetic binary expression.
+    resolve_arith_expr_b(g, code.make_nil(), scope, node);
+}
+
 # Resolve an `NE` expression.
 # -----------------------------------------------------------------------------
 def resolve_ne_expr(g: ^mut Generator, _: ^code.Handle,
@@ -2102,6 +2113,58 @@ def build_mod_expr(g: ^mut Generator, _: ^code.Handle,
         val = llvm.LLVMBuildFRem(g.irb,
                                  lhs_val.handle, rhs_val.handle, "" as ^int8);
     }
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(type_, val);
+
+    # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Build a `conditional` expression.
+# -----------------------------------------------------------------------------
+def build_conditional_expr(g: ^mut Generator, _: ^code.Handle,
+                           scope: ^mut code.Scope, node: ^ast.Node)
+        -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.ConditionalExpr = (node^).unwrap() as ^ast.ConditionalExpr;
+
+    # Build the condition.
+    let cond_han: ^code.Handle;
+    cond_han = build(g, g.items.get_ptr("bool") as ^code.Handle,
+                     scope, &x.condition);
+    if code.isnil(cond_han) { return code.make_nil(); }
+    let cond_val_han: ^code.Handle = (g^)._to_value(cond_han, false);
+    let cond_val: ^code.Value = cond_val_han._object as ^code.Value;
+    if code.isnil(cond_val_han) { return code.make_nil(); }
+
+    # Build each operand.
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, scope, node);
+
+    # Resolve our type.
+    let type_: ^code.Handle = resolve_st_type(g, _, scope, node);
+
+    # Cast each operand to the target type.
+    let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
+
+    # Cast to values.
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Build the `select` instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMBuildSelect(
+        g.irb, cond_val.handle, lhs_val.handle, rhs_val.handle, "" as ^int8);
 
     # Wrap and return the value.
     let han: ^code.Handle;

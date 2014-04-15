@@ -25,3 +25,5 @@
 # [ ] Alias
 # [ ] Parameteric alias `use Name<T> = Other<int, T>`
 #                       `use nil<T> = 0 as *T`
+# [ ] Improve error reporting to properly state "nothing" when referring
+#     the absence of value (eg. "no binary operation `/` can be applied to nothing and `int64`")

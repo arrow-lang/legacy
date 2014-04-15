@@ -96,6 +96,7 @@ implement Scope {
     # Insert an item into the current block in the scope chain.
     # -------------------------------------------------------------------------
     def insert(&mut self, name: str, handle: ^Handle) {
+        printf("insert in local scope: %s <= %p\n", name, handle);
         # Get the current block.
         let m: ^mut dict.Dictionary =
             self.chain.at_ptr(-1) as ^dict.Dictionary;
@@ -286,6 +287,9 @@ def is_type(handle: ^Handle) -> bool {
 def type_of(handle: ^Handle) -> ^Handle {
     if handle._tag == TAG_STATIC_SLOT {
         let slot: ^StaticSlot = handle._object as ^StaticSlot;
+        slot.type_;
+    } else if handle._tag == TAG_LOCAL_SLOT {
+        let slot: ^LocalSlot = handle._object as ^LocalSlot;
         slot.type_;
     } else if handle._tag == TAG_VALUE {
         let val: ^Value = handle._object as ^Value;

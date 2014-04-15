@@ -292,6 +292,7 @@ def _get_scoped_item_in(&self, s: str, scope: ^code.Scope, _ns: list.List)
         -> ^code.Handle {
     # Check if the name is declared in the passed local scope.
     if scope <> 0 as ^code.Scope {
+        printf("checking local scope\n");
         if (scope^).contains(s) {
             # Get and return the item.
             return (scope^).get(s);
@@ -421,6 +422,12 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
     let mut ns: list.List = x.namespace.clone();
     ns.push_str(x.name.data() as str);
 
+    # Get the ret type target
+    let ret_type_target: ^code.Handle = type_.return_type;
+    if ret_type_target._tag == code.TAG_VOID_TYPE {
+        ret_type_target = code.make_nil();
+    }
+
     # Iterate over the nodes in the function.
     let mut i: int = 0;
     let mut res: ^code.Handle = code.make_nil();
@@ -429,9 +436,10 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
         i = i + 1;
 
         # Resolve the type of the node.
+        let cur_count: uint = errors.count;
         let target: ^code.Handle = resolve_type_in(
-            &self, &node, type_.return_type, &x.scope, &ns);
-        if code.isnil(target) { continue; }
+            &self, &node, ret_type_target, &x.scope, &ns);
+        if cur_count < errors.count { continue; }
 
         # Build the node.
         let han: ^code.Handle = build_in(

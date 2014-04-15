@@ -2,13 +2,14 @@
 # [X] Keyword argument resolution / generation
 # [X] Remove `asciz` and `arena` (use `string` and smart pointers for nodes)
 # [X] Local scope chain (list [stack] of dicts) on each `code.Function`
-# [ ] Parameters are in the local scope
+# [X] Parameters are in the local scope
 # [ ] Recursive resolution of parameter types
 # [ ] Resolution of return type using parameter types
+# [ ] Assignment (lval / rval, etc.)
+# [ ] Augment assignment
 # [ ] Structures
 # [ ] Pointers
 # [ ] References
-# [ ] Assignment (lval / rval, etc.)
 # [ ] Selection expressions (`if`)
 # [ ] Iteration statements (`while`, `loop`)
 # [ ] Sized arrays

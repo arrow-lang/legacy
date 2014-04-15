@@ -292,7 +292,6 @@ def _get_scoped_item_in(&self, s: str, scope: ^code.Scope, _ns: list.List)
         -> ^code.Handle {
     # Check if the name is declared in the passed local scope.
     if scope <> 0 as ^code.Scope {
-        printf("checking local scope\n");
         if (scope^).contains(s) {
             # Get and return the item.
             return (scope^).get(s);
@@ -414,6 +413,36 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
 
     # Pull out the type node.
     let type_: ^code.FunctionType = x.type_._object as ^code.FunctionType;
+
+    # Allocate the parameter nodes into the local scope.
+    let mut i: int = 0;
+    while i as uint < type_.parameters.size {
+        # Get the parameter node.
+        let prm_han: ^code.Handle =
+            type_.parameters.at_ptr(i) as ^code.Handle;
+        let prm: ^code.Parameter = prm_han._object as ^code.Parameter;
+
+        # Get the type handle.
+        let prm_type: ^code.Type = prm.type_._object as ^code.Type;
+
+        # Allocate this param.
+        let val: ^llvm.LLVMOpaqueValue;
+        val = llvm.LLVMBuildAlloca(self.irb, prm_type.handle, prm.name.data());
+
+        # Get the parameter handle.
+        let prm_val: ^llvm.LLVMOpaqueValue;
+        prm_val = llvm.LLVMGetParam(x.handle, i as uint32);
+
+        # Store the parameter in the allocation.
+        llvm.LLVMBuildStore(self.irb, prm_val, val);
+
+        # Insert into the local scope.
+        x.scope.insert(prm.name.data() as str, code.make_local_slot(
+            prm.type_, val));
+
+        # Continue.
+        i = i + 1;
+    }
 
     # Pull out the nodes that correspond to this function.
     let nodes: ^ast.Nodes = self.nodes.get_ptr(qname) as ^ast.Nodes;
@@ -2511,7 +2540,7 @@ def build_local_slot(g: ^mut Generator, _: ^code.Handle,
 
     # Build the store.
     if init <> 0 as ^llvm.LLVMOpaqueValue {
-        llvm.LLVMBuildStore(g.irb, val, init);
+        llvm.LLVMBuildStore(g.irb, init, val);
     }
 
     # Wrap.

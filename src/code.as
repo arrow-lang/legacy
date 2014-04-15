@@ -96,7 +96,6 @@ implement Scope {
     # Insert an item into the current block in the scope chain.
     # -------------------------------------------------------------------------
     def insert(&mut self, name: str, handle: ^Handle) {
-        printf("insert in local scope: %s <= %p\n", name, handle);
         # Get the current block.
         let m: ^mut dict.Dictionary =
             self.chain.at_ptr(-1) as ^dict.Dictionary;

@@ -21,6 +21,7 @@ let TAG_FUNCTION: int = 8;
 let TAG_PARAMETER: int = 9;
 let TAG_BOOL_TYPE: int = 10;
 let TAG_VOID_TYPE: int = 11;
+let TAG_LOCAL_SLOT: int = 12;
 
 # Scope chain
 # -----------------------------------------------------------------------------
@@ -29,29 +30,96 @@ let TAG_VOID_TYPE: int = 11;
 
 type Scope {
     # The list of dictionaries that comprise the scope chain.
-    chain: list.List
+    mut chain: list.List
 }
+
+def make_scope() -> Scope {
+    let sc: Scope;
+    sc.chain = list.make(types.PTR);
+    sc;
+}
+
+def make_nil_scope() -> ^Scope { 0 as ^Scope; }
 
 implement Scope {
 
+    # Dispose the scope chain.
+    # -------------------------------------------------------------------------
+    def dispose(&mut self) {
+        # Dispose of each dict.
+        let mut i: int = 0;
+        while i as uint < self.chain.size {
+            let m: ^mut dict.Dictionary =
+                self.chain.at_ptr(i) as ^dict.Dictionary;
+            (m^).dispose();
+            i = i + 1;
+        }
+
+        # Dispose of the entire list.
+        self.chain.dispose();
+    }
+
+    # Check if a name exists in the scope chain.
+    # -------------------------------------------------------------------------
+    def contains(&self, name: str) -> bool {
+        let mut i: int = -1;
+        while i >= -(self.chain.size as int) {
+            let m: ^mut dict.Dictionary =
+                self.chain.at_ptr(i) as ^dict.Dictionary;
+
+            if (m^).contains(name) {
+                return true;
+            }
+
+            i = i - 1;
+        }
+        false;
+    }
+
+    # Get a name from the scope chain.
+    # -------------------------------------------------------------------------
+    def get(&self, name: str) -> ^Handle {
+        let mut i: int = -1;
+        while i >= -(self.chain.size as int) {
+            let m: ^mut dict.Dictionary =
+                self.chain.at_ptr(i) as ^dict.Dictionary;
+
+            if (m^).contains(name) {
+                return (m^).get_ptr(name) as ^Handle;
+            }
+
+            i = i - 1;
+        }
+        make_nil();
+    }
+
     # Insert an item into the current block in the scope chain.
     # -------------------------------------------------------------------------
-    def insert(&mut self, name: str, handle: ^code.Handle) {
+    def insert(&mut self, name: str, handle: ^Handle) {
+        # Get the current block.
+        let m: ^mut dict.Dictionary =
+            self.chain.at_ptr(-1) as ^dict.Dictionary;
+
+        # Push in the handle.
+        (m^).set_ptr(name, handle as ^void);
     }
 
     # Push another scope into the chain.
     # -------------------------------------------------------------------------
     def push(&mut self) {
-        let m: ^mut dict.Dictonary = libc.malloc(
-            ((0 as ^dict.Dictonary) + 1) - (0 as ^dict.Dictonary));
+        let m: ^mut dict.Dictionary = libc.malloc(
+            ((0 as ^dict.Dictionary) + 1) - (0 as ^dict.Dictionary))
+            as ^dict.Dictionary;
         m^ = dict.make(2048);
-        self.chain.push_ptr(&m);
+        self.chain.push_ptr(m as ^void);
     }
 
     # Pop a scope from the chain.
     # -------------------------------------------------------------------------
     def pop(&mut self) {
-        let m: ^mut dict.Dictonary = self.chain.at_ptr(-1) as ^dict.Dictonary;
+        let m: ^mut dict.Dictionary =
+            self.chain.at_ptr(-1) as ^dict.Dictionary;
+
         (m^).dispose();
         self.chain.erase(-1);
     }
@@ -272,6 +340,28 @@ implement StaticSlot {
 
 }
 
+# Local Slot
+# -----------------------------------------------------------------------------
+
+type LocalSlot {
+    type_: ^Handle,
+    handle: ^LLVMOpaqueValue
+}
+
+let LOCAL_SLOT_SIZE: uint = ((0 as ^LocalSlot) + 1) - (0 as ^LocalSlot);
+
+def make_local_slot(
+        type_: ^Handle,
+        handle: ^LLVMOpaqueValue) -> ^Handle {
+    # Build the slot.
+    let slot: ^LocalSlot = libc.malloc(LOCAL_SLOT_SIZE) as ^LocalSlot;
+    slot.handle = handle;
+    slot.type_ = type_;
+
+    # Wrap in a handle.
+    make(TAG_LOCAL_SLOT, slot as ^void);
+}
+
 # Module
 # -----------------------------------------------------------------------------
 # A module just keeps its name with it. Its purpose in the scope is
@@ -331,7 +421,8 @@ type Function {
     handle: ^LLVMOpaqueValue,
     mut namespace: list.List,
     mut name: string.String,
-    mut type_: ^mut Handle
+    mut type_: ^mut Handle,
+    mut scope: Scope
 }
 
 let FUNCTION_SIZE: uint = ((0 as ^Function) + 1) - (0 as ^Function);
@@ -350,6 +441,10 @@ def make_function(
     func.name.extend(name);
     func.namespace = namespace.clone();
     func.type_ = type_;
+    func.scope = make_scope();
+
+    # Push the top scope block for the function.
+    func.scope.push();
 
     # Wrap in a handle.
     make(TAG_FUNCTION, func as ^void);

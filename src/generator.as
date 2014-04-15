@@ -35,10 +35,10 @@ type Generator {
     mut top_ns: string.String,
 
     # Jump table for the type resolver.
-    mut type_resolvers: (def (^mut Generator, ^code.Handle, ^ast.Node) -> ^code.Handle)[100],
+    mut type_resolvers: (def (^mut Generator, ^code.Handle, ^code.Scope, ^ast.Node) -> ^code.Handle)[100],
 
     # Jump table for the builder.
-    mut builders: (def (^mut Generator, ^code.Handle, ^ast.Node) -> ^code.Handle)[100]
+    mut builders: (def (^mut Generator, ^code.Handle, ^mut code.Scope, ^ast.Node) -> ^code.Handle)[100]
 }
 
 implement Generator {
@@ -92,6 +92,7 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.type_resolvers[ast.TAG_IDENT] = resolve_type_ident;
     self.type_resolvers[ast.TAG_TYPE_EXPR] = resolve_type_expr;
     self.type_resolvers[ast.TAG_RETURN] = resolve_type_id;
+    self.type_resolvers[ast.TAG_LOCAL_SLOT] = resolve_type_id;
     self.type_resolvers[ast.TAG_CALL] = resolve_call_expr;
     self.type_resolvers[ast.TAG_EQ] = resolve_eq_expr;
     self.type_resolvers[ast.TAG_NE] = resolve_ne_expr;
@@ -115,6 +116,7 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.builders[ast.TAG_NE] = build_ne_expr;
     self.builders[ast.TAG_MEMBER] = build_member_expr;
     self.builders[ast.TAG_LOGICAL_NEGATE] = build_logical_neg_expr;
+    self.builders[ast.TAG_LOCAL_SLOT] = build_local_slot;
 
     # Add basic type definitions.
     self._declare_basic_types();
@@ -151,7 +153,6 @@ def generate(&mut self, name: str, &node: ast.Node) {
 def _to_value(&mut self, handle: ^code.Handle, static_: bool) -> ^code.Handle {
     if handle._tag == code.TAG_STATIC_SLOT {
         let slot: ^code.StaticSlot = handle._object as ^code.StaticSlot;
-
         if static_ {
             # Pull out the initializer.
             self._gen_def_static_slot(slot.name.data() as str, slot);
@@ -163,6 +164,14 @@ def _to_value(&mut self, handle: ^code.Handle, static_: bool) -> ^code.Handle {
             # Wrap it in a handle.
             code.make_value(slot.type_, val);
         }
+    } else if handle._tag == code.TAG_LOCAL_SLOT {
+        let slot: ^code.LocalSlot = handle._object as ^code.LocalSlot;
+        # Load the local slot value.
+        let val: ^llvm.LLVMOpaqueValue;
+        val = llvm.LLVMBuildLoad(self.irb, slot.handle, "" as ^int8);
+
+        # Wrap it in a handle.
+        code.make_value(slot.type_, val);
     } else if handle._tag == code.TAG_VALUE {
         # Clone the value object.
         let val: ^code.Value = handle._object as ^code.Value;
@@ -277,9 +286,18 @@ def _qualify_name(&self, s: str) -> string.String {
     self._qualify_name_in(s, self.ns);
 }
 
-# Get the "item" using the scoping rules in the passed namespace.
+# Get the "item" using the scoping rules in the passed scope and namespace.
 # -----------------------------------------------------------------------------
-def _get_scoped_item_in(&self, s: str, _ns: list.List) -> ^code.Handle {
+def _get_scoped_item_in(&self, s: str, scope: ^code.Scope, _ns: list.List)
+        -> ^code.Handle {
+    # Check if the name is declared in the passed local scope.
+    if scope <> 0 as ^code.Scope {
+        if (scope^).contains(s) {
+            # Get and return the item.
+            return (scope^).get(s);
+        }
+    }
+
     # Qualify the name reference and match against the enclosing
     # scopes by resolving inner-most first and popping namespaces until
     # a match.
@@ -353,7 +371,9 @@ def _gen_def_static_slot(&mut self, qname: str, x: ^code.StaticSlot)
 
         # Build the initializer
         let han: ^code.Handle;
-        han = build_in(&self, typ, &x.context.initializer, &x.namespace);
+        han = build_in(&self, typ, code.make_nil_scope(),
+                       &x.context.initializer,
+                       &x.namespace);
         if code.isnil(han) { return code.make_nil(); }
 
         # Coerce this to a value.
@@ -410,12 +430,12 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
 
         # Resolve the type of the node.
         let target: ^code.Handle = resolve_type_in(
-            &self, &node, type_.return_type, &ns);
+            &self, &node, type_.return_type, &x.scope, &ns);
         if code.isnil(target) { continue; }
 
         # Build the node.
         let han: ^code.Handle = build_in(
-            &self, target, &node, &ns);
+            &self, target, &x.scope, &node, &ns);
 
         # Set the last handle as our value.
         if i as uint >= (nodes^).size() {
@@ -433,13 +453,17 @@ def _gen_def_function(&mut self, qname: str, x: ^code.Function)
         if code.isnil(res) {
             llvm.LLVMBuildRetVoid(self.irb);
         } else {
-            let val_han: ^code.Handle = self._to_value(res, false);
-            let typ: ^code.Handle = code.type_of(val_han) as ^code.Handle;
-            if typ._tag == code.TAG_VOID_TYPE {
+            if type_.return_type._tag == code.TAG_VOID_TYPE {
                 llvm.LLVMBuildRetVoid(self.irb);
             } else {
-                let val: ^code.Value = val_han._object as ^code.Value;
-                llvm.LLVMBuildRet(self.irb, val.handle);
+                let val_han: ^code.Handle = self._to_value(res, false);
+                let typ: ^code.Handle = code.type_of(val_han) as ^code.Handle;
+                if typ._tag == code.TAG_VOID_TYPE {
+                    llvm.LLVMBuildRetVoid(self.irb);
+                } else {
+                    let val: ^code.Value = val_han._object as ^code.Value;
+                    llvm.LLVMBuildRet(self.irb, val.handle);
+                }
             }
         }
     }
@@ -541,7 +565,9 @@ def _gen_type_static_slot(&mut self, x: ^code.StaticSlot)
     } else if not code.ispoison(x.type_) {
         # Get and resolve the type node.
         let han: ^code.Handle = resolve_type_in(
-            &self, &x.context.type_, code.make_nil(), &x.namespace);
+            &self, &x.context.type_, code.make_nil(),
+            code.make_nil_scope(),
+            &x.namespace);
 
         if han == 0 as ^code.Handle {
             # Failed to resolve type; mark us as poisioned.
@@ -576,7 +602,8 @@ def _gen_type_func(&mut self, x: ^code.Function) -> ^code.Handle {
         } else {
             # Get and resolve the return type.
             ret_han = resolve_type_in(
-                &self, &x.context.return_type, code.make_nil(), &x.namespace);
+                &self, &x.context.return_type, code.make_nil(),
+                &x.scope, &x.namespace);
 
             if ret_han == 0 as ^code.Handle {
                 # Failed to resolve type; mark us as poisioned.
@@ -601,7 +628,7 @@ def _gen_type_func(&mut self, x: ^code.Function) -> ^code.Handle {
 
             # Resolve the type.
             let ptype_handle: ^code.Handle = resolve_type_in(
-                &self, &p.type_, code.make_nil(), &x.namespace);
+                &self, &p.type_, code.make_nil(), &x.scope, &x.namespace);
             if code.isnil(ptype_handle) { error = true; break; }
             let ptype_obj: ^code.Type = ptype_handle._object as ^code.Type;
 
@@ -1038,31 +1065,48 @@ def _type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
 def resolve_targeted_type(g: ^mut Generator, target: ^code.Handle,
                           node: ^ast.Node)
         -> ^code.Handle {
-    resolve_type_in(g, node, target, &g.ns);
+    resolve_type_in(g, node, target, code.make_nil_scope(), &g.ns);
+}
+
+# Resolve an arbitrary targeted type expression from an AST node.
+# -----------------------------------------------------------------------------
+def resolve_st_type(g: ^mut Generator, target: ^code.Handle,
+                    scope: ^code.Scope, node: ^ast.Node)
+        -> ^code.Handle {
+    resolve_type_in(g, node, target, scope, &g.ns);
+}
+
+# Resolve an arbitrary scoped type expression from an AST node.
+# -----------------------------------------------------------------------------
+def resolve_scoped_type(g: ^mut Generator, scope: ^code.Scope,
+                        node: ^ast.Node)
+        -> ^code.Handle {
+    resolve_type_in(g, node, code.make_nil(), scope, &g.ns);
 }
 
 # Resolve an arbitrary targeted type expression from an AST node.
 # -----------------------------------------------------------------------------
 def resolve_targeted_type_in(g: ^mut Generator, target: ^code.Handle,
-                          node: ^ast.Node, ns: ^list.List)
+                             node: ^ast.Node, ns: ^list.List)
         -> ^code.Handle {
-    resolve_type_in(g, node, target, ns);
+    resolve_type_in(g, node, target, code.make_nil_scope(), ns);
 }
 
 # Resolve an arbitrary type expression from an AST node.
 # -----------------------------------------------------------------------------
 def resolve_type(g: ^mut Generator, node: ^ast.Node)
         -> ^code.Handle {
-    resolve_type_in(g, node, code.make_nil(), &g.ns);
+    resolve_type_in(g, node, code.make_nil(), code.make_nil_scope(), &g.ns);
 }
 
 # Resolve an arbitrary type expression from an AST node.
 # -----------------------------------------------------------------------------
 def resolve_type_in(g: ^mut Generator, node: ^ast.Node, target: ^code.Handle,
-                    ns: ^list.List)
+                    scope: ^code.Scope, ns: ^list.List)
         -> ^code.Handle {
     # Get the type resolution func.
-    let res_fn: def (^mut Generator, ^code.Handle, ^ast.Node) -> ^code.Handle
+    let res_fn: def (^mut Generator, ^code.Handle, ^code.Scope, ^ast.Node)
+            -> ^code.Handle
         = g.type_resolvers[node.tag];
 
     # Save the current namespace.
@@ -1070,7 +1114,7 @@ def resolve_type_in(g: ^mut Generator, node: ^ast.Node, target: ^code.Handle,
     g.ns = ns^;
 
     # Resolve the type.
-    let han: ^code.Handle = res_fn(g, target, node);
+    let han: ^code.Handle = res_fn(g, target, scope, node);
 
     # Unset.
     g.ns = old_ns;
@@ -1098,6 +1142,10 @@ def _type_of(g: ^mut Generator, item: ^code.Handle) -> ^code.Handle {
         if item._tag == code.TAG_STATIC_SLOT {
             # This is a static slot; get its type.
             (g^)._gen_type_static_slot(item._object as ^code.StaticSlot);
+        } else if item._tag == code.TAG_LOCAL_SLOT {
+            # This is a local slot; just return the type.
+            let slot: ^code.LocalSlot = item._object as ^code.LocalSlot;
+            slot.type_;
         } else if item._tag == code.TAG_FUNCTION {
             # This is a function; get its type.
             (g^)._gen_type_func(item._object as ^code.Function);
@@ -1116,7 +1164,8 @@ def _type_of(g: ^mut Generator, item: ^code.Handle) -> ^code.Handle {
 
 # Resolve an `identifier` for a type.
 # -----------------------------------------------------------------------------
-def resolve_type_ident(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_type_ident(g: ^mut Generator, _: ^code.Handle,
+                       scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # A simple identifier; this refers directly to a "named" type
     # in the current scope or any enclosing outer scope.
@@ -1126,7 +1175,7 @@ def resolve_type_ident(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Retrieve the item with scope resolution rules.
     let item: ^code.Handle = (g^)._get_scoped_item_in(
-        id.name.data() as str, g.ns);
+        id.name.data() as str, scope, g.ns);
 
     if item == 0 as ^code.Handle {
         errors.begin_error();
@@ -1144,7 +1193,8 @@ def resolve_type_ident(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Resolve the identity type.
 # -----------------------------------------------------------------------------
-def resolve_type_id(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_type_id(g: ^mut Generator, _: ^code.Handle, scope: ^code.Scope,
+                    node: ^ast.Node)
         -> ^code.Handle {
     # Return what were targeted with.
     _;
@@ -1152,7 +1202,8 @@ def resolve_type_id(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Resolve a `type expression` for a type -- type(..)
 # -----------------------------------------------------------------------------
-def resolve_type_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_type_expr(g: ^mut Generator, _: ^code.Handle, scope: ^code.Scope,
+                      node: ^ast.Node)
         -> ^code.Handle {
     # An arbitrary type deferrence expression.
 
@@ -1160,12 +1211,13 @@ def resolve_type_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     let x: ^ast.TypeExpr = (node^).unwrap() as ^ast.TypeExpr;
 
     # Resolve the expression.
-    resolve_type(g, &x.expression);
+    resolve_scoped_type(g, scope, &x.expression);
 }
 
 # Resolve a `boolean expression` for its type.
 # -----------------------------------------------------------------------------
-def resolve_bool_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_bool_expr(g: ^mut Generator, _: ^code.Handle, scope: ^code.Scope,
+                      node: ^ast.Node)
         -> ^code.Handle {
     # Wonder what the type of this is.
     (g^).items.get_ptr("bool") as ^code.Handle;
@@ -1173,7 +1225,8 @@ def resolve_bool_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Resolve an `integer expression` for its type.
 # -----------------------------------------------------------------------------
-def resolve_int_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
+def resolve_int_expr(g: ^mut Generator, target: ^code.Handle,
+                     scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     if not code.isnil(target) {
         if (target._tag == code.TAG_INT_TYPE
@@ -1193,7 +1246,7 @@ def resolve_int_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
 # Resolve a `float expression` for its type.
 # -----------------------------------------------------------------------------
 def resolve_float_expr(g: ^mut Generator, target: ^code.Handle,
-                       node: ^ast.Node)
+                       scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     if not code.isnil(target) {
         if target._tag == code.TAG_FLOAT_TYPE {
@@ -1210,15 +1263,15 @@ def resolve_float_expr(g: ^mut Generator, target: ^code.Handle,
 # Resolve a binary logical expression.
 # -----------------------------------------------------------------------------
 def resolve_logical_expr_b(g: ^mut Generator, _: ^code.Handle,
-                           node: ^ast.Node)
+                           scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
 
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
     # Resolve the types of the operands.
-    let lhs: ^code.Handle = resolve_type(g, &x.lhs);
-    let rhs: ^code.Handle = resolve_type(g, &x.rhs);
+    let lhs: ^code.Handle = resolve_scoped_type(g, scope, &x.lhs);
+    let rhs: ^code.Handle = resolve_scoped_type(g, scope, &x.rhs);
     if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
 
     # Ensure that we are dealing strictly with booleans.
@@ -1254,14 +1307,14 @@ def resolve_logical_expr_b(g: ^mut Generator, _: ^code.Handle,
 # Resolve an unary logical expression.
 # -----------------------------------------------------------------------------
 def resolve_logical_expr_u(g: ^mut Generator, _: ^code.Handle,
-                           node: ^ast.Node)
+                           scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
 
     # Unwrap the node to its proper type.
     let x: ^ast.UnaryExpr = (node^).unwrap() as ^ast.UnaryExpr;
 
     # Resolve the types of the operand.
-    let operand: ^code.Handle = resolve_type(g, &x.operand);
+    let operand: ^code.Handle = resolve_scoped_type(g, scope, &x.operand);
     if code.isnil(operand) { return code.make_nil(); }
 
     # Ensure that we are dealing strictly with a boolean.
@@ -1289,54 +1342,60 @@ def resolve_logical_expr_u(g: ^mut Generator, _: ^code.Handle,
 
 # Resolve an `add` expression.
 # -----------------------------------------------------------------------------
-def resolve_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_add_expr(g: ^mut Generator, _: ^code.Handle,
+                     scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Resolve this as an arithmetic binary expression.
-    resolve_arith_expr_b(g, _, node);
+    resolve_arith_expr_b(g, _, scope, node);
 }
 
 # Resolve an `sub` expression.
 # -----------------------------------------------------------------------------
-def resolve_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_sub_expr(g: ^mut Generator, _: ^code.Handle,
+                     scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Resolve this as an arithmetic binary expression.
-    resolve_arith_expr_b(g, _, node);
+    resolve_arith_expr_b(g, _, scope, node);
 }
 
 # Resolve an `mul` expression.
 # -----------------------------------------------------------------------------
-def resolve_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_mul_expr(g: ^mut Generator, _: ^code.Handle,
+                     scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Resolve this as an arithmetic binary expression.
-    resolve_arith_expr_b(g, _, node);
+    resolve_arith_expr_b(g, _, scope, node);
 }
 
 # Resolve an `mod` expression.
 # -----------------------------------------------------------------------------
-def resolve_mod_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_mod_expr(g: ^mut Generator, _: ^code.Handle,
+                     scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Resolve this as an arithmetic binary expression.
-    resolve_arith_expr_b(g, _, node);
+    resolve_arith_expr_b(g, _, scope, node);
 }
 
 # Resolve an `int_div` expression.
 # -----------------------------------------------------------------------------
-def resolve_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_int_div_expr(g: ^mut Generator, _: ^code.Handle,
+                         scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Resolve this as an arithmetic binary expression.
-    resolve_arith_expr_b(g, _, node);
+    resolve_arith_expr_b(g, _, scope, node);
 }
 
 # Resolve an `div` expression.
 # -----------------------------------------------------------------------------
-def resolve_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_div_expr(g: ^mut Generator, _: ^code.Handle,
+                     scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
     # Resolve the types of the operands.
-    let lhs: ^code.Handle = resolve_type(g, &x.lhs);
-    let rhs: ^code.Handle = resolve_type(g, &x.rhs);
+    let lhs: ^code.Handle = resolve_scoped_type(g, scope, &x.lhs);
+    let rhs: ^code.Handle = resolve_scoped_type(g, scope, &x.rhs);
     if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
 
     # Ensure that lhs and rhs are either int or float type.
@@ -1374,14 +1433,15 @@ def resolve_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Resolve an `arithmetic` binary expression.
 # -----------------------------------------------------------------------------
-def resolve_arith_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_arith_expr_b(g: ^mut Generator, _: ^code.Handle,
+                         scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
     # Resolve the types of the operands.
-    let lhs: ^code.Handle = resolve_type(g, &x.lhs);
-    let rhs: ^code.Handle = resolve_type(g, &x.rhs);
+    let lhs: ^code.Handle = resolve_scoped_type(g, scope, &x.lhs);
+    let rhs: ^code.Handle = resolve_scoped_type(g, scope, &x.rhs);
     if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
 
     # Attempt to perform common type resolution between the two types.
@@ -1422,10 +1482,12 @@ def resolve_arith_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Resolve an `EQ` expression.
 # -----------------------------------------------------------------------------
-def resolve_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_eq_expr(g: ^mut Generator, _: ^code.Handle,
+                    scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Resolve this as an arithmetic binary expression.
-    let han: ^code.Handle = resolve_arith_expr_b(g, code.make_nil(), node);
+    let han: ^code.Handle = resolve_arith_expr_b(
+        g, code.make_nil(), scope, node);
     if code.isnil(han) { return code.make_nil(); }
 
     # Then ignore the resultant type and send back a boolean.
@@ -1434,10 +1496,12 @@ def resolve_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Resolve an `NE` expression.
 # -----------------------------------------------------------------------------
-def resolve_ne_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_ne_expr(g: ^mut Generator, _: ^code.Handle,
+                    scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Resolve this as an arithmetic binary expression.
-    let han: ^code.Handle = resolve_arith_expr_b(g, code.make_nil(), node);
+    let han: ^code.Handle = resolve_arith_expr_b(
+        g, code.make_nil(), scope, node);
     if code.isnil(han) { return code.make_nil(); }
 
     # Then ignore the resultant type and send back a boolean.
@@ -1446,7 +1510,8 @@ def resolve_ne_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Resolve a `call` expression.
 # -----------------------------------------------------------------------------
-def resolve_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_call_expr(g: ^mut Generator, _: ^code.Handle,
+                      scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
@@ -1483,16 +1548,17 @@ def resolve_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Resolve a `global`.
 # -----------------------------------------------------------------------------
-def resolve_global(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_global(g: ^mut Generator, _: ^code.Handle,
+                   scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
-    printf("resolve_global\n");
     # Return the targeted type.
     _;
 }
 
 # Resolve a `member` expression.
 # -----------------------------------------------------------------------------
-def resolve_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def resolve_member_expr(g: ^mut Generator, _: ^code.Handle,
+                        scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
@@ -1508,7 +1574,7 @@ def resolve_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         ns.push_str(g.top_ns.data() as str);
 
         # Attempt to resolve the member.
-        item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, ns);
+        item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, scope, ns);
 
         # Do we have this item?
         if item == 0 as ^code.Handle {
@@ -1537,7 +1603,8 @@ def resolve_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
             ns.push_str(mod.name.data() as str);
 
             # Attempt to resolve the member.
-            item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, ns);
+            item = (g^)._get_scoped_item_in(
+                rhs_id.name.data() as str, scope, ns);
 
             # Do we have this item?
             if item == 0 as ^code.Handle {
@@ -1568,18 +1635,19 @@ def resolve_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build an arbitrary node.
 # -----------------------------------------------------------------------------
-def build(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
-        -> ^code.Handle {
-    build_in(g, target, node, &g.ns);
+def build(g: ^mut Generator, target: ^code.Handle, scope: ^mut code.Scope,
+          node: ^ast.Node) -> ^code.Handle {
+    build_in(g, target, scope, node, &g.ns);
 }
 
 # Build an arbitrary node.
 # -----------------------------------------------------------------------------
-def build_in(g: ^mut Generator, target: ^code.Handle,
+def build_in(g: ^mut Generator, target: ^code.Handle, scope: ^mut code.Scope,
              node: ^ast.Node, ns: ^list.List)
         -> ^code.Handle {
     # Get the build func.
-    let fn: def (^mut Generator, ^code.Handle, ^ast.Node) -> ^code.Handle
+    let fn: def (^mut Generator, ^code.Handle, ^mut code.Scope, ^ast.Node)
+            -> ^code.Handle
         = g.builders[node.tag];
 
     # Save and set the namespace.
@@ -1587,7 +1655,7 @@ def build_in(g: ^mut Generator, target: ^code.Handle,
     g.ns = ns^;
 
     # Resolve the type.
-    let han: ^code.Handle = fn(g, target, node);
+    let han: ^code.Handle = fn(g, target, scope, node);
 
     # Unset our namespace.
     g.ns = old_ns;
@@ -1598,7 +1666,8 @@ def build_in(g: ^mut Generator, target: ^code.Handle,
 
 # Build a `boolean` expression.
 # -----------------------------------------------------------------------------
-def build_bool_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
+def build_bool_expr(g: ^mut Generator, target: ^code.Handle,
+                    scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.BooleanExpr = (node^).unwrap() as ^ast.BooleanExpr;
@@ -1613,7 +1682,9 @@ def build_bool_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
 
 # Build an `integral` expression.
 # -----------------------------------------------------------------------------
-def build_int_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
+def build_int_expr(g: ^mut Generator, target: ^code.Handle,
+                   scope: ^mut code.Scope,
+                   node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.IntegerExpr = (node^).unwrap() as ^ast.IntegerExpr;
@@ -1636,7 +1707,8 @@ def build_int_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
 
 # Build a `float` expression.
 # -----------------------------------------------------------------------------
-def build_float_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
+def build_float_expr(g: ^mut Generator, target: ^code.Handle,
+                     scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.FloatExpr = (node^).unwrap() as ^ast.FloatExpr;
@@ -1654,23 +1726,15 @@ def build_float_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
 
 # Build an `ident` expression.
 # -----------------------------------------------------------------------------
-def build_ident_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
+def build_ident_expr(g: ^mut Generator, target: ^code.Handle,
+                     scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.Ident = (node^).unwrap() as ^ast.Ident;
 
     # Retrieve the item with scope resolution rules.
     let item: ^code.Handle = (g^)._get_scoped_item_in(
-        x.name.data() as str, g.ns);
-    if item == 0 as ^code.Handle {
-        errors.begin_error();
-        errors.fprintf(errors.stderr,
-                       "name '%s' is not defined" as ^int8,
-                       x.name.data());
-        errors.end();
-
-        return code.make_nil();
-    }
+        x.name.data() as str, scope, g.ns);
 
     # Return the item.
     item;
@@ -1678,14 +1742,15 @@ def build_ident_expr(g: ^mut Generator, target: ^code.Handle, node: ^ast.Node)
 
 # Build a `return`.
 # -----------------------------------------------------------------------------
-def build_ret(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_ret(g: ^mut Generator, _: ^code.Handle, scope: ^mut code.Scope,
+              node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the "ploymorphic" node to its proper type.
     let x: ^ast.ReturnExpr = (node^).unwrap() as ^ast.ReturnExpr;
 
     # Generate a handle for the expression (if we have one.)
     if not ast.isnull(x.expression) {
-        let expr: ^code.Handle = build(g, _, &x.expression);
+        let expr: ^code.Handle = build(g, _, scope, &x.expression);
         if code.isnil(expr) { return code.make_nil(); }
 
         # Coerce the expression to a value.
@@ -1710,7 +1775,8 @@ def build_ret(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build the operands for a binary expression.
 # -----------------------------------------------------------------------------
-def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_expr_b(g: ^mut Generator, _: ^code.Handle, scope: ^mut code.Scope,
+                 node: ^ast.Node)
         -> (^code.Handle, ^code.Handle) {
     let res: (^code.Handle, ^code.Handle) = (code.make_nil(), code.make_nil());
 
@@ -1718,12 +1784,12 @@ def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
     # Resolve each operand for its type.
-    let lhs_ty: ^code.Handle = resolve_targeted_type(g, _, &x.lhs);
-    let rhs_ty: ^code.Handle = resolve_targeted_type(g, _, &x.rhs);
+    let lhs_ty: ^code.Handle = resolve_st_type(g, _, scope, &x.lhs);
+    let rhs_ty: ^code.Handle = resolve_st_type(g, _, scope, &x.rhs);
 
     # Build each operand.
-    let lhs: ^code.Handle = build(g, lhs_ty, &x.lhs);
-    let rhs: ^code.Handle = build(g, rhs_ty, &x.rhs);
+    let lhs: ^code.Handle = build(g, lhs_ty, scope, &x.lhs);
+    let rhs: ^code.Handle = build(g, rhs_ty, scope, &x.rhs);
     if code.isnil(lhs) or code.isnil(rhs) { return res; }
 
     # Coerce the operands to values.
@@ -1738,15 +1804,16 @@ def build_expr_b(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build an `add` expression.
 # -----------------------------------------------------------------------------
-def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_add_expr(g: ^mut Generator, _: ^code.Handle,
+                   scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
     let lhs_val_han: ^code.Handle;
     let rhs_val_han: ^code.Handle;
-    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, scope, node);
 
     # Resolve our type.
-    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+    let type_: ^code.Handle = resolve_st_type(g, _, scope, node);
 
     # Cast each operand to the target type.
     let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
@@ -1782,15 +1849,16 @@ def build_add_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build an `sub` expression.
 # -----------------------------------------------------------------------------
-def build_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_sub_expr(g: ^mut Generator, _: ^code.Handle,
+                   scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
     let lhs_val_han: ^code.Handle;
     let rhs_val_han: ^code.Handle;
-    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, scope, node);
 
     # Resolve our type.
-    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+    let type_: ^code.Handle = resolve_st_type(g, _, scope, node);
 
     # Cast each operand to the target type.
     let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
@@ -1826,15 +1894,16 @@ def build_sub_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build an `mul` expression.
 # -----------------------------------------------------------------------------
-def build_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_mul_expr(g: ^mut Generator, _: ^code.Handle,
+                   scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
     let lhs_val_han: ^code.Handle;
     let rhs_val_han: ^code.Handle;
-    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, scope, node);
 
     # Resolve our type.
-    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+    let type_: ^code.Handle = resolve_st_type(g, _, scope, node);
 
     # Cast each operand to the target type.
     let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
@@ -1870,15 +1939,16 @@ def build_mul_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build an `int div` expression.
 # -----------------------------------------------------------------------------
-def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_int_div_expr(g: ^mut Generator, _: ^code.Handle,
+                       scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
     let lhs_val_han: ^code.Handle;
     let rhs_val_han: ^code.Handle;
-    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, scope, node);
 
     # Resolve our type.
-    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+    let type_: ^code.Handle = resolve_st_type(g, _, scope, node);
 
     # Cast each operand to the target type.
     let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
@@ -1921,15 +1991,16 @@ def build_int_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build an `div` expression.
 # -----------------------------------------------------------------------------
-def build_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_div_expr(g: ^mut Generator, _: ^code.Handle,
+                   scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
     let lhs_val_han: ^code.Handle;
     let rhs_val_han: ^code.Handle;
-    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, scope, node);
 
     # Resolve our type.
-    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+    let type_: ^code.Handle = resolve_st_type(g, _, scope, node);
 
     # Cast each operand to the target type.
     let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
@@ -1960,15 +2031,16 @@ def build_div_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build an `mod` expression.
 # -----------------------------------------------------------------------------
-def build_mod_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_mod_expr(g: ^mut Generator, _: ^code.Handle,
+                   scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Build each operand.
     let lhs_val_han: ^code.Handle;
     let rhs_val_han: ^code.Handle;
-    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, node);
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, scope, node);
 
     # Resolve our type.
-    let type_: ^code.Handle = resolve_targeted_type(g, _, node);
+    let type_: ^code.Handle = resolve_st_type(g, _, scope, node);
 
     # Cast each operand to the target type.
     let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
@@ -2010,7 +2082,8 @@ def build_mod_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build an `EQ` expression.
 # -----------------------------------------------------------------------------
-def build_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_eq_expr(g: ^mut Generator, _: ^code.Handle, scope: ^mut code.Scope,
+                  node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
@@ -2018,7 +2091,7 @@ def build_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     # Build each operand.
     let lhs_val_han: ^code.Handle;
     let rhs_val_han: ^code.Handle;
-    (lhs_val_han, rhs_val_han) = build_expr_b(g, code.make_nil(), node);
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, code.make_nil(), scope, node);
 
     # Resolve our type.
     let type_: ^code.Handle = _type_common(
@@ -2066,7 +2139,8 @@ def build_eq_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build a `NE` expression.
 # -----------------------------------------------------------------------------
-def build_ne_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_ne_expr(g: ^mut Generator, _: ^code.Handle,
+                  scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
@@ -2074,7 +2148,7 @@ def build_ne_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
     # Build each operand.
     let lhs_val_han: ^code.Handle;
     let rhs_val_han: ^code.Handle;
-    (lhs_val_han, rhs_val_han) = build_expr_b(g, code.make_nil(), node);
+    (lhs_val_han, rhs_val_han) = build_expr_b(g, code.make_nil(), scope, node);
 
     # Resolve our type.
     let type_: ^code.Handle = _type_common(
@@ -2121,17 +2195,18 @@ def build_ne_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build a `not` expression.
 # -----------------------------------------------------------------------------
-def build_logical_neg_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_logical_neg_expr(g: ^mut Generator, _: ^code.Handle,
+                           scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.UnaryExpr = (node^).unwrap() as ^ast.UnaryExpr;
 
     # Resolve each operand for its type.
-    let op_ty: ^code.Handle = resolve_targeted_type(
-        g, g.items.get_ptr("bool") as ^code.Handle, &x.operand);
+    let op_ty: ^code.Handle = resolve_st_type(
+        g, g.items.get_ptr("bool") as ^code.Handle, scope, &x.operand);
 
     # Build each operand.
-    let op: ^code.Handle = build(g, op_ty, &x.operand);
+    let op: ^code.Handle = build(g, op_ty, scope, &x.operand);
     if code.isnil(op) { return code.make_nil(); }
 
     # Coerce the operands to values.
@@ -2159,13 +2234,14 @@ def build_logical_neg_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build a `call` expression.
 # -----------------------------------------------------------------------------
-def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_call_expr(g: ^mut Generator, _: ^code.Handle,
+                    scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
 
     # Build the called expression.
-    let expr: ^code.Handle = build(g, _, &x.expression);
+    let expr: ^code.Handle = build(g, _, scope, &x.expression);
     if code.isnil(expr) { return code.make_nil(); }
 
     # Get the function handle.
@@ -2250,13 +2326,13 @@ def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         }
 
         # Resolve the type of the node.
-        let target: ^code.Handle = resolve_targeted_type(
+        let target: ^code.Handle = resolve_st_type(
             g, code.type_of(type_.parameters.at_ptr(pi) as ^code.Handle),
-            &a.expression);
+            scope, &a.expression);
         if code.isnil(target) { error = true; break; }
 
         # Build the node.
-        let han: ^code.Handle = build(g, target, &a.expression);
+        let han: ^code.Handle = build(g, target, scope, &a.expression);
         if code.isnil(han) { error = true; break; }
 
         # Coerce this to a value.
@@ -2326,7 +2402,8 @@ def build_call_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
 # Build a `member` expression.
 # -----------------------------------------------------------------------------
-def build_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
+def build_member_expr(g: ^mut Generator, _: ^code.Handle,
+                      scope: ^mut code.Scope, node: ^ast.Node)
         -> ^code.Handle {
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
@@ -2342,17 +2419,17 @@ def build_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
         ns.push_str(g.top_ns.data() as str);
 
         # Attempt to resolve the member.
-        item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, ns);
+        item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, scope, ns);
 
         # Dispose.
         ns.dispose();
     } else {
         # Resolve the operand for its type.
-        let lhs_ty: ^code.Handle = resolve_targeted_type(
-            g, code.make_nil(), &x.lhs);
+        let lhs_ty: ^code.Handle = resolve_st_type(
+            g, code.make_nil(), scope, &x.lhs);
 
         # Build each operand.
-        let lhs: ^code.Handle = build(g, lhs_ty, &x.lhs);
+        let lhs: ^code.Handle = build(g, lhs_ty, scope, &x.lhs);
         if code.isnil(lhs) { return code.make_nil(); }
 
         # Attempt to get an `item` out of the LHS.
@@ -2364,7 +2441,8 @@ def build_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
             ns.push_str(mod.name.data() as str);
 
             # Attempt to resolve the member.
-            item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, ns);
+            item = (g^)._get_scoped_item_in(
+                rhs_id.name.data() as str, scope, ns);
 
             # Dispose.
             ns.dispose();
@@ -2373,6 +2451,70 @@ def build_member_expr(g: ^mut Generator, _: ^code.Handle, node: ^ast.Node)
 
     # Return our item.
     item;
+}
+
+# Build a local slot declaration.
+# -----------------------------------------------------------------------------
+def build_local_slot(g: ^mut Generator, _: ^code.Handle,
+                     scope: ^mut code.Scope, node: ^ast.Node)
+        -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.LocalSlotDecl = (node^).unwrap() as ^ast.LocalSlotDecl;
+
+    # Get the name out of the node.
+    let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+
+    # Get and resolve the type node (if we have one).
+    let type_han: ^code.Handle = code.make_nil();
+    let type_: ^code.Type = 0 as ^code.Type;
+    if not ast.isnull(x.type_) {
+        type_han = resolve_type(g, &x.type_);
+        type_ = type_han._object as ^code.Type;
+    }
+
+    # Get and resolve the initializer (if we have one).
+    let init: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
+    if not ast.isnull(x.initializer) {
+        # Resolve the type of the initializer.
+        let typ: ^code.Handle;
+        typ = resolve_st_type(g, type_han, scope, &x.initializer);
+        if code.isnil(typ) { return code.make_nil(); }
+
+        # Check and set
+        if code.isnil(type_han) {
+            type_han = typ;
+            type_ = type_han._object as ^code.Type;
+        }
+
+        # Build the initializer
+        let han: ^code.Handle;
+        han = build(g, typ, scope, &x.initializer);
+        if code.isnil(han) { return code.make_nil(); }
+
+        # Coerce this to a value.
+        let val_han: ^code.Handle = (g^)._to_value(han, true);
+        let val: ^code.Value = val_han._object as ^code.Value;
+        init = val.handle;
+    }
+
+    # Build a stack allocation.
+    let val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMBuildAlloca(g.irb, type_.handle, id.name.data());
+
+    # Build the store.
+    if init <> 0 as ^llvm.LLVMOpaqueValue {
+        llvm.LLVMBuildStore(g.irb, val, init);
+    }
+
+    # Wrap.
+    let han: ^code.Handle;
+    han = code.make_local_slot(type_han, val);
+
+    # Insert into the current local scope block.
+    (scope^).insert(id.name.data() as str, han);
+
+    # Return.
+    han;
 }
 
 # Test driver using `stdin`.

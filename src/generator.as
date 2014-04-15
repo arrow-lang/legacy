@@ -2145,26 +2145,67 @@ def build_conditional_expr(g: ^mut Generator, _: ^code.Handle,
     let cond_val: ^code.Value = cond_val_han._object as ^code.Value;
     if code.isnil(cond_val_han) { return code.make_nil(); }
 
-    # Build each operand.
-    let lhs_val_han: ^code.Handle;
-    let rhs_val_han: ^code.Handle;
-    (lhs_val_han, rhs_val_han) = build_expr_b(g, _, scope, node);
+    # Resolve each operand for its type.
+    let lhs_ty: ^code.Handle = resolve_st_type(g, _, scope, &x.lhs);
+    let rhs_ty: ^code.Handle = resolve_st_type(g, _, scope, &x.rhs);
 
     # Resolve our type.
     let type_: ^code.Handle = resolve_st_type(g, _, scope, node);
+    let type_han: ^code.Type = type_._object as ^code.Type;
 
-    # Cast each operand to the target type.
+    # Get the current basic block and resolve our current function handle.
+    let cur_block: ^llvm.LLVMOpaqueBasicBlock;
+    cur_block = llvm.LLVMGetInsertBlock(g.irb);
+    let cur_fn: ^llvm.LLVMOpaqueValue;
+    cur_fn = llvm.LLVMGetBasicBlockParent(cur_block);
+
+    # Create the three neccessary basic blocks: then, else, merge.
+    let then_block: ^llvm.LLVMOpaqueBasicBlock;
+    let else_block: ^llvm.LLVMOpaqueBasicBlock;
+    let merge_block: ^llvm.LLVMOpaqueBasicBlock;
+    then_block = llvm.LLVMAppendBasicBlock(cur_fn, "" as ^int8);
+    else_block = llvm.LLVMAppendBasicBlock(cur_fn, "" as ^int8);
+    merge_block = llvm.LLVMAppendBasicBlock(cur_fn, "" as ^int8);
+
+    # Create the conditional branch.
+    llvm.LLVMBuildCondBr(g.irb, cond_val.handle, then_block, else_block);
+
+    # Switch to the `then` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, then_block);
+
+    # Build the `lhs` operand.
+    let lhs: ^code.Handle = build(g, lhs_ty, scope, &x.lhs);
+    if code.isnil(lhs) { return code.make_nil(); }
+    let lhs_val_han: ^code.Handle = (g^)._to_value(lhs, false);
+    if code.isnil(lhs_val_han) { return code.make_nil(); }
     let lhs_han: ^code.Handle = (g^)._cast(lhs_val_han, type_);
-    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
-
-    # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+
+    # Add an unconditional branch to the `merge` block.
+    llvm.LLVMBuildBr(g.irb, merge_block);
+
+    # Switch to the `else` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, else_block);
+
+    # Build the `rhs` operand.
+    let rhs: ^code.Handle = build(g, rhs_ty, scope, &x.rhs);
+    if code.isnil(rhs) { return code.make_nil(); }
+    let rhs_val_han: ^code.Handle = (g^)._to_value(rhs, false);
+    if code.isnil(rhs_val_han) { return code.make_nil(); }
+    let rhs_han: ^code.Handle = (g^)._cast(rhs_val_han, type_);
     let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
 
-    # Build the `select` instruction.
+    # Add an unconditional branch to the `merge` block.
+    llvm.LLVMBuildBr(g.irb, merge_block);
+
+    # Switch to the `merge` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, merge_block);
+
+    # Create a `PHI` node.
     let val: ^llvm.LLVMOpaqueValue;
-    val = llvm.LLVMBuildSelect(
-        g.irb, cond_val.handle, lhs_val.handle, rhs_val.handle, "" as ^int8);
+    val = llvm.LLVMBuildPhi(g.irb, type_han.handle, "" as ^int8);
+    llvm.LLVMAddIncoming(val, &lhs_val.handle, &then_block, 1);
+    llvm.LLVMAddIncoming(val, &rhs_val.handle, &then_block, 1);
 
     # Wrap and return the value.
     let han: ^code.Handle;

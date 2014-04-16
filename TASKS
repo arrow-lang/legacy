@@ -9,7 +9,6 @@
 # [ ] Augment assignment
 # [ ] Structures
 # [ ] Pointers
-# [ ] References
 # [ ] Selection expressions (`if`)
 # [ ] Iteration statements (`while`, `loop`)
 # [ ] Sized arrays
@@ -27,3 +26,6 @@
 #                       `use nil<T> = 0 as *T`
 # [ ] Improve error reporting to properly state "nothing" when referring
 #     the absence of value (eg. "no binary operation `/` can be applied to nothing and `int64`")
+# [ ] Add error diagnostic for missing return value
+# [ ] Hygenic macros; this requires moving to 2-pass parsing
+#     with the initial pass needed to extract the macros from the token stream

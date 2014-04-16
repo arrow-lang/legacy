@@ -33,3 +33,23 @@ macro for {
         }
     }
 }
+
+macro do {
+    expression => $0()
+    expression expression => $0($1)
+    expression expression { "," expression } => $0($1${, $2})
+}
+
+macro echo identifier => std.println("$0")
+
+macro until {
+    $@ expression block => {
+        while not $0 $1
+    }
+}
+
+echo hello
+# > println("hello")
+
+until condition { echo goodbye }
+# > while not condition { println("goodbye") }

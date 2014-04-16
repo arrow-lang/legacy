@@ -99,6 +99,7 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.type_resolvers[ast.TAG_MEMBER] = resolve_member_expr;
     self.type_resolvers[ast.TAG_GLOBAL] = resolve_global;
     self.type_resolvers[ast.TAG_CONDITIONAL] = resolve_conditional_expr;
+    self.type_resolvers[ast.TAG_SELECT] = resolve_select_expr;
 
     # Build the builder jump table.
     self.builders[ast.TAG_BOOLEAN] = build_bool_expr;
@@ -119,6 +120,7 @@ def generate(&mut self, name: str, &node: ast.Node) {
     self.builders[ast.TAG_LOGICAL_NEGATE] = build_logical_neg_expr;
     self.builders[ast.TAG_LOCAL_SLOT] = build_local_slot;
     self.builders[ast.TAG_CONDITIONAL] = build_conditional_expr;
+    self.builders[ast.TAG_SELECT] = build_select_expr;
 
     # Add basic type definitions.
     self._declare_basic_types();
@@ -1536,8 +1538,18 @@ def resolve_eq_expr(g: ^mut Generator, _: ^code.Handle,
 # Resolve a conditional expression.
 # -----------------------------------------------------------------------------
 def resolve_conditional_expr(g: ^mut Generator, _: ^code.Handle,
-                    scope: ^code.Scope, node: ^ast.Node)
+                             scope: ^code.Scope, node: ^ast.Node)
         -> ^code.Handle {
+    # Unwrap the node to its proper type.
+    let x: ^ast.ConditionalExpr = (node^).unwrap() as ^ast.ConditionalExpr;
+
+    # Attempt to resolve the type of the condition and ensure it is of
+    # the boolean type.
+    let cond_ty: ^code.Handle = resolve_st_type(
+        g, g.items.get_ptr("bool") as ^code.Handle, scope,
+        &x.condition);
+    if code.isnil(cond_ty) { return code.make_nil(); }
+
     # Resolve this as an arithmetic binary expression.
     resolve_arith_expr_b(g, code.make_nil(), scope, node);
 }
@@ -1676,6 +1688,88 @@ def resolve_member_expr(g: ^mut Generator, _: ^code.Handle,
 
     # Resolve the item for its type.
     _type_of(g, item);
+}
+
+# Resolve a `selection` expression.
+# -----------------------------------------------------------------------------
+def resolve_select_expr(g: ^mut Generator, _: ^code.Handle,
+                        scope: ^code.Scope, node: ^ast.Node) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.SelectExpr = (node^).unwrap() as ^ast.SelectExpr;
+
+    # Iterate through each branch in the select expression.
+    let mut type_han: ^code.Handle = code.make_nil();
+    let mut has_value: bool = true;
+    let mut i: int = 0;
+    let mut prev_br: ast.Node = ast.null();
+    while i as uint < x.branches.size() {
+        let brn: ast.Node = x.branches.get(i);
+        let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
+
+        if not ast.isnull(br.condition) {
+            # Attempt to resolve the type of the condition and ensure it is of
+            # the boolean type.
+            let cond_ty: ^code.Handle = resolve_st_type(
+                g, g.items.get_ptr("bool") as ^code.Handle, scope,
+                &br.condition);
+            if code.isnil(cond_ty) { return code.make_nil(); }
+        }
+
+        if has_value {
+            # Does this block have any nodes?
+            if br.nodes.size() == 0 {
+                # Nope; this expression no longer has values.
+                has_value = false;
+                break;
+            }
+
+            # Resolve the type of the final node in the block.
+            # Iterate through each node in the branch.
+            # Resolve this node.
+            let node: ast.Node = br.nodes.get(-1);
+            let han: ^code.Handle = resolve_scoped_type(g, scope, &node);
+            if code.isnil(han) {
+                # This block does not resolve to a value; this causes
+                # the entire select expression to not resolve to a
+                # value.
+                has_value = false;
+                break;
+            }
+
+            if code.isnil(type_han) {
+                # This is the first block; set the type_han directly.
+                type_han = han;
+            } else {
+                # Need to resolve the common type between this and
+                # the existing handle.
+                let com_han: ^code.Handle = _type_common(
+                    &prev_br, type_han, &brn, han);
+                if code.isnil(com_han) {
+                    # There was no common type found; silently treat
+                    # this as a statement now.
+                    has_value = false;
+                    break;
+                }
+
+                # Common type found; set as the new type han.
+                type_han = com_han;
+            }
+        }
+
+        # Move along to the next branch.
+        prev_br = brn;
+        i = i + 1;
+    }
+
+    if not has_value {
+        # Return the void type.
+        printf("no value here\n");
+        code.make_void_type(llvm.LLVMVoidType());
+    } else {
+        # Return the value type.
+        type_han;
+    }
 }
 
 # Builders
@@ -2664,6 +2758,8 @@ def build_local_slot(g: ^mut Generator, _: ^code.Handle,
             type_ = type_han._object as ^code.Type;
         }
 
+        let mut str_: string.String = code.typename(typ);
+
         # Build the initializer
         let han: ^code.Handle;
         han = build(g, typ, scope, &x.initializer);
@@ -2693,6 +2789,195 @@ def build_local_slot(g: ^mut Generator, _: ^code.Handle,
 
     # Return.
     han;
+}
+
+# Build a selection expression.
+# -----------------------------------------------------------------------------
+def build_select_expr(g: ^mut Generator, _: ^code.Handle,
+                     scope: ^mut code.Scope, node: ^ast.Node) -> ^code.Handle
+{
+    # FIXME: Refactor the build_select_branch code
+    # Unwrap the node to its proper type.
+    let x: ^ast.SelectExpr = (node^).unwrap() as ^ast.SelectExpr;
+
+    # Get the type target for each node.
+    let type_target: ^code.Handle = _;
+    if type_target._tag == code.TAG_VOID_TYPE {
+        type_target = code.make_nil();
+    }
+
+    # Get the current basic block and resolve our current function handle.
+    let cur_block: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMGetInsertBlock(g.irb);
+    let cur_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMGetBasicBlockParent(
+        cur_block);
+
+    # Create the merge block that each branch "merges" back to.
+    let merge_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+
+    # Iterate through each branch in the select expression until we
+    # reach a branch w/o a condition (`else`) or the end of the chain.
+    let mut i: int = 0;
+    let mut values: list.List = list.make(types.PTR);
+    let mut blocks: list.List = list.make(types.PTR);
+    let mut next_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+    while i as uint < x.branches.size() {
+        let brn: ast.Node = x.branches.get(i);
+        let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
+
+        # Is this the `else` block?
+        if ast.isnull(br.condition) {
+            # Yes; stop here.
+            break;
+        }
+
+        # Create a `then` block for the current branch.
+        let then_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+            cur_fn, "" as ^int8);
+
+        # Build the condition.
+        let cond_han: ^code.Handle;
+        cond_han = build(g, g.items.get_ptr("bool") as ^code.Handle,
+                         scope, &br.condition);
+        if code.isnil(cond_han) { return code.make_nil(); }
+        let cond_val_han: ^code.Handle = (g^)._to_value(cond_han, false);
+        let cond_val: ^code.Value = cond_val_han._object as ^code.Value;
+        if code.isnil(cond_val_han) { return code.make_nil(); }
+
+        # Insert the `conditional branch` for this branch.
+        llvm.LLVMBuildCondBr(g.irb, cond_val.handle, then_b, next_b);
+
+        # Switch to the `then` block.
+        llvm.LLVMPositionBuilderAtEnd(g.irb, then_b);
+
+        # Build each node in the branch.
+        let mut j: int = 0;
+        let mut res: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
+        while j as uint < br.nodes.size() {
+            # Resolve this node.
+            let node: ast.Node = br.nodes.get(j);
+
+            # Resolve the type of the node.
+            let cur_count: uint = errors.count;
+            let target: ^code.Handle = resolve_st_type(
+                g, type_target if (j as uint) + 1 >= br.nodes.size() else code.make_nil(),
+                scope, &node);
+            if cur_count < errors.count { continue; }
+
+            # Build the node.
+            # FIXME: This needs to take into account l/r value context.
+            let han: ^code.Handle = build(g, target, scope, &node);
+            let val_han: ^code.Handle = (g^)._to_value(han, false);
+            let val: ^code.Value = val_han._object as ^code.Value;
+
+            # If we were supposed to get a value ...
+            if _._tag <> code.TAG_VOID_TYPE {
+                # ... set the last handle as our value.
+                if j as uint + 1 >= br.nodes.size() {
+                    res = val.handle;
+                }
+            }
+
+            # Move along to the next node.
+            j = j + 1;
+        }
+
+        # Did we get a value?
+        if res <> code.make_nil() {
+            # Yes; push into our value list.
+            values.push_ptr(res as ^void);
+            blocks.push_ptr(then_b as ^void);
+        }
+
+        # Insert the `branch` to the "merge" block.
+        llvm.LLVMBuildBr(g.irb, merge_b);
+
+        # Switch to the "next" block.
+        llvm.LLVMPositionBuilderAtEnd(g.irb, next_b);
+
+        # Create a new "next" block for the next branch to use.
+        next_b = llvm.LLVMAppendBasicBlock(cur_fn, "" as ^int8);
+
+        # Move along to the next branch.
+        i = i + 1;
+    }
+
+    # Build the final (the `else`) branch if present.
+    if i as uint < x.branches.size() {
+        let brn: ast.Node = x.branches.get(i);
+        let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
+
+        # Build each node in the branch.
+        let mut j: int = 0;
+        let mut res: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
+        while j as uint < br.nodes.size() {
+            # Resolve this node.
+            let node: ast.Node = br.nodes.get(j);
+
+            # Resolve the type of the node.
+            let cur_count: uint = errors.count;
+            let target: ^code.Handle = resolve_st_type(
+                g, type_target if (j as uint) + 1 >= br.nodes.size() else code.make_nil(),
+                scope, &node);
+            if cur_count < errors.count { continue; }
+
+            # Build the node.
+            # FIXME: This needs to take into account l/r value context.
+            let han: ^code.Handle = build(g, target, scope, &node);
+            let val_han: ^code.Handle = (g^)._to_value(han, false);
+            let val: ^code.Value = val_han._object as ^code.Value;
+
+            # If we were supposed to get a value ...
+            if _._tag <> code.TAG_VOID_TYPE {
+                # ... set the last handle as our value.
+                if j as uint + 1 >= br.nodes.size() {
+                    res = val.handle;
+                }
+            }
+
+            # Move along to the next node.
+            j = j + 1;
+        }
+
+        # Did we get a value?
+        if res <> code.make_nil() {
+            # Yes; push into our value list.
+            values.push_ptr(res as ^void);
+            blocks.push_ptr(llvm.LLVMGetInsertBlock(g.irb) as ^void);
+        }
+    }
+
+    # Insert the `branch` to the "merge" block.
+    llvm.LLVMBuildBr(g.irb, merge_b);
+
+    # Switch to the `merge` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, merge_b);
+
+    if values.size > 0 {
+        # Insert the PHI node corresponding to the built values.
+        let type_han: ^code.Type = type_target._object as ^code.Type;
+        let val: ^llvm.LLVMOpaqueValue;
+        val = llvm.LLVMBuildPhi(g.irb, type_han.handle, "" as ^int8);
+        llvm.LLVMAddIncoming(
+            val,
+            values.elements as ^^llvm.LLVMOpaqueValue,
+            blocks.elements as ^^llvm.LLVMOpaqueBasicBlock,
+            values.size as uint32);
+
+        # Wrap and return the value.
+        let han: ^code.Handle;
+        han = code.make_value(type_target, val);
+
+        # Dispose.
+        values.dispose();
+
+        # Wrap and return the PHI.
+        han;
+    } else {
+        # Return nil.
+        code.make_nil();
+    }
 }
 
 # Test driver using `stdin`.

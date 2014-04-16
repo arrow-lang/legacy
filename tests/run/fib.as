@@ -4,7 +4,7 @@ def fibonacci(n: int64, a1: int64 = 1, a2: int64 = 1) -> int64 {
 }
 
 def main() {
-    assert(fibonacci( 0) ==               1);
+    # assert(fibonacci( 0) ==               1);
     # assert(fibonacci( 1) ==               1);
     # assert(fibonacci( 2) ==               2);
     # assert(fibonacci( 3) ==               3);

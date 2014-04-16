@@ -27,3 +27,5 @@
 # [ ] Improve error reporting to properly state "nothing" when referring
 #     the absence of value (eg. "no binary operation `/` can be applied to nothing and `int64`")
 # [ ] Add error diagnostic for missing return value
+# [ ] Hygenic macros; this requires moving to 2-pass parsing
+#     with the initial pass needed to extract the macros from the token stream

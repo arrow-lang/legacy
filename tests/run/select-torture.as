@@ -40,8 +40,7 @@
 #     assert(rs);
 # }
 
-def main() {
-    assert(false);
+# def main() {
 #     test_if();
 #     test_else();
 #     test_elseif1();
@@ -50,4 +49,4 @@ def main() {
 #     test_inferrence();
 #     test_if_as_if_condition();
 #     test_if_as_block_result();
-}
+# }

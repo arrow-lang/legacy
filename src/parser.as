@@ -265,6 +265,16 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
             if ast.isnull(expr.rhs) { return ast.null(); }
 
             lhs = node;
+        } else if tag == ast.TAG_SELECT_OP and cur_tok == tokens.TOK_LBRACE {
+            # If we matched an <expr> "if" <expr> "{" then we should really
+            # "close" the first <expr> and separate out the "if" <expr> "{"
+            # into a selection statement. However, because this is ambiguous
+            # we handle this form elsewhere and we just raise an error here.
+            errors.begin_error();
+            errors.fprintf(errors.stderr, "unexpected `{`" as ^int8);
+            errors.end();
+
+            return ast.null();
         } else if tag <> 0 {
             # Merge LHS/RHS into a binary expression node.
             let node: ast.Node = ast.make(tag);

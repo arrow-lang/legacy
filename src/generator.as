@@ -1764,7 +1764,6 @@ def resolve_select_expr(g: ^mut Generator, _: ^code.Handle,
 
     if not has_value {
         # Return the void type.
-        printf("no value here\n");
         code.make_void_type(llvm.LLVMVoidType());
     } else {
         # Return the value type.
@@ -2868,14 +2867,16 @@ def build_select_expr(g: ^mut Generator, _: ^code.Handle,
             # Build the node.
             # FIXME: This needs to take into account l/r value context.
             let han: ^code.Handle = build(g, target, scope, &node);
-            let val_han: ^code.Handle = (g^)._to_value(han, false);
-            let val: ^code.Value = val_han._object as ^code.Value;
+            if not code.isnil(han) {
+                let val_han: ^code.Handle = (g^)._to_value(han, false);
+                let val: ^code.Value = val_han._object as ^code.Value;
 
-            # If we were supposed to get a value ...
-            if _._tag <> code.TAG_VOID_TYPE {
-                # ... set the last handle as our value.
-                if j as uint + 1 >= br.nodes.size() {
-                    res = val.handle;
+                # If we were supposed to get a value ...
+                if _._tag <> code.TAG_VOID_TYPE {
+                    # ... set the last handle as our value.
+                    if j as uint + 1 >= br.nodes.size() {
+                        res = val.handle;
+                    }
                 }
             }
 
@@ -2887,7 +2888,7 @@ def build_select_expr(g: ^mut Generator, _: ^code.Handle,
         if res <> code.make_nil() {
             # Yes; push into our value list.
             values.push_ptr(res as ^void);
-            blocks.push_ptr(then_b as ^void);
+            blocks.push_ptr(llvm.LLVMGetInsertBlock(g.irb) as ^void);
         }
 
         # Insert the `branch` to the "merge" block.
@@ -2925,14 +2926,16 @@ def build_select_expr(g: ^mut Generator, _: ^code.Handle,
             # Build the node.
             # FIXME: This needs to take into account l/r value context.
             let han: ^code.Handle = build(g, target, scope, &node);
-            let val_han: ^code.Handle = (g^)._to_value(han, false);
-            let val: ^code.Value = val_han._object as ^code.Value;
+            if not code.isnil(han) {
+                let val_han: ^code.Handle = (g^)._to_value(han, false);
+                let val: ^code.Value = val_han._object as ^code.Value;
 
-            # If we were supposed to get a value ...
-            if _._tag <> code.TAG_VOID_TYPE {
-                # ... set the last handle as our value.
-                if j as uint + 1 >= br.nodes.size() {
-                    res = val.handle;
+                # If we were supposed to get a value ...
+                if _._tag <> code.TAG_VOID_TYPE {
+                    # ... set the last handle as our value.
+                    if j as uint + 1 >= br.nodes.size() {
+                        res = val.handle;
+                    }
                 }
             }
 

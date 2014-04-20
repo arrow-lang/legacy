@@ -101,34 +101,36 @@ def scan_identifier() -> int {
 
     # Check for and return keyword tokens instead of the identifier.
     # TODO: A hash-table would better serve this.
-    if current_buf.eq_str("def")      { return tokens.TOK_DEF; }
-    if current_buf.eq_str("let")      { return tokens.TOK_LET; }
-    if current_buf.eq_str("static")   { return tokens.TOK_STATIC; }
-    if current_buf.eq_str("mut")      { return tokens.TOK_MUT; }
-    if current_buf.eq_str("true")     { return tokens.TOK_TRUE; }
-    if current_buf.eq_str("false")    { return tokens.TOK_FALSE; }
-    if current_buf.eq_str("self")     { return tokens.TOK_SELF; }
-    if current_buf.eq_str("as")       { return tokens.TOK_AS; }
-    if current_buf.eq_str("and")      { return tokens.TOK_AND; }
-    if current_buf.eq_str("or")       { return tokens.TOK_OR; }
-    if current_buf.eq_str("not")      { return tokens.TOK_NOT; }
-    if current_buf.eq_str("if")       { return tokens.TOK_IF; }
-    if current_buf.eq_str("else")     { return tokens.TOK_ELSE; }
-    if current_buf.eq_str("for")      { return tokens.TOK_FOR; }
-    if current_buf.eq_str("while")    { return tokens.TOK_WHILE; }
-    if current_buf.eq_str("loop")     { return tokens.TOK_LOOP; }
-    if current_buf.eq_str("match")    { return tokens.TOK_MATCH; }
-    if current_buf.eq_str("break")    { return tokens.TOK_BREAK; }
-    if current_buf.eq_str("continue") { return tokens.TOK_CONTINUE; }
-    if current_buf.eq_str("return")   { return tokens.TOK_RETURN; }
-    if current_buf.eq_str("type")     { return tokens.TOK_TYPE; }
-    if current_buf.eq_str("enum")     { return tokens.TOK_ENUM; }
-    if current_buf.eq_str("module")   { return tokens.TOK_MODULE; }
-    if current_buf.eq_str("import")   { return tokens.TOK_IMPORT; }
-    if current_buf.eq_str("use")      { return tokens.TOK_USE; }
-    if current_buf.eq_str("foreign")  { return tokens.TOK_FOREIGN; }
-    if current_buf.eq_str("unsafe")   { return tokens.TOK_UNSAFE; }
-    if current_buf.eq_str("global")   { return tokens.TOK_GLOBAL; }
+    if current_buf.eq_str("def")       { return tokens.TOK_DEF; }
+    if current_buf.eq_str("let")       { return tokens.TOK_LET; }
+    if current_buf.eq_str("static")    { return tokens.TOK_STATIC; }
+    if current_buf.eq_str("mut")       { return tokens.TOK_MUT; }
+    if current_buf.eq_str("true")      { return tokens.TOK_TRUE; }
+    if current_buf.eq_str("false")     { return tokens.TOK_FALSE; }
+    if current_buf.eq_str("self")      { return tokens.TOK_SELF; }
+    if current_buf.eq_str("as")        { return tokens.TOK_AS; }
+    if current_buf.eq_str("and")       { return tokens.TOK_AND; }
+    if current_buf.eq_str("or")        { return tokens.TOK_OR; }
+    if current_buf.eq_str("not")       { return tokens.TOK_NOT; }
+    if current_buf.eq_str("if")        { return tokens.TOK_IF; }
+    if current_buf.eq_str("else")      { return tokens.TOK_ELSE; }
+    if current_buf.eq_str("for")       { return tokens.TOK_FOR; }
+    if current_buf.eq_str("while")     { return tokens.TOK_WHILE; }
+    if current_buf.eq_str("loop")      { return tokens.TOK_LOOP; }
+    if current_buf.eq_str("match")     { return tokens.TOK_MATCH; }
+    if current_buf.eq_str("break")     { return tokens.TOK_BREAK; }
+    if current_buf.eq_str("continue")  { return tokens.TOK_CONTINUE; }
+    if current_buf.eq_str("return")    { return tokens.TOK_RETURN; }
+    if current_buf.eq_str("type")      { return tokens.TOK_TYPE; }
+    if current_buf.eq_str("enum")      { return tokens.TOK_ENUM; }
+    if current_buf.eq_str("module")    { return tokens.TOK_MODULE; }
+    if current_buf.eq_str("import")    { return tokens.TOK_IMPORT; }
+    if current_buf.eq_str("use")       { return tokens.TOK_USE; }
+    if current_buf.eq_str("foreign")   { return tokens.TOK_FOREIGN; }
+    if current_buf.eq_str("unsafe")    { return tokens.TOK_UNSAFE; }
+    if current_buf.eq_str("global")    { return tokens.TOK_GLOBAL; }
+    if current_buf.eq_str("struct")    { return tokens.TOK_STRUCT; }
+    if current_buf.eq_str("implement") { return tokens.TOK_IMPL; }
 
     # Scanned identifier does not match any defined keyword.
     # Update the current_id.

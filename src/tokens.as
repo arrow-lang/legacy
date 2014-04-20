@@ -73,7 +73,7 @@ let TOK_CONTINUE: int = -1019;
 # "return" -- Immediate return from function
 let TOK_RETURN: int = -1020;
 
-# "type" -- Product type declaration
+# "type" -- Type keyword
 let TOK_TYPE: int = -1021;
 
 # "enum" -- Sum type declaration
@@ -96,6 +96,12 @@ let TOK_UNSAFE: int = -1027;
 
 # "global" -- Global scope resolution indicator
 let TOK_GLOBAL: int = -1028;
+
+# "struct" -- Product type declarator
+let TOK_STRUCT: int = -1029;
+
+# "implement" -- Implement
+let TOK_IMPL: int = -1030;
 
 # "->" -- Function return type declarator
 let TOK_RARROW: int = -2001;

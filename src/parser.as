@@ -42,26 +42,60 @@ def parse(&mut self, name: str) -> ast.Node {
 
     # Iterate and attempt to match items until the stream is empty.
     let mut tok: int = self.peek_token(1);
-    while tok <> tokens.TOK_END { parse_item(mod.nodes); }
+    while tok <> tokens.TOK_END {
+        # Try and parse a module node.
+        self.parse_module_node(mod.nodes);
+
+        # Peek the next token.
+        tok = self.peek_token(1);
+    }
 
     # Return our node.
     node;
 }
 
-# Item
+# Module node
 # -----------------------------------------------------------------------------
-# item = module | static-slot | import | function | block | expression
+# module-node = module | common-statement ;
 # -----------------------------------------------------------------------------
-def parse_item(&mut self, &mut nodes: ast.Nodes) -> bool {
+def parse_module_node(&mut self, &mut nodes: ast.Nodes) -> bool {
     # Peek ahead and see if we are a module `item`.
     let tok: int = self.peek_token(1);
     if tok == tokens.TOK_MODULE { return self.parse_module(nodes); }
-    if tok == tokens.TOK_IMPORT { return self.parse_import(nodes); }
+
+    if tok == tokens.TOK_SEMICOLON {
+        # Consume the semicolon and attempt to match the next item.
+        self.pop_token();
+        return self.parse_module_node(nodes);
+    }
+
+    # We could still be a common statement.
+    self.parse_common_statement(nodes);
+}
+
+# "Common" statement
+# -----------------------------------------------------------------------------
+# common-statement = local-slot | unsafe | match | while | loop | static-slot
+#                  | import | struct | enum | use | implement | function
+#                  | block-expr | expr ;
+# -----------------------------------------------------------------------------
+def parse_common_statement(&mut self, &mut nodes: ast.Nodes) -> bool {
+    # Peek ahead and see if we are a common statement.
+    let tok: int = self.peek_token(1);
+    if tok == tokens.TOK_LET    { return self.parse_local_slot(nodes); }
     if tok == tokens.TOK_UNSAFE { return self.parse_unsafe(nodes); }
+    if tok == tokens.TOK_MATCH  { return self.parse_match(nodes); }
+    if tok == tokens.TOK_LOOP   { return self.parse_loop(nodes); }
+    if tok == tokens.TOK_WHILE  { return self.parse_while(nodes); }
     if tok == tokens.TOK_STATIC { return self.parse_static_slot(nodes); }
+    if tok == tokens.TOK_IMPORT { return self.parse_import(nodes); }
+    if tok == tokens.TOK_STRUCT { return self.parse_struct(nodes); }
+    if tok == tokens.TOK_ENUM   { return self.parse_enum(nodes); }
+    if tok == tokens.TOK_USE    { return self.parse_use(nodes); }
+    if tok == tokens.TOK_IMPL   { return self.parse_impl(nodes); }
 
     if tok == tokens.TOK_DEF {
-        # Functions are only `items` if they are named.
+        # Functions are only declarations if they are named.
         if self.peek_token(2) == tokens.TOK_IDENTIFER {
             return self.parse_function(nodes);
         }
@@ -70,19 +104,31 @@ def parse_item(&mut self, &mut nodes: ast.Nodes) -> bool {
     if tok == tokens.TOK_LBRACE {
         # Block expression is treated as if it appeared in a
         # function (no `item` may appear inside).
-        return self.parse_block(nodes);
+        return self.parse_block_expr(nodes);
     }
 
-    if tok == tokens.TOK_SEMICOLON {
-        # Consume the semicolon and attempt to match the next item.
-        self.pop_token();
-        return self.parse_item(nodes);
-    }
-
-    # We have decided that we are "not" an `item` but we could be
-    # an expression; forward.
-    self.parse_expression(nodes);
+    # We could still be an expression; forward.
+    self.parse_expr(nodes);
 }
+
+# Expression
+# -----------------------------------------------------------------------------
+# expr = unary-expr | binop-rhs
+# -----------------------------------------------------------------------------
+def parse_expr(&mut self, &mut nodes: ast.Nodes) -> bool {
+    # Try and parse a unary expression.
+    let res: ast.Node = self.parse_unary_expr(nodes);
+    if ast.isnull(res) { return false; }
+
+    # Try and continue the unary expression as a binary expression.
+    self.parse_binop_rhs(nodes, 0, 0, res);
+}
+
+# Unary expression
+# -----------------------------------------------------------------------------
+# expr = unary-expr | binop-rhs
+# -----------------------------------------------------------------------------
+
 
 } # Parser
 

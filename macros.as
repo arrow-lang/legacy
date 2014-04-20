@@ -122,16 +122,24 @@ until true { 40; }
 # Transform an expression optionally followed by at least one expression
 # into the first expression being invoked by the latter
 # expressions, if present.
-macro do expression [ expression { , expression } ] => $0($[$1${, $2}]);
+macro do expression [ expression { "," expression } ] => $0($[$1${, $2}]);
 
 # 7) Introduce the class keyword
 # Figure it out...
 
 # 8) Introduce a new "swap" operator
-# Little iffy on the `as ".."` to introduce new tokens
-macro swap as "<->" expression $@ expression => ($0, $1) = ($1, $0);
+macro (<->) expression $ expression => ($0, $1) = ($1, $0);
 
 # 9) Introduce the spaceship operator
-macro spaceship as "<=>" expression $@ expression => {
+macro (<=>) expression $ expression => {
     0 if $0 == $1 else (1 if $0 < $1 else -1);
 }
+
+# 10) Introduce the C-style ternary operator
+macro (?) expression $ expression ":" expression => {
+    $1 if $0 else $2;
+}
+
+loop { } if some;
+
+println(x) for x in some_seq if x.is_alive;

@@ -133,7 +133,7 @@ def get_binop_tok_precedence() -> int {
     else if cur_tok == tokens.TOK_AND               { 060; }  # and
     else if cur_tok == tokens.TOK_OR                { 060; }  # or
     else if cur_tok == tokens.TOK_EQ_EQ             { 090; }  # ==
-    else if cur_tok == tokens.TOK_LCARET_RCARET     { 090; }  # <>
+    else if cur_tok == tokens.TOK_BANG_EQ     { 090; }  # <>
     else if cur_tok == tokens.TOK_LCARET            { 090; }  # <
     else if cur_tok == tokens.TOK_LCARET_EQ         { 090; }  # <=
     else if cur_tok == tokens.TOK_RCARET            { 090; }  # >
@@ -168,7 +168,7 @@ def get_binop_tok_associativity() -> int {
     else if cur_tok == tokens.TOK_AND               { ASSOC_LEFT; }   # and
     else if cur_tok == tokens.TOK_OR                { ASSOC_LEFT; }   # or
     else if cur_tok == tokens.TOK_EQ_EQ             { ASSOC_LEFT; }   # ==
-    else if cur_tok == tokens.TOK_LCARET_RCARET     { ASSOC_LEFT; }   # <>
+    else if cur_tok == tokens.TOK_BANG_EQ     { ASSOC_LEFT; }   # <>
     else if cur_tok == tokens.TOK_LCARET            { ASSOC_LEFT; }   # <
     else if cur_tok == tokens.TOK_LCARET_EQ         { ASSOC_LEFT; }   # <=
     else if cur_tok == tokens.TOK_RCARET            { ASSOC_LEFT; }   # >
@@ -231,7 +231,7 @@ def parse_binop_rhs(mut expr_prec: int, expr_assoc: int, mut lhs: ast.Node) -> a
             else if binop == tokens.TOK_AND               { ast.TAG_LOGICAL_AND; }
             else if binop == tokens.TOK_OR                { ast.TAG_LOGICAL_OR; }
             else if binop == tokens.TOK_EQ_EQ             { ast.TAG_EQ; }
-            else if binop == tokens.TOK_LCARET_RCARET     { ast.TAG_NE; }
+            else if binop == tokens.TOK_BANG_EQ     { ast.TAG_NE; }
             else if binop == tokens.TOK_LCARET            { ast.TAG_LT; }
             else if binop == tokens.TOK_LCARET_EQ         { ast.TAG_LE; }
             else if binop == tokens.TOK_RCARET            { ast.TAG_GT; }

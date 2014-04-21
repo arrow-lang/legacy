@@ -166,8 +166,8 @@ let TOK_RCARET_EQ: int = -2022;
 # "==" -- Equals followed by an Equals
 let TOK_EQ_EQ: int = -2023;
 
-# "<>" -- Left caret followed by a right caret
-let TOK_LCARET_RCARET: int = -2024;
+# "!=" -- Exclamation mark followed by an equals
+let TOK_BANG_EQ: int = -2024;
 
 # "=" -- Equal
 let TOK_EQ: int = -2025;
@@ -192,6 +192,12 @@ let TOK_FSLASH_FSLASH: int = -2031;
 
 # "//=" -- Forward slash followed by another forward slash followed by an equals
 let TOK_FSLASH_FSLASH_EQ: int = -2032;
+
+# "!" -- Bang operator
+let TOK_BANG: int = -2033;
+
+# "|" -- Pipe 
+let TOK_PIPE: int = -2034;
 
 # "identifier" -- Lexical identifier
 let TOK_IDENTIFIER: int = -3001;

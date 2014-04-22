@@ -411,6 +411,10 @@ def scan_punctuator() -> int {
     } else if lchar == string.ord(':') {
         bump();
         return tokens.TOK_COLON;
+    } else if lchar == string.ord('!') {
+        bump();
+        if lchar == string.ord("=") { bump(); return tokens.TOK_BANG_EQ; }
+        return tokens.TOK_BANG;
     }
 
     # Didn't match a punctuator token.

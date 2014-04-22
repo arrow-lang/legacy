@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import ws.test
+import ws.snapshot
 from os import path
 from subprocess import Popen, PIPE
 from glob import glob
@@ -25,11 +26,17 @@ def configure(ctx):
 
     # Ensure that we receive a path to an existing arrow compiler.
     if not ctx.options.arrow:
-        ctx.fatal("An existing arrow compiler is needed for the "
-                  "boostrap process; specify one with \"--with-arrow\"")
+        # Attempt to get a snapshot for this platform.
+        try:
+            ctx.env.ARROW = ws.snapshot.get_snapshot("0.0.0")
+
+        except ws.snapshot.SnapshotNotFound:
+            ctx.fatal("An existing arrow compiler is needed for the "
+                      "boostrap process; specify one with \"--with-arrow\"")
+    else:
+        ctx.env.ARROW = ctx.options.arrow
 
     # Report the compiler to be used.
-    ctx.env.ARROW = ctx.options.arrow
     ctx.msg("Checking for 'arrow' (Arrow compiler)", ctx.env.ARROW)
 
     # Check for the llvm compiler.

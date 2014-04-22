@@ -7,3 +7,4 @@
 *waf3*
 bin/
 dist/
+.cache/

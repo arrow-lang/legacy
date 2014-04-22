@@ -12,8 +12,13 @@ top = '.'
 out = 'build'
 
 def distclean(ctx):
-    # Wipe the `.cache` dir.
-    shutil.rmtree(path.join(top, ".cache"))
+    try:
+        # Wipe the `.cache` dir.
+        shutil.rmtree(path.join(top, ".cache"))
+
+    except FileNotFoundError:
+        # I think this is the point.
+        pass
 
     # Clean the rest of the files.
     waflib.Scripting.distclean(ctx)

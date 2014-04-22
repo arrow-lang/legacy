@@ -403,7 +403,7 @@ def scan_punctuator() -> int {
     } else if lchar == string.ord('<') {
         bump();
         if lchar == string.ord('=') { bump(); return tokens.TOK_LCARET_EQ; }
-        if lchar == string.ord('>') { bump(); return tokens.TOK_LCARET_RCARET; }
+        if lchar == string.ord('>') { bump(); return tokens.TOK_BANG_EQ; }
         return tokens.TOK_LCARET;
     } else if lchar == string.ord('>') {
         bump();
@@ -416,6 +416,10 @@ def scan_punctuator() -> int {
     } else if lchar == string.ord(':') {
         bump();
         return tokens.TOK_COLON;
+    } else if lchar == string.ord('!') {
+        bump();
+        if lchar == string.ord("=") { bump(); return tokens.TOK_BANG_EQ; }
+        return tokens.TOK_BANG;
     }
 
     # Didn't match a punctuator token.
@@ -544,7 +548,7 @@ def println_token(token: int) {
         printf("<punctuator> '>='\n");
     } else if token == tokens.TOK_EQ_EQ {
         printf("<punctuator> '=='\n");
-    } else if token == tokens.TOK_LCARET_RCARET {
+    } else if token == tokens.TOK_BANG_EQ {
         printf("<punctuator> '<>'\n");
     } else if token == tokens.TOK_EQ {
         printf("<punctuator> '='\n");

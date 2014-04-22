@@ -1,0 +1,21 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    TupleExpr <?>
+      Elements <?> 
+    TupleExpr <?>
+      Elements <?> 
+        IntegerExpr <?> 231 (10)
+    TupleExpr <?>
+      Elements <?> 
+        IntegerExpr <?> 231 (10)
+        FloatExpr <?> 21.21
+    TupleExpr <?>
+      Elements <?> 
+        IntegerExpr <?> 32 (10)
+        BooleanExpr <?> false
+    TupleExpr <?>
+      Elements <?> 
+        IntegerExpr <?> 32 (10)
+        IntegerExpr <?> 42 (10)
+        IntegerExpr <?> 42 (10)
+        FloatExpr <?> 3232e-1

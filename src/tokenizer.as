@@ -165,13 +165,16 @@ def scan_numeric() -> int {
     if lchar == string.ord('0') {
         # ... Peek ahead and check if we are a base-prefixed numeric.
         current_tok =
-            if nchar == string.ord('b') or nchar == string.ord('B') {
+            if (nchar == string.ord('b') or nchar == string.ord('B')) and
+                    in_range(nnchar, '0', '1') {
                 bump();
                 tokens.TOK_BIN_INTEGER;
-            } else if nchar == string.ord('x') or nchar == string.ord('X') {
+            } else if (nchar == string.ord('x') or nchar == string.ord('X'))
+                    and libc.isxdigit(nnchar as int32) <> 0 {
                 bump();
                 tokens.TOK_HEX_INTEGER;
-            } else if nchar == string.ord('o') or nchar == string.ord('O') {
+            } else if (nchar == string.ord('o') or nchar == string.ord('O'))
+                    and in_range(nnchar, '0', '7') {
                 bump();
                 tokens.TOK_OCT_INTEGER;
             } else {

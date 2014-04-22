@@ -213,3 +213,79 @@ let TOK_FLOAT: int = -4005;
 
 # "string" -- String literal
 let TOK_STRING: int = -4006;
+
+# Name of the token
+# ----------------------------------------------------------------------------
+def to_str(tok: int) -> str {
+    if      tok == TOK_END                  { "end"; }
+    else if tok == TOK_DEF                  { "`def`"; }
+    else if tok == TOK_LET                  { "`let`"; }
+    else if tok == TOK_STATIC               { "`static`"; }
+    else if tok == TOK_MUT                  { "`mut`"; }
+    else if tok == TOK_TRUE                 { "`true`"; }
+    else if tok == TOK_FALSE                { "`false`"; }
+    else if tok == TOK_SELF                 { "`self`"; }
+    else if tok == TOK_AS                   { "`as`"; }
+    else if tok == TOK_AND                  { "`and`"; }
+    else if tok == TOK_OR                   { "`or`"; }
+    else if tok == TOK_NOT                  { "`not`"; }
+    else if tok == TOK_IF                   { "`if`"; }
+    else if tok == TOK_ELSE                 { "`else`"; }
+    else if tok == TOK_WHILE                { "`while`"; }
+    else if tok == TOK_LOOP                 { "`loop`"; }
+    else if tok == TOK_FOR                  { "`for`"; }
+    else if tok == TOK_MATCH                { "`match`"; }
+    else if tok == TOK_BREAK                { "`break`"; }
+    else if tok == TOK_CONTINUE             { "`continue`"; }
+    else if tok == TOK_RETURN               { "`return`"; }
+    else if tok == TOK_TYPE                 { "`type`"; }
+    else if tok == TOK_ENUM                 { "`enum`"; }
+    else if tok == TOK_MODULE               { "`module`"; }
+    else if tok == TOK_IMPORT               { "`import`"; }
+    else if tok == TOK_USE                  { "`use`"; }
+    else if tok == TOK_FOREIGN              { "`foreign`"; }
+    else if tok == TOK_UNSAFE               { "`unsafe`"; }
+    else if tok == TOK_GLOBAL               { "`global`"; }
+    else if tok == TOK_STRUCT               { "`struct`"; }
+    else if tok == TOK_IMPL                 { "`implement`"; }
+    else if tok == TOK_RARROW               { "`->`"; }
+    else if tok == TOK_PLUS                 { "`+`"; }
+    else if tok == TOK_MINUS                { "`-`"; }
+    else if tok == TOK_STAR                 { "`*`"; }
+    else if tok == TOK_FSLASH               { "`/`"; }
+    else if tok == TOK_PERCENT              { "`%`"; }
+    else if tok == TOK_HAT                  { "`^`"; }
+    else if tok == TOK_AMPERSAND            { "`&`"; }
+    else if tok == TOK_LPAREN               { "`(`"; }
+    else if tok == TOK_RPAREN               { "`)`"; }
+    else if tok == TOK_LBRACKET             { "`[`"; }
+    else if tok == TOK_RBRACKET             { "`]`"; }
+    else if tok == TOK_LBRACE               { "`{`"; }
+    else if tok == TOK_RBRACE               { "`}`"; }
+    else if tok == TOK_SEMICOLON            { "`;`"; }
+    else if tok == TOK_COLON                { "`:`"; }
+    else if tok == TOK_COMMA                { "`,`"; }
+    else if tok == TOK_DOT                  { "`.`"; }
+    else if tok == TOK_LCARET               { "`<`"; }
+    else if tok == TOK_RCARET               { "`>`"; }
+    else if tok == TOK_LCARET_EQ            { "`<=`"; }
+    else if tok == TOK_RCARET_EQ            { "`>=`"; }
+    else if tok == TOK_EQ_EQ                { "`==`"; }
+    # else if tok == TOK_LCARET_RCARET        { "`<>`"; }
+    else if tok == TOK_EQ                   { "`=`"; }
+    else if tok == TOK_PLUS_EQ              { "`+=`"; }
+    else if tok == TOK_MINUS_EQ             { "`-=`"; }
+    else if tok == TOK_STAR_EQ              { "`*=`"; }
+    else if tok == TOK_FSLASH_EQ            { "`/=`"; }
+    else if tok == TOK_PERCENT_EQ           { "`%=`"; }
+    else if tok == TOK_FSLASH_FSLASH        { "`//`"; }
+    else if tok == TOK_FSLASH_FSLASH_EQ     { "`//=`"; }
+    else if tok == TOK_IDENTIFIER           { "`identifier`"; }
+    else if tok == TOK_DEC_INTEGER          { "`integer`"; }
+    else if tok == TOK_BIN_INTEGER          { "`integer`"; }
+    else if tok == TOK_OCT_INTEGER          { "`integer`"; }
+    else if tok == TOK_HEX_INTEGER          { "`integer`"; }
+    else if tok == TOK_FLOAT                { "`float`"; }
+    else if tok == TOK_STRING               { "`string`"; }
+    else                                    { "?"; }
+}

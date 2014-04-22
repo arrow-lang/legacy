@@ -56,6 +56,7 @@ let TAG_TYPE_EXPR       : int = 46;             # TypeExpr
 let TAG_INTEGER_DIVIDE  : int = 47;             # IntDivideExpr
 let TAG_ASSIGN_INT_DIV  : int = 48;             # AssignIntDivideExpr
 let TAG_GLOBAL          : int = 49;             # Global
+let TAG_ARRAY_EXPR      : int = 50;             # ArrayExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -125,6 +126,9 @@ type UnsafeBlock { mut nodes: Nodes }
 
 # Block.
 type Block { mut nodes: Nodes }
+
+# ArrayExpr.
+type ArrayExpr { mut nodes: Nodes }
 
 # Return expression.
 type ReturnExpr { expression: Node }
@@ -234,6 +238,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
     else if tag == TAG_UNSAFE  { let tmp: UnsafeBlock; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BLOCK   { let tmp: Block; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_ARRAY_EXPR { let tmp: ArrayExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODE    { let tmp: Node; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
@@ -358,6 +363,7 @@ def dump(&node: Node) {
         dump_table[TAG_CALL_ARG] = dump_call_arg;
         dump_table[TAG_TYPE_EXPR] = dump_type_expr;
         dump_table[TAG_GLOBAL] = dump_global;
+        dump_table[TAG_ARRAY_EXPR] = dump_array_expr;
         dump_initialized = true;
     }
 
@@ -541,6 +547,17 @@ def dump_block_expr(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     dump_nodes("Nodes", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_array_expr
+# -----------------------------------------------------------------------------
+def dump_array_expr(node: ^Node) {
+    let x: ^ArrayExpr = unwrap(node^) as ^ArrayExpr;
+    printf("ArrayExpr <?>\n");
+
+    dump_indent = dump_indent + 1;
+    dump_nodes("Elements", x.nodes);
     dump_indent = dump_indent - 1;
 }
 

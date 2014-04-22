@@ -93,6 +93,43 @@ implement String {
         libc.strcmp(self.data(), other as ^int8) == 0;
     }
 
+    # Slice and return the substring between the given indices.
+    # -------------------------------------------------------------------------
+    def slice(&self, begin: int, end: int) -> String {
+        # Ensure the indices are positive.
+        let mut _beg: uint;
+        if begin < 0 { _beg = self.size - ((-begin) as uint); }
+        else         { _beg = begin as uint; }
+
+        let mut _end: uint;
+        if end < 0   { _end = self.size - ((-end) as uint); }
+        else         { _end = end as uint; }
+
+        # TODO: Assert that `begin` is before `end`.
+
+        # Get length of slice.
+        let n: uint = _end - _beg + 1;
+
+        # TODO: Assert that this string has enough.
+
+        # Create a big enough string.
+        let mut res: String = make();
+        res._data.reserve(n);
+        res._data.size = n;
+
+        # Get a pointer to the beginning.
+        let &src_data: list.List = self._data;
+        let &dst_data: list.List = res._data;
+        let src: ^int8 = (src_data.elements as ^int8) + _beg;
+        let dst: ^int8 = dst_data.elements;
+
+        # Copy the data in there.
+        libc.strncpy(dst, src, n);
+
+        # Return our string.
+        res;
+    }
+
 }
 
 # Get the ordinal value of an ASCII character.
@@ -119,24 +156,15 @@ def join(separator: char, list: list.List) -> String {
 
 def main() {
 
-    let mut m: list.List = list.make(types.STR);
+    let mut s: String = make();
+    s.extend("Hello World");
 
-    # Push two strings.
-    m.push_str("Hello");
-    m.push_str("World");
-    m.push_str("Pushing");
-    m.push_str("in");
-    m.push_str("some");
-    m.push_str("strings");
+    let mut sm: String = s.slice(0, 2);
 
-    let mut s: String = join(".", m);
-    let mut s2: String = s.clone();
+    printf("%s\n", sm.data());
 
-    printf("%s\n", s.data());
-    printf("%s\n", s2.data());
-
-    m.dispose();
-    s2.dispose();
     s.dispose();
+    sm.dispose();
+
 
 }

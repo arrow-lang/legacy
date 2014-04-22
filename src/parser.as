@@ -425,8 +425,62 @@ def parse_paren_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     # Consume the `(` token.
     self.pop_token();
 
+    # Check for an immediate `)` token that would close an empty tuple.
+    if self.peek_token(1) == tokens.TOK_RPAREN
+    {
+        # Consume the `)` token.
+        self.pop_token();
+
+        # Allocate and create the node for the tuple.
+        # Return the node immediately.
+        return ast.make(ast.TAG_TUPLE_EXPR);
+    }
+
     # Parse an expression node.
-    let node: ast.Node = self.parse_expr(nodes);
+    let mut node: ast.Node = self.parse_expr(nodes);
+
+    # Check for a comma that would begin a tuple.
+    if self.peek_token(1) == tokens.TOK_COMMA
+    {
+        # Consume the `,` token.
+        self.pop_token();
+
+        # Allocate and create the node for the tuple.
+        let tup_node: ast.Node = ast.make(ast.TAG_TUPLE_EXPR);
+        let expr: ^ast.TupleExpr = tup_node.unwrap() as ^ast.TupleExpr;
+
+        # Push the initial node.
+        expr.nodes.push(node);
+
+        # Switch our node.
+        node = tup_node;
+
+        # Enumerate until we reach the `)` token.
+        while self.peek_token(1) <> tokens.TOK_RPAREN {
+            # Parse an expression node.
+            if not self.parse_expr_to(expr.nodes) { return ast.null(); }
+
+            # Peek and consume the `,` token if present.
+            let tok: int = self.peek_token(1);
+            if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
+            else if tok <> tokens.TOK_RPAREN {
+                # Expected a comma and didn't receive one.. consume tokens
+                # until we reach a `)`.
+                self.consume_until(tokens.TOK_RPAREN);
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "expected %s or %s but found %s" as ^int8,
+                               tokens.to_str(tokens.TOK_COMMA),
+                               tokens.to_str(tokens.TOK_RPAREN),
+                               tokens.to_str(tok));
+                errors.end();
+                return ast.null();
+            }
+
+            # Done here; too bad.
+            break;
+        }
+    }
 
     # Expect a `)` token.
     self.expect(tokens.TOK_RPAREN);

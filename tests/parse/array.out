@@ -4,6 +4,9 @@ ModuleDecl <?> _
       Elements <?> 
     ArrayExpr <?>
       Elements <?> 
+        FloatExpr <?> 4.123
+    ArrayExpr <?>
+      Elements <?> 
         IntegerExpr <?> 1 (10)
         IntegerExpr <?> 2 (10)
         IntegerExpr <?> 3 (10)

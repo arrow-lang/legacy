@@ -2,12 +2,21 @@
 import sys
 import ws.test
 import ws.snapshot
+import waflib.Scripting
 from os import path
+import shutil
 from subprocess import Popen, PIPE
 from glob import glob
 
 top = '.'
 out = 'build'
+
+def distclean(ctx):
+    # Wipe the `.cache` dir.
+    shutil.rmtree(path.join(top, ".cache"))
+
+    # Clean the rest of the files.
+    waflib.Scripting.distclean(ctx)
 
 def options(ctx):
     # Add an option to specify an existing arrow compiler for the boostrap
@@ -94,26 +103,26 @@ def build(ctx):
         source="parser.o",
         target="parser")
 
-    # Compile the generator to the llvm IL.
-    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
-        source="src/generator.as",
-        target="generator.ll")
+    # # Compile the generator to the llvm IL.
+    # ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
+    #     source="src/generator.as",
+    #     target="generator.ll")
 
-    # Optimize the generator.
-    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
-        source="generator.ll",
-        target="generator.opt.ll")
+    # # Optimize the generator.
+    # ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
+    #     source="generator.ll",
+    #     target="generator.opt.ll")
 
-    # Compile the generator from llvm IL into native object code.
-    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
-        source="generator.opt.ll",
-        target="generator.o")
+    # # Compile the generator from llvm IL into native object code.
+    # ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
+    #     source="generator.opt.ll",
+    #     target="generator.o")
 
-    # Link the generator into a final executable.
-    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
-    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
-        source="generator.o",
-        target="generator")
+    # # Link the generator into a final executable.
+    # libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
+    # ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
+    #     source="generator.o",
+    #     target="generator")
 
 def test(ctx):
     print(ws.test._sep("test session starts", "="))

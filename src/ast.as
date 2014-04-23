@@ -58,6 +58,8 @@ let TAG_ASSIGN_INT_DIV  : int = 48;             # AssignIntDivideExpr
 let TAG_GLOBAL          : int = 49;             # Global
 let TAG_ARRAY_EXPR      : int = 50;             # ArrayExpr
 let TAG_TUPLE_EXPR      : int = 51;             # TupleExpr
+let TAG_RECORD_EXPR     : int = 52;             # RecordExpr
+let TAG_RECORD_EXPR_MEM : int = 53;             # RecordExprMem
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -130,6 +132,12 @@ type Block { mut nodes: Nodes }
 
 # ArrayExpr.
 type ArrayExpr { mut nodes: Nodes }
+
+# RecordExpr.
+type RecordExpr { mut nodes: Nodes }
+
+# RecordExprMem
+type RecordExprMem { id: Node, expression: Node }
 
 # TupleExpr.
 type TupleExpr { mut nodes: Nodes }
@@ -279,6 +287,12 @@ def _sizeof(tag: int) -> uint {
     } else if tag == TAG_GLOBAL {
         let tmp: Empty;
         ((&tmp + 1) - &tmp);
+    } else if tag == TAG_RECORD_EXPR {
+        let tmp: RecordExpr;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_RECORD_EXPR_MEM {
+        let tmp: RecordExprMem;
+        ((&tmp + 1) - &tmp);
     }
     else { 0; }
 }
@@ -370,6 +384,8 @@ def dump(&node: Node) {
         dump_table[TAG_GLOBAL] = dump_global;
         dump_table[TAG_ARRAY_EXPR] = dump_array_expr;
         dump_table[TAG_TUPLE_EXPR] = dump_tuple_expr;
+        dump_table[TAG_RECORD_EXPR] = dump_record_expr;
+        dump_table[TAG_RECORD_EXPR_MEM] = dump_record_expr_mem;
         dump_initialized = true;
     }
 
@@ -564,6 +580,30 @@ def dump_array_expr(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     dump_nodes("Elements", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_record_expr
+# -----------------------------------------------------------------------------
+def dump_record_expr(node: ^Node) {
+    let x: ^RecordExpr = unwrap(node^) as ^RecordExpr;
+    printf("RecordExpr <?>\n");
+
+    dump_indent = dump_indent + 1;
+    dump_nodes("Members", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_record_expr_mem
+# -----------------------------------------------------------------------------
+def dump_record_expr_mem(node: ^Node) {
+    let x: ^RecordExprMem = unwrap(node^) as ^RecordExprMem;
+    printf("RecordExprMem <?> ");
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    printf("%s\n", id.name.data());
+
+    dump_indent = dump_indent + 1;
+    dump(x.expression);
     dump_indent = dump_indent - 1;
 }
 

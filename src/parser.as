@@ -44,7 +44,7 @@ def peek_token(&mut self, count: uint) -> int {
     }
 
     # Return the requested token.
-    self.tokens.at_int(-((count - 1) as int));
+    self.tokens.at_int((count as int) - (self.tokens.size as int) - 1);
 }
 
 # Pop a token off the buffer.
@@ -54,7 +54,7 @@ def pop_token(&mut self) -> int {
     let tok: int = self.peek_token(1);
 
     # Erase the top token.
-    self.tokens.erase(-1);
+    self.tokens.erase(0);
 
     # Return the erased token.
     tok;
@@ -163,16 +163,23 @@ def parse_common_statement(&mut self, &mut nodes: ast.Nodes) -> bool {
 
     # if tok == tokens.TOK_DEF {
     #     # Functions are only declarations if they are named.
-    #     if self.peek_token(2) == tokens.TOK_IDENTIFER {
+    #     if self.peek_token(2) == tokens.TOK_IDENTIFIER {
     #         return self.parse_function(nodes);
     #     }
     # }
 
-    # if tok == tokens.TOK_LBRACE {
-    #     # Block expression is treated as if it appeared in a
-    #     # function (no `item` may appear inside).
-    #     return self.parse_block_expr(nodes);
-    # }
+    if tok == tokens.TOK_LBRACE {
+        if not (    self.peek_token(2) == tokens.TOK_IDENTIFIER
+                and self.peek_token(3) == tokens.TOK_COLON)
+        {
+            # Block expression is treated as if it appeared in a
+            # function (no `item` may appear inside).
+            let node: ast.Node = self.parse_block_expr(nodes);
+            if ast.isnull(node) { return false; }
+            nodes.push(node);
+            return true;
+        }
+    }
 
     # We could still be an expression; forward.
     if self.parse_expr_to(nodes) { self.expect(tokens.TOK_SEMICOLON); }
@@ -316,10 +323,23 @@ def parse_primary_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     # {
     #     self.parse_select_expr(nodes);
     # }
-    # else if tok == tokens.TOK_LBRACE
-    # {
-    #     self.parse_brace_expr(nodes);
-    # }
+    else if tok == tokens.TOK_LBRACE
+    {
+        # A block expression (not in a postfix position) can be a `block`
+        # or a `record` expression.
+        if      self.peek_token(2) == tokens.TOK_IDENTIFIER
+            and self.peek_token(3) == tokens.TOK_COLON
+        {
+            # A record expression /always/ starts like `{` `identifier` `:`
+            # There cannot be an "empty" record expression.
+            self.parse_record_expr(nodes);
+        }
+        else
+        {
+            # This is some kind of block.
+            self.parse_block_expr(nodes);
+        }
+    }
     else
     {
         # Consume erroneous token.
@@ -527,10 +547,119 @@ def parse_array_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     }
 
     # Expect a `]` token.
-    self.expect(tokens.TOK_RBRACKET);
+    if not self.expect(tokens.TOK_RBRACKET) { return ast.null(); }
 
     # Return our node.
     node;
+}
+
+# Record expression
+# -----------------------------------------------------------------------------
+def parse_record_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+{
+    # Allocate and create the node.
+    let node: ast.Node = ast.make(ast.TAG_RECORD_EXPR);
+    let expr: ^ast.RecordExpr = node.unwrap() as ^ast.RecordExpr;
+
+    # Consume the `{` token.
+    self.pop_token();
+
+    # Enumerate until we reach the `}` token.
+    while self.peek_token(1) <> tokens.TOK_RBRACE {
+        # Allocate and create a member node.
+        let member_node: ast.Node = ast.make(ast.TAG_RECORD_EXPR_MEM);
+        let member: ^ast.RecordExprMem =
+            member_node.unwrap() as ^ast.RecordExprMem;
+
+        if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+            # Report the error.
+            self.expect(tokens.TOK_IDENTIFIER);
+            self.consume_until(tokens.TOK_RBRACE);
+            return ast.null();
+        }
+
+        # Parse the identifier.
+        member.id = self.parse_ident_expr(nodes);
+
+        # Expect a `:` token.
+        if not self.expect(tokens.TOK_COLON) {
+            self.consume_until(tokens.TOK_RBRACE);
+            return ast.null();
+        }
+
+        # Parse an expression node.
+        member.expression = self.parse_expr(expr.nodes);
+        if ast.isnull(member.expression) {
+            self.consume_until(tokens.TOK_RBRACE);
+            return ast.null();
+        }
+
+        # Push the node.
+        expr.nodes.push(member_node);
+
+        # Peek and consume the `,` token if present.
+        let tok: int = self.peek_token(1);
+        if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
+        else if tok <> tokens.TOK_RBRACE {
+            # Expected a comma and didn't receive one.. consume tokens until
+            # we reach a `}`.
+            self.consume_until(tokens.TOK_RBRACE);
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "expected %s or %s but found %s" as ^int8,
+                           tokens.to_str(tokens.TOK_COMMA),
+                           tokens.to_str(tokens.TOK_RBRACE),
+                           tokens.to_str(tok));
+            errors.end();
+            return ast.null();
+        }
+
+        # Done here; too bad.
+        break;
+    }
+
+    # Expect a `}` token.
+    if not self.expect(tokens.TOK_RBRACE) { return ast.null(); }
+
+    # Return our node.
+    node;
+}
+
+# Block expression
+# -----------------------------------------------------------------------------
+def parse_block_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+{
+    # Allocate and create the node.
+    let node: ast.Node = ast.make(ast.TAG_BLOCK);
+    let expr: ^ast.Block = node.unwrap() as ^ast.Block;
+
+    # Parse the block.
+    if not self.parse_block(expr.nodes) { return ast.null(); }
+
+    # Return the constructed node.
+    node;
+}
+
+# Block
+# -----------------------------------------------------------------------------
+def parse_block(&mut self, &mut nodes: ast.Nodes) -> bool {
+    # Expect and consume the `{` token.
+    if not self.expect(tokens.TOK_LBRACE) { return false; }
+
+    # Iterate and attempt to match statements.
+    let mut tok: int = self.peek_token(1);
+    while       tok <> tokens.TOK_END
+            and tok <> tokens.TOK_RBRACE {
+        # Try and parse a node.
+        self.parse_common_statement(nodes);
+
+        # Peek the next token.
+        tok = self.peek_token(1);
+    }
+
+    # Expect and consume the `}` token.
+    if not self.expect(tokens.TOK_RBRACE) { false; }
+    else { true; }
 }
 
 # Global expression

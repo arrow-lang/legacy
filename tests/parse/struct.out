@@ -1,0 +1,18 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    RecordExpr <?>
+      Members <?> 
+        RecordExprMem <?> x
+          IntegerExpr <?> 10 (10)
+    RecordExpr <?>
+      Members <?> 
+        RecordExprMem <?> y
+          IntegerExpr <?> 20 (10)
+    RecordExpr <?>
+      Members <?> 
+        RecordExprMem <?> a
+          IntegerExpr <?> 20 (10)
+        RecordExprMem <?> b
+          BooleanExpr <?> false
+        RecordExprMem <?> c
+          FloatExpr <?> 3.123

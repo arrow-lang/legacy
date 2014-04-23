@@ -1,3 +1,12 @@
+
+# TONIGHT
+# [ ] Convert parser to be generative
+# [ ] Postfix expressions
+# [ ] Binary expressions
+# [ ] Unary expressions
+# [ ] Lots of parse tests for those
+# [ ] Selection expressions / statements
+
 # [ ] Fix adjacent selection statements
 if cond { }
 if cond { }

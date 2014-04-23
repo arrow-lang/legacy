@@ -60,6 +60,7 @@ let TAG_ARRAY_EXPR      : int = 50;             # ArrayExpr
 let TAG_TUPLE_EXPR      : int = 51;             # TupleExpr
 let TAG_RECORD_EXPR     : int = 52;             # RecordExpr
 let TAG_RECORD_EXPR_MEM : int = 53;             # RecordExprMem
+let TAG_SEQ_EXPR        : int = 54;             # SequenceExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -70,6 +71,7 @@ type Node { tag: int, data: ^void }
 
 implement Node {
     def unwrap(&self) -> ^void { self.data; }
+    def _set_tag(&mut self, tag: int) { self.tag = tag; }
 }
 
 # Generic collection of AST "nodes" that can store a
@@ -134,7 +136,10 @@ type Block { mut nodes: Nodes }
 type ArrayExpr { mut nodes: Nodes }
 
 # RecordExpr.
-type RecordExpr { mut nodes: Nodes }
+type RecordExpr { mut nodes: Nodes, id: Node }
+
+# SequenceExpr
+type SequenceExpr { mut nodes: Nodes, id: Node }
 
 # RecordExprMem
 type RecordExprMem { id: Node, expression: Node }
@@ -251,6 +256,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_UNSAFE  { let tmp: UnsafeBlock; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BLOCK   { let tmp: Block; ((&tmp + 1) - &tmp); }
     else if tag == TAG_ARRAY_EXPR { let tmp: ArrayExpr; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_SEQ_EXPR  { let tmp: SequenceExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_TUPLE_EXPR { let tmp: TupleExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODE    { let tmp: Node; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
@@ -383,6 +389,7 @@ def dump(&node: Node) {
         dump_table[TAG_TYPE_EXPR] = dump_type_expr;
         dump_table[TAG_GLOBAL] = dump_global;
         dump_table[TAG_ARRAY_EXPR] = dump_array_expr;
+        dump_table[TAG_SEQ_EXPR] = dump_seq_expr;
         dump_table[TAG_TUPLE_EXPR] = dump_tuple_expr;
         dump_table[TAG_RECORD_EXPR] = dump_record_expr;
         dump_table[TAG_RECORD_EXPR_MEM] = dump_record_expr_mem;
@@ -569,6 +576,17 @@ def dump_block_expr(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     dump_nodes("Nodes", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_seq_expr
+# -----------------------------------------------------------------------------
+def dump_seq_expr(node: ^Node) {
+    let x: ^SequenceExpr = unwrap(node^) as ^SequenceExpr;
+    printf("SequenceExpr <?>\n");
+
+    dump_indent = dump_indent + 1;
+    dump_nodes("Members", x.nodes);
     dump_indent = dump_indent - 1;
 }
 

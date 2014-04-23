@@ -1,0 +1,17 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    Block <?>
+      Nodes <?> 
+        Ident <?> x
+    Block <?>
+      Nodes <?> 
+        NumericPromoteExpr <?>
+          IntegerExpr <?> 30 (10)
+    Block <?>
+      Nodes <?> 
+    Block <?>
+      Nodes <?> 
+        NumericPromoteExpr <?>
+          Block <?>
+            Nodes <?> 
+              IntegerExpr <?> 30 (10)

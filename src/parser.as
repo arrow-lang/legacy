@@ -629,37 +629,122 @@ def parse_record_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
 # -----------------------------------------------------------------------------
 def parse_block_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
 {
-    # Allocate and create the node.
-    let node: ast.Node = ast.make(ast.TAG_BLOCK);
-    let expr: ^ast.Block = node.unwrap() as ^ast.Block;
+    # Parse a brace expression.
+    let mut node: ast.Node = self.parse_brace_expr(nodes);
 
-    # Parse the block.
-    if not self.parse_block(expr.nodes) { return ast.null(); }
+    # If we are a sequence expr ...
+    if node.tag == ast.TAG_SEQ_EXPR
+    {
+        # ... and we have <= 1 members
+        let expr: ^ast.SequenceExpr = node.unwrap() as ^ast.SequenceExpr;
+        if expr.nodes.size() <= 1
+        {
+            # Transpose us as a block.
+            node._set_tag(ast.TAG_BLOCK);
+        }
+        else
+        {
+            # Die; sequence expressions except in a postfix situation
+            # are illegal.
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "expected `block` but found `sequence` (a sequence expression must be prefixed by a nominal type)" as ^int8);
+            errors.end();
+            return ast.null();
+        }
+    }
 
-    # Return the constructed node.
+    # Return our node.
     node;
 }
 
-# Block
+# Brace expression
 # -----------------------------------------------------------------------------
-def parse_block(&mut self, &mut nodes: ast.Nodes) -> bool {
+def parse_brace_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+{
+    # Allocate and create the node.
+    # Note that we assume we are a sequence until proven otherwise.
+    let mut node: ast.Node = ast.make(ast.TAG_SEQ_EXPR);
+    let expr: ^ast.SequenceExpr = node.unwrap() as ^ast.SequenceExpr;
+
     # Expect and consume the `{` token.
-    if not self.expect(tokens.TOK_LBRACE) { return false; }
+    if not self.expect(tokens.TOK_LBRACE) { return ast.null(); }
 
     # Iterate and attempt to match statements.
-    let mut tok: int = self.peek_token(1);
-    while       tok <> tokens.TOK_END
-            and tok <> tokens.TOK_RBRACE {
-        # Try and parse a node.
-        self.parse_common_statement(nodes);
+    while self.peek_token(1) <> tokens.TOK_RBRACE {
+        # If we are still a sequence ...
+        # ... and If we could possibly be an expression ...
+        if  node.tag == ast.TAG_SEQ_EXPR
+                and self._possible_expr(self.peek_token(1))
+        {
+            # Parse the expression node directly.
+            let expr_node: ast.Node = self.parse_expr(nodes);
+            if ast.isnull(expr_node) {
+                self.consume_until(tokens.TOK_RBRACE);
+                return ast.null();
+            }
 
-        # Peek the next token.
-        tok = self.peek_token(1);
+            # Push the expression node.
+            expr.nodes.push(expr_node);
+
+            # Peek and consume the `,` token if present.
+            let tok: int = self.peek_token(1);
+            if tok == tokens.TOK_COMMA
+            {
+                # We are definitely a sequence; no questsions, continue.
+                self.pop_token();
+                continue;
+            }
+            if tok <> tokens.TOK_RBRACE
+            {
+                if expr.nodes.elements.size > 1
+                {
+                    # We know we are sequence; this is an error.
+                    self.consume_until(tokens.TOK_RBRACE);
+                    errors.begin_error();
+                    errors.fprintf(errors.stderr,
+                                   "expected %s or %s but found %s" as ^int8,
+                                   tokens.to_str(tokens.TOK_COMMA),
+                                   tokens.to_str(tokens.TOK_RBRACE),
+                                   tokens.to_str(tok));
+                    errors.end();
+                    return ast.null();
+                }
+
+                # No `,` and no `}` -- we are some kind of block, expect
+                # an `;`.
+                if self.expect(tokens.TOK_SEMICOLON)
+                {
+                    # All good; continue onwards as a block.
+                    node._set_tag(ast.TAG_BLOCK);
+                    continue;
+                }
+
+                # Bad news; no idea what we are.
+                self.consume_until(tokens.TOK_RBRACE);
+                return ast.null();
+            }
+
+            # We are a one-element sequence.
+            break;
+        }
+
+        # Try and parse a node.
+        if not self.parse_common_statement(nodes) {
+            # Bad news.
+            self.consume_until(tokens.TOK_RBRACE);
+            return ast.null();
+        }
     }
 
     # Expect and consume the `}` token.
-    if not self.expect(tokens.TOK_RBRACE) { false; }
-    else { true; }
+    if not self.expect(tokens.TOK_RBRACE) {
+        self.consume_until(tokens.TOK_RBRACE);
+        return ast.null();
+    }
+
+    # Return the constructed node.
+    node;
 }
 
 # Global expression
@@ -676,7 +761,39 @@ def parse_global_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     node;
 }
 
+# Check if a token could possibly begin an expression.
+# -----------------------------------------------------------------------------
+def _possible_expr(&mut self, tok: int) -> bool {
+    let tok: int = self.peek_token(1);
+    if tok == tokens.TOK_LET    { false; }
+    if tok == tokens.TOK_UNSAFE { false; }
+    if tok == tokens.TOK_MATCH  { false; }
+    if tok == tokens.TOK_LOOP   { false; }
+    if tok == tokens.TOK_WHILE  { false; }
+    if tok == tokens.TOK_STATIC { false; }
+    if tok == tokens.TOK_IMPORT { false; }
+    if tok == tokens.TOK_STRUCT { false; }
+    if tok == tokens.TOK_ENUM   { false; }
+    if tok == tokens.TOK_USE    { false; }
+    if tok == tokens.TOK_IMPL   { false; }
+
+    if tok == tokens.TOK_DEF {
+        if self.peek_token(2) == tokens.TOK_IDENTIFIER { false; }
+    }
+
+    if tok == tokens.TOK_LBRACE {
+        if not (    self.peek_token(2) == tokens.TOK_IDENTIFIER
+                and self.peek_token(3) == tokens.TOK_COLON)
+        {
+            true;
+        }
+    }
+
+    true;
+}
+
 } # Parser
+
 
 # Test driver using `stdin`.
 # =============================================================================

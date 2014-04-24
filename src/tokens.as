@@ -202,7 +202,7 @@ let TOK_FSLASH_FSLASH_EQ: int = -2032;
 # "!" -- Bang operator
 let TOK_BANG: int = -2033;
 
-# "|" -- Pipe 
+# "|" -- Pipe
 let TOK_PIPE: int = -2034;
 
 # "identifier" -- Lexical identifier

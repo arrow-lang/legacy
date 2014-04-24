@@ -371,6 +371,7 @@ def scan_punctuator() -> int {
     else if lchar == string.ord('.') { bump(); return tokens.TOK_DOT; }
     else if lchar == string.ord('^') { bump(); return tokens.TOK_HAT; }
     else if lchar == string.ord('&') { bump(); return tokens.TOK_AMPERSAND; }
+    else if lchar == string.ord('|') { bump(); return tokens.TOK_PIPE; }
 
     # Next take a peek at the next character and disambiguate the following
     # punctuators.

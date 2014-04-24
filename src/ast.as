@@ -65,6 +65,10 @@ let TAG_STRUCT          : int = 55;             # Struct
 let TAG_STRUCT_MEM      : int = 56;             # StructMem
 let TAG_STRUCT_SMEM     : int = 57;             # StructSMem
 let TAG_POSTFIX_EXPR    : int = 58;             # PostfixExpr
+let TAG_BITAND          : int = 59;             # BitAndExpr
+let TAG_BITOR           : int = 60;             # BitOrExpr
+let TAG_BITXOR          : int = 61;             # BitXorExpr
+let TAG_BITNEG          : int = 62;             # BitNegExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -265,6 +269,9 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_LE
            or tag == TAG_GT
            or tag == TAG_GE
+           or tag == TAG_BITOR
+           or tag == TAG_BITXOR
+           or tag == TAG_BITAND
            or tag == TAG_ASSIGN
            or tag == TAG_ASSIGN_ADD
            or tag == TAG_ASSIGN_SUB
@@ -281,6 +288,7 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_PROMOTE
            or tag == TAG_NUMERIC_NEGATE
+           or tag == TAG_BITNEG
            or tag == TAG_LOGICAL_NEGATE {
         let tmp: UnaryExpr;
         ((&tmp + 1) - &tmp);
@@ -397,6 +405,7 @@ def dump(&node: Node) {
         dump_table[TAG_MODULO] = dump_binop_expr;
         dump_table[TAG_MODULE] = dump_module;
         dump_table[TAG_PROMOTE] = dump_unary_expr;
+        dump_table[TAG_BITNEG] = dump_unary_expr;
         dump_table[TAG_NUMERIC_NEGATE] = dump_unary_expr;
         dump_table[TAG_LOGICAL_NEGATE] = dump_unary_expr;
         dump_table[TAG_LOGICAL_AND] = dump_binop_expr;
@@ -407,6 +416,9 @@ def dump(&node: Node) {
         dump_table[TAG_LE] = dump_binop_expr;
         dump_table[TAG_GT] = dump_binop_expr;
         dump_table[TAG_GE] = dump_binop_expr;
+        dump_table[TAG_BITOR] = dump_binop_expr;
+        dump_table[TAG_BITAND] = dump_binop_expr;
+        dump_table[TAG_BITXOR] = dump_binop_expr;
         dump_table[TAG_ASSIGN] = dump_binop_expr;
         dump_table[TAG_ASSIGN_ADD] = dump_binop_expr;
         dump_table[TAG_ASSIGN_SUB] = dump_binop_expr;
@@ -532,6 +544,12 @@ def dump_binop_expr(node: ^Node) {
         printf("SelectOpExpr <?>\n");
     } else if node.tag == TAG_MEMBER {
         printf("MemberExpr <?>\n");
+    } else if node.tag == TAG_BITOR {
+        printf("BitOrExpr <?>\n");
+    } else if node.tag == TAG_BITXOR {
+        printf("BitXorExpr <?>\n");
+    } else if node.tag == TAG_BITAND {
+        printf("BitAndExpr <?>\n");
     }
     dump_indent = dump_indent + 1;
     dump(x.lhs);
@@ -586,6 +604,8 @@ def dump_unary_expr(node: ^Node) {
         printf("NumericNegateExpr <?>\n");
     } else if node.tag == TAG_LOGICAL_NEGATE {
         printf("LogicalNegateExpr <?>\n");
+    } else if node.tag == TAG_BITNEG {
+        printf("BitNegExpr <?>\n");
     }
     dump_indent = dump_indent + 1;
     dump(x.operand);

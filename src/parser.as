@@ -6,6 +6,11 @@ import types;
 import tokenizer;
 import tokens;
 
+# Associative "enum"
+# -----------------------------------------------------------------------------
+let ASSOC_RIGHT: int = 1;
+let ASSOC_LEFT: int = 2;
+
 # Parser
 # =============================================================================
 type Parser {
@@ -22,10 +27,10 @@ type Parser {
     # HACK: A block is currently being expected to be
     #   resolved from a brace expression (used by control flow
     #   statements).
-    mut _expect_block: bool
+    mut _expect_block: list.List
 }
 
-implement Parser {
+    implement Parser {
 
 # Dispose of internal resources used during parsing.
 # -----------------------------------------------------------------------------
@@ -35,6 +40,9 @@ def dispose(&mut self) {
 
     # Dispose of the node stack.
     self.stack.dispose();
+
+    # HACK: Dispose of process variables.
+    self._expect_block.dispose();
 }
 
 # Push N tokens onto the buffer.
@@ -114,7 +122,7 @@ def parse(&mut self, name: str) -> ast.Node {
     self.stack = ast.make_nodes();
 
     # HACK: Initialize process variables.
-    self._expect_block = false;
+    self._expect_block = list.make(types.I8);
 
     # Declare the top-level module decl node.
     let node: ast.Node = ast.make(ast.TAG_MODULE);
@@ -316,11 +324,11 @@ def parse_struct(&mut self) -> bool {
             errors.end();
             return false;
 
-        # Done here; too bad.
-    }
+            # Done here; too bad.
+        }
 
-    # THIS SHOULD NEVER HAPPEN
-    break;
+        # THIS SHOULD NEVER HAPPEN
+        break;
 
     }
 
@@ -340,8 +348,69 @@ def parse_expr(&mut self) -> bool {
     if not self.parse_unary_expr() { return false; }
 
     # Try and continue the unary expression as a binary expression.
-    # self.parse_binop_rhs(0, 0);
-    true;
+    self.parse_binop_rhs(0, 0);
+}
+
+# Binary expression
+# -----------------------------------------------------------------------------
+# binary-expr = unary-expr binary-op unary-expr ;
+# binary-op  = "+"  | "-"  | "*"  | "/"  | "%"  | "and" | "or" | "==" | "!="
+#            | ">"  | "<"  | "<=" | ">=" | "="  | ":="  | "+=" | "-=" | "*="
+#            | "/=" | "%=" | "if" | "."  | "//" | "//="
+# -----------------------------------------------------------------------------
+def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int) -> bool {
+    loop {
+        # Get the token precedence (if it is a binary operator token).
+        let tok: int = self.peek_token(1);
+        let tok_prec: int = self.get_binop_tok_precedence(tok);
+        let tok_assoc: int = self.get_binop_tok_associativity(tok);
+
+        # If the proceeding token is not a binary operator token
+        # or the token binds less tightly and is left-associative,
+        # get out of the precedence parser.
+        if tok_prec == -1 { return true; }
+        if tok_prec < expr_prec and expr_assoc == ASSOC_LEFT { return true; }
+
+        # We know this is a binary operator.
+        # Pop the LHS from the stack.
+        let lhs: ast.Node = self.stack.pop();
+        self.pop_token();
+
+        # Parse the RHS of this expression.
+        if not self.parse_unary_expr() { return false; }
+
+        # If the binary operator binds less tightly with RHS than the
+        # operator after RHS, let the pending operator take RHS as its LHS.
+        let nprec: int = self.get_binop_tok_precedence(self.peek_token(1));
+        if tok_prec < nprec or (tok_assoc == ASSOC_RIGHT and tok_prec == nprec)
+        {
+            if not self.parse_binop_rhs(tok_prec + 1, tok_assoc)
+            {
+                return false;
+            }
+        }
+
+        # Pop the RHS from the stack.
+        let rhs: ast.Node = self.stack.pop();
+
+        # We have a complete binary expression.
+        # Determine the AST tag.
+        let tag: int = self.get_binop_tok_tag(tok);
+        if tag <> 0
+        {
+            # Merge LHS/RHS into a binary expression node.
+            let node: ast.Node = ast.make(tag);
+            let expr: ^ast.BinaryExpr = ast.unwrap(node) as ^ast.BinaryExpr;
+            expr.lhs = lhs;
+            expr.rhs = rhs;
+
+            # Push our node on the stack.
+            self.stack.push(node);
+        }
+    }
+
+    # Should never reach here normally.
+    false;
 }
 
 # Unary expression
@@ -356,7 +425,7 @@ def parse_unary_expr(&mut self) -> bool {
     if tok <> tokens.TOK_PLUS
         and tok <> tokens.TOK_MINUS
         and tok <> tokens.TOK_NOT
-        # and tok <> tokens.TOK_BANG
+        and tok <> tokens.TOK_BANG
     {
         return self.parse_postfix_expr();
     }
@@ -374,7 +443,7 @@ def parse_unary_expr(&mut self) -> bool {
         if      tok == tokens.TOK_PLUS  { ast.TAG_PROMOTE; }
         else if tok == tokens.TOK_MINUS { ast.TAG_NUMERIC_NEGATE; }
         else if tok == tokens.TOK_NOT   { ast.TAG_LOGICAL_NEGATE; }
-        # else if tok == tokens.TOK_BANG  { ast.TAG_NEGATE; }
+        else if tok == tokens.TOK_BANG  { ast.TAG_BITNEG; }
         else { 0; };  # Shouldn't happen.
 
     # Allocate and create the node.
@@ -468,7 +537,7 @@ def parse_postfix_brace_expr(&mut self) -> bool
         # `{` directly following then do so.
         let seq: ^ast.SequenceExpr = expr_node.unwrap() as ^ast.SequenceExpr;
         let is_block: bool = false;
-        if self._expect_block and seq.nodes.size() <= 1 {
+        if self._expect_block.size > 0 and seq.nodes.size() <= 1 {
             if self.peek_token(1) <> tokens.TOK_LBRACE {
                 # Ignore the sequence and pretend its a block.
                 is_block = true;
@@ -1087,7 +1156,7 @@ def parse_select_branch(&mut self, condition: bool) -> ast.Node
     let mut branch: ^ast.SelectBranch = ast.unwrap(node) as ^ast.SelectBranch;
 
     # HACK: Expect a block unless otherwise.
-    self._expect_block = true;
+    self._expect_block.push_i8(1);
 
     if condition {
         # Expect and parse the condition expression.
@@ -1125,7 +1194,7 @@ def parse_select_branch(&mut self, condition: bool) -> ast.Node
     }
 
     # HACK: Stop expecting.
-    self._expect_block = false;
+    self._expect_block.erase(-1);
 
     # Parse the block.
     if not self.parse_block_expr() { return ast.null(); }
@@ -1164,6 +1233,108 @@ def _possible_expr(&mut self, tok: int) -> bool {
     }
 
     true;
+}
+
+# Get the binary operator token precedence.
+# -----------------------------------------------------------------------------
+def get_binop_tok_precedence(&self, tok: int) -> int {
+         if tok == tokens.TOK_IF                { 015; }  # if
+    else if tok == tokens.TOK_EQ                { 030; }  # =
+    else if tok == tokens.TOK_PLUS_EQ           { 030; }  # +=
+    else if tok == tokens.TOK_MINUS_EQ          { 030; }  # -=
+    else if tok == tokens.TOK_STAR_EQ           { 030; }  # *=
+    else if tok == tokens.TOK_FSLASH_EQ         { 030; }  # /=
+    else if tok == tokens.TOK_FSLASH_FSLASH_EQ  { 030; }  # //=
+    else if tok == tokens.TOK_PERCENT_EQ        { 030; }  # %=
+    else if tok == tokens.TOK_AMPERSAND         { 045; }  # &
+    else if tok == tokens.TOK_PIPE              { 045; }  # |
+    else if tok == tokens.TOK_HAT               { 045; }  # ^
+    else if tok == tokens.TOK_AND               { 060; }  # and
+    else if tok == tokens.TOK_OR                { 060; }  # or
+    else if tok == tokens.TOK_EQ_EQ             { 090; }  # ==
+    else if tok == tokens.TOK_BANG_EQ           { 090; }  # !=
+    else if tok == tokens.TOK_LCARET            { 090; }  # <
+    else if tok == tokens.TOK_LCARET_EQ         { 090; }  # <=
+    else if tok == tokens.TOK_RCARET            { 090; }  # >
+    else if tok == tokens.TOK_RCARET_EQ         { 090; }  # >=
+    else if tok == tokens.TOK_PLUS              { 120; }  # +
+    else if tok == tokens.TOK_MINUS             { 120; }  # -
+    else if tok == tokens.TOK_STAR              { 150; }  # *
+    else if tok == tokens.TOK_FSLASH            { 150; }  # /
+    else if tok == tokens.TOK_FSLASH_FSLASH     { 150; }  # //
+    else if tok == tokens.TOK_PERCENT           { 150; }  # %
+    else if tok == tokens.TOK_DOT               { 190; }  # .
+    else {
+        # Not a binary operator.
+        -1;
+    }
+}
+
+# Get the binary operator token associativity.
+# -----------------------------------------------------------------------------
+def get_binop_tok_associativity(&self, tok: int) -> int {
+         if tok == tokens.TOK_DOT               { ASSOC_LEFT; }   # .
+    else if tok == tokens.TOK_IF                { ASSOC_LEFT; }   # if
+    else if tok == tokens.TOK_EQ                { ASSOC_RIGHT; }  # =
+    else if tok == tokens.TOK_PLUS_EQ           { ASSOC_RIGHT; }  # +=
+    else if tok == tokens.TOK_MINUS_EQ          { ASSOC_RIGHT; }  # -=
+    else if tok == tokens.TOK_STAR_EQ           { ASSOC_RIGHT; }  # *=
+    else if tok == tokens.TOK_FSLASH_EQ         { ASSOC_RIGHT; }  # /=
+    else if tok == tokens.TOK_FSLASH_FSLASH_EQ  { ASSOC_RIGHT; }  # //=
+    else if tok == tokens.TOK_PERCENT_EQ        { ASSOC_RIGHT; }  # %=
+    else if tok == tokens.TOK_AMPERSAND         { ASSOC_LEFT; }   # &
+    else if tok == tokens.TOK_PIPE              { ASSOC_LEFT; }   # |
+    else if tok == tokens.TOK_HAT               { ASSOC_LEFT; }   # ^
+    else if tok == tokens.TOK_AND               { ASSOC_LEFT; }   # and
+    else if tok == tokens.TOK_OR                { ASSOC_LEFT; }   # or
+    else if tok == tokens.TOK_EQ_EQ             { ASSOC_LEFT; }   # ==
+    else if tok == tokens.TOK_BANG_EQ           { ASSOC_LEFT; }   # !=
+    else if tok == tokens.TOK_LCARET            { ASSOC_LEFT; }   # <
+    else if tok == tokens.TOK_LCARET_EQ         { ASSOC_LEFT; }   # <=
+    else if tok == tokens.TOK_RCARET            { ASSOC_LEFT; }   # >
+    else if tok == tokens.TOK_RCARET_EQ         { ASSOC_LEFT; }   # >=
+    else if tok == tokens.TOK_PLUS              { ASSOC_LEFT; }   # +
+    else if tok == tokens.TOK_MINUS             { ASSOC_LEFT; }   # -
+    else if tok == tokens.TOK_STAR              { ASSOC_LEFT; }   # *
+    else if tok == tokens.TOK_FSLASH            { ASSOC_LEFT; }   # /
+    else if tok == tokens.TOK_FSLASH_FSLASH     { ASSOC_LEFT; }   # //
+    else if tok == tokens.TOK_PERCENT           { ASSOC_LEFT; }   # %
+    else {
+        # Not a binary operator.
+        -1;
+    }
+}
+
+# Get the binary operator token tag (in the AST).
+# -----------------------------------------------------------------------------
+def get_binop_tok_tag(&self, tok: int) -> int
+{
+    if      tok == tokens.TOK_PLUS              { ast.TAG_ADD; }
+    else if tok == tokens.TOK_MINUS             { ast.TAG_SUBTRACT; }
+    else if tok == tokens.TOK_STAR              { ast.TAG_MULTIPLY; }
+    else if tok == tokens.TOK_FSLASH            { ast.TAG_DIVIDE; }
+    else if tok == tokens.TOK_FSLASH_FSLASH     { ast.TAG_INTEGER_DIVIDE; }
+    else if tok == tokens.TOK_PERCENT           { ast.TAG_MODULO; }
+    else if tok == tokens.TOK_AND               { ast.TAG_LOGICAL_AND; }
+    else if tok == tokens.TOK_OR                { ast.TAG_LOGICAL_OR; }
+    else if tok == tokens.TOK_EQ_EQ             { ast.TAG_EQ; }
+    else if tok == tokens.TOK_BANG_EQ           { ast.TAG_NE; }
+    else if tok == tokens.TOK_LCARET            { ast.TAG_LT; }
+    else if tok == tokens.TOK_LCARET_EQ         { ast.TAG_LE; }
+    else if tok == tokens.TOK_RCARET            { ast.TAG_GT; }
+    else if tok == tokens.TOK_RCARET_EQ         { ast.TAG_GE; }
+    else if tok == tokens.TOK_AMPERSAND         { ast.TAG_BITAND; }
+    else if tok == tokens.TOK_PIPE              { ast.TAG_BITOR; }
+    else if tok == tokens.TOK_HAT               { ast.TAG_BITXOR; }
+    else if tok == tokens.TOK_EQ                { ast.TAG_ASSIGN; }
+    else if tok == tokens.TOK_PLUS_EQ           { ast.TAG_ASSIGN_ADD; }
+    else if tok == tokens.TOK_MINUS_EQ          { ast.TAG_ASSIGN_SUB; }
+    else if tok == tokens.TOK_STAR_EQ           { ast.TAG_ASSIGN_MULT; }
+    else if tok == tokens.TOK_FSLASH_EQ         { ast.TAG_ASSIGN_DIV; }
+    else if tok == tokens.TOK_FSLASH_FSLASH_EQ  { ast.TAG_ASSIGN_INT_DIV; }
+    else if tok == tokens.TOK_PERCENT_EQ        { ast.TAG_ASSIGN_MOD; }
+    else if tok == tokens.TOK_IF                { ast.TAG_SELECT_OP; }
+    else { 0; }
 }
 
 } # Parser

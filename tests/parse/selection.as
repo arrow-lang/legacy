@@ -65,3 +65,7 @@ if point { 10 } { 10; }
 
 # if <expression> <block>
 if point { 10; }
+
+# if <if> <block>
+if if false { true; } else { false; } { 20; }
+if if false { true; } else { false; } { }

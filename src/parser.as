@@ -434,7 +434,7 @@ def parse_postfix_brace_expr(&mut self) -> bool
             if self.peek_token(1) <> tokens.TOK_LBRACE {
                 # Ignore the sequence and pretend its a block.
                 is_block = true;
-                self._expect_block = false;
+                # self._expect_block = false;
             }
         }
 
@@ -1053,7 +1053,9 @@ def parse_select_branch(&mut self, condition: bool) -> ast.Node
 
     if condition {
         # Expect and parse the condition expression.
-        if not self.parse_expr() { return ast.null(); }
+        if not self.parse_expr() {
+            return ast.null();
+        }
         branch.condition = self.stack.pop();
     }
 

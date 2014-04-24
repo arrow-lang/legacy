@@ -64,6 +64,7 @@ let TAG_SEQ_EXPR        : int = 54;             # SequenceExpr
 let TAG_STRUCT          : int = 55;             # Struct
 let TAG_STRUCT_MEM      : int = 56;             # StructMem
 let TAG_STRUCT_SMEM     : int = 57;             # StructSMem
+let TAG_POSTFIX_EXPR    : int = 58;             # PostfixExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -155,11 +156,14 @@ type Block { mut nodes: Nodes }
 # ArrayExpr.
 type ArrayExpr { mut nodes: Nodes }
 
+# PostfixExpr
+type PostfixExpr { operand: Node, expression: Node }
+
 # RecordExpr.
-type RecordExpr { mut nodes: Nodes, id: Node }
+type RecordExpr { mut nodes: Nodes }
 
 # SequenceExpr
-type SequenceExpr { mut nodes: Nodes, id: Node }
+type SequenceExpr { mut nodes: Nodes }
 
 # RecordExprMem
 type RecordExprMem { id: Node, expression: Node }
@@ -337,6 +341,9 @@ def _sizeof(tag: int) -> uint {
     } else if tag == TAG_STRUCT_SMEM {
         let tmp: StructStaticMem;
         ((&tmp + 1) - &tmp);
+    } else if tag == TAG_POSTFIX_EXPR {
+        let tmp: PostfixExpr;
+        ((&tmp + 1) - &tmp);
     }
     else { 0; }
 }
@@ -434,6 +441,7 @@ def dump(&node: Node) {
         dump_table[TAG_STRUCT] = dump_struct;
         dump_table[TAG_STRUCT_MEM] = dump_struct_mem;
         dump_table[TAG_STRUCT_SMEM] = dump_struct_smem;
+        dump_table[TAG_POSTFIX_EXPR] = dump_postfix_expr;
         dump_initialized = true;
     }
 
@@ -662,6 +670,18 @@ def dump_record_expr_mem(node: ^Node) {
     printf("%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
+    dump(x.expression);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_postfix_expr
+# -----------------------------------------------------------------------------
+def dump_postfix_expr(node: ^Node) {
+    let x: ^PostfixExpr = unwrap(node^) as ^PostfixExpr;
+    printf("PostfixExpr <?>\n");
+
+    dump_indent = dump_indent + 1;
+    dump(x.operand);
     dump(x.expression);
     dump_indent = dump_indent - 1;
 }

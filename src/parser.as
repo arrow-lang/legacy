@@ -17,7 +17,12 @@ type Parser {
 
     # Node stack.
     # Nodes get pushed as they are realized and popped as consumed.
-    mut stack: ast.Nodes
+    mut stack: ast.Nodes,
+
+    # HACK: A block is currently being expected to be
+    #   resolved from a brace expression (used by control flow
+    #   statements).
+    mut _expect_block: bool
 }
 
 implement Parser {
@@ -108,6 +113,9 @@ def parse(&mut self, name: str) -> ast.Node {
     # Initialize the node stack.
     self.stack = ast.make_nodes();
 
+    # HACK: Initialize process variables.
+    self._expect_block = false;
+
     # Declare the top-level module decl node.
     let node: ast.Node = ast.make(ast.TAG_MODULE);
     let mod: ^ast.ModuleDecl = node.unwrap() as ^ast.ModuleDecl;
@@ -172,6 +180,7 @@ def parse_common_statement(&mut self) -> bool {
     # if tok == tokens.TOK_ENUM   { return self.parse_enum(); }
     # if tok == tokens.TOK_USE    { return self.parse_use(); }
     # if tok == tokens.TOK_IMPL   { return self.parse_impl(); }
+    if tok == tokens.TOK_IF       { return self.parse_select_expr(); }
 
     # if tok == tokens.TOK_DEF {
     #     # Functions are only declarations if they are named.
@@ -207,18 +216,18 @@ def parse_struct(&mut self) -> bool {
     # Take and remove "struct"
     self.pop_token();
 
-    if not self.parse_ident_expr() { 
+    if not self.parse_ident_expr() {
         self.consume_until(tokens.TOK_RBRACE);
-        return false; 
+        return false;
     }
 
     # Set the identifier attribute of the last item added to the stack
     # (If we have gotten this far, its an identifier)
     structN.id = self.stack.pop();
 
-    if not  self.expect(tokens.TOK_LBRACE) { 
+    if not  self.expect(tokens.TOK_LBRACE) {
         self.consume_until(tokens.TOK_RBRACE);
-        return false; 
+        return false;
     }
 
     while self.peek_token(1) <> tokens.TOK_RBRACE {
@@ -257,7 +266,7 @@ def parse_struct(&mut self) -> bool {
 
         let tok: int = self.peek_token(1);
         if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
-        
+
         else if tok <> tokens.TOK_RBRACE {
             self.consume_until(tokens.TOK_RBRACE);
             errors.begin_error();
@@ -352,10 +361,98 @@ def parse_unary_expr(&mut self) -> bool {
 #              | postfix-expr "{" sequence-members "}"
 #              ;
 # -----------------------------------------------------------------------------
-def parse_postfix_expr(&mut self) -> bool {
+def parse_postfix_expr(&mut self) -> bool
+{
     # Attempt to parse the `operand` as a primary expression.
-    # TODO: Implement
-    self.parse_primary_expr();
+    if not self.parse_primary_expr() { return false; }
+
+    # Can we possibly consume this as a postfix expression ?
+    let tok: int = self.peek_token(1);
+    if     tok == tokens.TOK_LBRACE     # Sequence or struct expression
+        # or tok == tokens.TOK_LPAREN     # Call expression
+        # or tok == tokens.TOK_LBRACKET   # Index expression
+        # or tok == tokens.TOK_DOT        # Member expression
+    {
+        if not self.parse_postfix_expr_operand()
+        {
+            return false;
+        }
+    }
+
+    # Push our node on the stack.
+    self.stack.push(self.stack.pop());
+
+    # Return success.
+    true;
+}
+
+def parse_postfix_expr_operand(&mut self) -> bool
+{
+    # Recurse downwards depending on our token.
+    let tok: int = self.peek_token(1);
+    if tok == tokens.TOK_LBRACE { self.parse_postfix_brace_expr(); }
+    else { false; }
+}
+
+def parse_postfix_brace_expr(&mut self) -> bool
+{
+    # Grab the operand from the stack.
+    let operand: ast.Node = self.stack.pop();
+
+    # A postfix brace expression can be a record or sequence
+    # expression. Attempt to parse one.
+    if      self.peek_token(2) == tokens.TOK_IDENTIFIER
+        and self.peek_token(3) == tokens.TOK_COLON
+    {
+        if not self.parse_record_expr() { return false; }
+    }
+    else {
+        if not self.parse_brace_expr() { return false; }
+    }
+
+    # Check what we happened to parse.
+    # If we parsed a block expression then just push it back on the
+    # stack and return success (don't consume the operand).
+    let expr_node: ast.Node = self.stack.get(-1);
+    if expr_node.tag == ast.TAG_RECORD_EXPR
+    {
+        # Construct a postfix record expression node.
+        let node: ast.Node = ast.make(ast.TAG_POSTFIX_EXPR);
+        let pf: ^ast.PostfixExpr = node.unwrap() as ^ast.PostfixExpr;
+        pf.operand = operand;
+        pf.expression = self.stack.pop();
+        operand = node;
+    }
+    else if expr_node.tag == ast.TAG_SEQ_EXPR
+    {
+        # If we can be coerced into a block and we are currently expecting
+        # a block (eg. in a control flow statement) and there isn't a
+        # `{` directly following then do so.
+        let seq: ^ast.SequenceExpr = expr_node.unwrap() as ^ast.SequenceExpr;
+        let is_block: bool = false;
+        if self._expect_block and seq.nodes.size() <= 1 {
+            if self.peek_token(1) <> tokens.TOK_LBRACE {
+                # Ignore the sequence and pretend its a block.
+                is_block = true;
+                self._expect_block = false;
+            }
+        }
+
+        if not is_block {
+            # Construct a postfix seq expression node.
+            let node: ast.Node = ast.make(ast.TAG_POSTFIX_EXPR);
+            let pf: ^ast.PostfixExpr = node.unwrap() as ^ast.PostfixExpr;
+            pf.operand = operand;
+            pf.expression = self.stack.pop();
+            operand = node;
+        }
+    }
+
+    # Push our operand.
+    self.stack.push(operand);
+
+    # Return success.
+    true;
 }
 
 # Primary expression
@@ -403,10 +500,10 @@ def parse_primary_expr(&mut self) -> bool
     {
         self.parse_global_expr();
     }
-    # else if tok == tokens.TOK_IF
-    # {
-    #     self.parse_select_expr();
-    # }
+    else if tok == tokens.TOK_IF
+    {
+        self.parse_select_expr();
+    }
     else if tok == tokens.TOK_LBRACE
     {
         # A block expression (not in a postfix position) can be a `block`
@@ -884,6 +981,118 @@ def parse_global_expr(&mut self) -> bool
 
     # Return success.
     true;
+}
+
+# Select expression
+# -----------------------------------------------------------------------------
+def parse_select_expr(&mut self) -> bool
+{
+    # Declare the selection expr node.
+    let node: ast.Node = ast.make(ast.TAG_SELECT);
+    let select: ^ast.SelectExpr = ast.unwrap(node) as ^ast.SelectExpr;
+    let have_else: bool = false;
+
+    loop
+    {
+        # Consume the `if` token.
+        self.pop_token();
+
+        # Parse the branch.
+        let branch: ast.Node = self.parse_select_branch(true);
+        if ast.isnull(branch) { return false; }
+
+        # Append the branch to the selection expression.
+        select.branches.push(branch);
+
+        # Check for an "else" branch.
+        if self.peek_token(1) == tokens.TOK_ELSE {
+            have_else = true;
+
+            # Consume the "else" token.
+            self.pop_token();
+
+            # Check for an adjacent "if" token (which would make this
+            # an "else if" and part of this selection expression).
+            if self.peek_token(1) == tokens.TOK_IF {
+                have_else = false;
+
+                # Loop back and parse another branch.
+                continue;
+            }
+        }
+
+        # We're done here.
+        break;
+    }
+
+    # Parse the trailing "else" (if we have one).
+    if have_else {
+        # Parse the condition-less branch.
+        let branch: ast.Node = self.parse_select_branch(false);
+        if ast.isnull(branch) { return false; }
+
+        # Append the branch to the selection expression.
+        select.branches.push(branch);
+    }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+def parse_select_branch(&mut self, condition: bool) -> ast.Node
+{
+    # Declare the branch node.
+    let node: ast.Node = ast.make(ast.TAG_SELECT_BRANCH);
+    let mut branch: ^ast.SelectBranch = ast.unwrap(node) as ^ast.SelectBranch;
+
+    # HACK: Expect a block unless otherwise.
+    self._expect_block = true;
+
+    if condition {
+        # Expect and parse the condition expression.
+        if not self.parse_expr() { return ast.null(); }
+        branch.condition = self.stack.pop();
+    }
+
+    # Check for a block in the stack.
+    if self.stack.size() > 0
+    {
+        let mut st_node: ast.Node = self.stack.get(-1);
+        if st_node.tag == ast.TAG_BLOCK
+        {
+            # We have a block; use and return.
+            branch.block = self.stack.pop();
+            return node;
+        }
+
+        if st_node.tag == ast.TAG_SEQ_EXPR
+        {
+            let seq: ^ast.SequenceExpr = st_node.unwrap() as ^ast.SequenceExpr;
+            if seq.nodes.size() <= 1
+            {
+                # Transpose us as a block.
+                st_node._set_tag(ast.TAG_BLOCK);
+
+                # We have a block; use and return.
+                branch.block = st_node;
+                self.stack.pop();
+                return node;
+            }
+        }
+    }
+
+    # HACK: Stop expecting.
+    self._expect_block = false;
+
+    # Parse the block.
+    if not self.parse_block_expr() { return ast.null(); }
+    branch.block = self.stack.pop();
+
+    # Return our parsed node.
+    node;
 }
 
 # Check if a token could possibly begin an expression.

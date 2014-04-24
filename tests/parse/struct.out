@@ -16,3 +16,25 @@ ModuleDecl <?> _
           BooleanExpr <?> false
         RecordExprMem <?> c
           FloatExpr <?> 3.123
+    Struct <?> Point
+      Members <?> 
+        StructMem <?> x
+          Ident <?> int
+        StructMem <?> y
+          Ident <?> str
+    Struct <?> Point
+      Members <?> 
+        StructMem <?> x
+          Ident <?> int
+        StructMem <?> y
+          Ident <?> str
+    Struct <?> Box
+      Members <?> 
+        StructMem <?> a
+          Ident <?> bool
+    Struct <?> Box
+      Members <?> 
+        StructMem <?> a
+          Ident <?> bool
+    Struct <?> Nil
+      Members <?> 

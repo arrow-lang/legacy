@@ -161,17 +161,17 @@ def parse_module_node(&mut self) -> bool {
 def parse_common_statement(&mut self) -> bool {
     # Peek ahead and see if we are a common statement.
     let tok: int = self.peek_token(1);
-    # if tok == tokens.TOK_LET    { return self.parse_local_slot(nodes); }
-    # if tok == tokens.TOK_UNSAFE { return self.parse_unsafe(nodes); }
-    # if tok == tokens.TOK_MATCH  { return self.parse_match(nodes); }
-    # if tok == tokens.TOK_LOOP   { return self.parse_loop(nodes); }
-    # if tok == tokens.TOK_WHILE  { return self.parse_while(nodes); }
-    # if tok == tokens.TOK_STATIC { return self.parse_static_slot(nodes); }
-    # if tok == tokens.TOK_IMPORT { return self.parse_import(nodes); }
-    # if tok == tokens.TOK_STRUCT { return self.parse_struct(nodes); }
-    # if tok == tokens.TOK_ENUM   { return self.parse_enum(nodes); }
-    # if tok == tokens.TOK_USE    { return self.parse_use(nodes); }
-    # if tok == tokens.TOK_IMPL   { return self.parse_impl(nodes); }
+    # if tok == tokens.TOK_LET    { return self.parse_local_slot(); }
+    # if tok == tokens.TOK_UNSAFE { return self.parse_unsafe(); }
+    # if tok == tokens.TOK_MATCH  { return self.parse_match(); }
+    # if tok == tokens.TOK_LOOP   { return self.parse_loop(); }
+    # if tok == tokens.TOK_WHILE  { return self.parse_while(); }
+    # if tok == tokens.TOK_STATIC { return self.parse_static_slot(); }
+    # if tok == tokens.TOK_IMPORT { return self.parse_import(); }
+    if tok == tokens.TOK_STRUCT { return self.parse_struct(); }
+    # if tok == tokens.TOK_ENUM   { return self.parse_enum(); }
+    # if tok == tokens.TOK_USE    { return self.parse_use(); }
+    # if tok == tokens.TOK_IMPL   { return self.parse_impl(); }
 
     # if tok == tokens.TOK_DEF {
     #     # Functions are only declarations if they are named.
@@ -180,7 +180,10 @@ def parse_common_statement(&mut self) -> bool {
     #     }
     # }
 
+    # Checks to see if its an anon struct expression
+    # If not, resume parsing as a block
     if tok == tokens.TOK_LBRACE {
+        # if not ({ x :)
         if not (    self.peek_token(2) == tokens.TOK_IDENTIFIER
                 and self.peek_token(3) == tokens.TOK_COLON)
         {
@@ -193,6 +196,92 @@ def parse_common_statement(&mut self) -> bool {
     # We could still be an expression; forward.
     if self.parse_expr() { self.expect(tokens.TOK_SEMICOLON); }
     else                 { false; }
+}
+
+def parse_struct(&mut self) -> bool {
+
+    # Allocate space for the node
+    let struct_node : ast.Node = ast.make(ast.TAG_STRUCT);
+    let structN : ^ast.Struct =  struct_node.unwrap() as ^ast.Struct;
+
+    # Take and remove "struct"
+    self.pop_token();
+
+    if not self.parse_ident_expr() { 
+        self.consume_until(tokens.TOK_RBRACE);
+        return false; 
+    }
+
+    # Set the identifier attribute of the last item added to the stack
+    # (If we have gotten this far, its an identifier)
+    structN.id = self.stack.pop();
+
+    if not  self.expect(tokens.TOK_LBRACE) { 
+        self.consume_until(tokens.TOK_RBRACE);
+        return false; 
+    }
+
+    while self.peek_token(1) <> tokens.TOK_RBRACE {
+
+        let struct_mem_node: ast.Node = ast.make(ast.TAG_STRUCT_MEM);
+        let struct_mem : ^ast.StructMem = struct_mem_node.unwrap() as ^ast.StructMem;
+
+        if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+            # Report the error.
+            self.expect(tokens.TOK_IDENTIFIER);
+            self.consume_until(tokens.TOK_RBRACE);
+            return false;
+        }
+
+
+        if not self.parse_ident_expr() { return false; }
+        # We got an identifier!
+        struct_mem.id = self.stack.pop();
+
+        # Now, we'd better get a colon, or shit's going to get real
+        if not self.expect(tokens.TOK_COLON) {
+            self.consume_until(tokens.TOK_RBRACE);
+            return false;
+        }
+
+        # Now for a type!
+        if not self.parse_ident_expr() {
+            self.consume_until(tokens.TOK_RBRACE);
+            return false;
+        }
+
+        struct_mem.type_ = self.stack.pop();
+
+        # Push the node.
+        structN.nodes.push(struct_mem_node);
+
+        let tok: int = self.peek_token(1);
+        if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
+        
+        else if tok <> tokens.TOK_RBRACE {
+            self.consume_until(tokens.TOK_RBRACE);
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "expected %s or %s but found %s" as ^int8,
+                           tokens.to_str(tokens.TOK_COMMA),
+                           tokens.to_str(tokens.TOK_RBRACE),
+                           tokens.to_str(tok));
+            errors.end();
+            return false;
+
+        # Done here; too bad.
+    }
+
+    # THIS SHOULD NEVER HAPPEN
+    break;
+
+    }
+
+    # Push our node on the stack.
+    self.stack.push(struct_node);
+
+    # Return success.
+    true;
 }
 
 # Expression
@@ -428,15 +517,15 @@ def parse_bool_expr(&mut self) -> bool
 # -----------------------------------------------------------------------------
 def parse_ident_expr(&mut self) -> bool
 {
+    # Ensure we are at an `ident` token.
+    if not self.expect(tokens.TOK_IDENTIFIER) { return false; }
+
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_IDENT);
     let idente: ^ast.Ident = node.unwrap() as ^ast.Ident;
 
     # Store the text for the identifier.
     idente.name.extend(tokenizer.current_id.data() as str);
-
-    # Consume the `identifier` token.
-    self.pop_token();
 
     # Push our node on the stack.
     self.stack.push(node);

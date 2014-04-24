@@ -1,5 +1,0 @@
-ModuleDecl <?> _
-  Nodes <?> 
-    Import <?> std
-    Import <?> std.io
-    Import <?> os

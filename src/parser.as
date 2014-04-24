@@ -281,9 +281,9 @@ def parse_struct(&mut self) -> bool {
             # Consume the "="
             self.pop_token() ;
 
-            if not self.parse_expr() { 
+            if not self.parse_expr() {
                 self.consume_until(tokens.TOK_RBRACE);
-                return false; 
+                return false;
             }
 
             struct_mem.initializer =self.stack.pop();

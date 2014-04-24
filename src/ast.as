@@ -61,6 +61,9 @@ let TAG_TUPLE_EXPR      : int = 51;             # TupleExpr
 let TAG_RECORD_EXPR     : int = 52;             # RecordExpr
 let TAG_RECORD_EXPR_MEM : int = 53;             # RecordExprMem
 let TAG_SEQ_EXPR        : int = 54;             # SequenceExpr
+let TAG_STRUCT          : int = 55;             # Struct
+let TAG_STRUCT_MEM      : int = 56;             # StructMem
+let TAG_STRUCT_SMEM     : int = 57;             # StructSMem
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -174,7 +177,7 @@ type TypeExpr { expression: Node }
 type SelectExpr { mut branches: Nodes }
 
 # Selection branch.
-type SelectBranch { condition: Node, mut nodes: Nodes }
+type SelectBranch { condition: Node, block: Node }
 
 # Function declaration.
 type FuncDecl {
@@ -207,6 +210,15 @@ type LocalSlotDecl {
     mutable: bool,
     initializer: Node
 }
+
+# Struct
+type Struct { mut nodes: Nodes, id: Node }
+
+# StructMem
+type StructMem { id: Node, type_: Node, mutable: bool, default: Node }
+
+# StructStaticMem
+type StructStaticMem { id: Node, type_: Node, mutable: bool, initializer: Node }
 
 # Call expression
 type CallExpr { expression: Node, mut arguments: Nodes }
@@ -316,6 +328,15 @@ def _sizeof(tag: int) -> uint {
     } else if tag == TAG_RECORD_EXPR_MEM {
         let tmp: RecordExprMem;
         ((&tmp + 1) - &tmp);
+    } else if tag == TAG_STRUCT {
+        let tmp: Struct;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_STRUCT_MEM {
+        let tmp: StructMem;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_STRUCT_SMEM {
+        let tmp: StructStaticMem;
+        ((&tmp + 1) - &tmp);
     }
     else { 0; }
 }
@@ -410,6 +431,9 @@ def dump(&node: Node) {
         dump_table[TAG_TUPLE_EXPR] = dump_tuple_expr;
         dump_table[TAG_RECORD_EXPR] = dump_record_expr;
         dump_table[TAG_RECORD_EXPR_MEM] = dump_record_expr_mem;
+        dump_table[TAG_STRUCT] = dump_struct;
+        dump_table[TAG_STRUCT_MEM] = dump_struct_mem;
+        dump_table[TAG_STRUCT_SMEM] = dump_struct_smem;
         dump_initialized = true;
     }
 
@@ -642,6 +666,50 @@ def dump_record_expr_mem(node: ^Node) {
     dump_indent = dump_indent - 1;
 }
 
+# dump_struct
+# -----------------------------------------------------------------------------
+def dump_struct(node: ^Node) {
+    let x: ^Struct = unwrap(node^) as ^Struct;
+    printf("Struct <?> ");
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    printf("%s", id.name.data());
+    printf("\n");
+
+    dump_indent = dump_indent + 1;
+    dump_nodes("Members", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_struct_mem
+# -----------------------------------------------------------------------------
+def dump_struct_mem(node: ^Node) {
+    let x: ^StructMem = unwrap(node^) as ^StructMem;
+    printf("StructMem <?> ");
+    if x.mutable { printf("mut "); }
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    printf("%s\n", id.name.data());
+
+    dump_indent = dump_indent + 1;
+    dump(x.type_);
+    if not isnull(x.default) { dump(x.default); }
+    dump_indent = dump_indent - 1;
+}
+
+# dump_struct_smem
+# -----------------------------------------------------------------------------
+def dump_struct_smem(node: ^Node) {
+    let x: ^StructStaticMem = unwrap(node^) as ^StructStaticMem;
+    printf("StructStaticMem <?> ");
+    if x.mutable { printf("mut "); }
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    printf("%s\n", id.name.data());
+
+    dump_indent = dump_indent + 1;
+    dump(x.type_);
+    dump(x.initializer);
+    dump_indent = dump_indent - 1;
+}
+
 # dump_tuple_expr
 # -----------------------------------------------------------------------------
 def dump_tuple_expr(node: ^Node) {
@@ -726,7 +794,7 @@ def dump_select_branch(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     if not isnull(x.condition) { dump(x.condition); }
-    dump_nodes("Nodes", x.nodes);
+    dump(x.block);
     dump_indent = dump_indent - 1;
 }
 

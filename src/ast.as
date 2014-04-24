@@ -219,7 +219,7 @@ type LocalSlotDecl {
 type Struct { mut nodes: Nodes, id: Node }
 
 # StructMem
-type StructMem { id: Node, type_: Node, mutable: bool, default: Node }
+type StructMem { id: Node, type_: Node, mutable: bool, initializer: Node }
 
 # StructStaticMem
 type StructStaticMem { id: Node, type_: Node, mutable: bool, initializer: Node }
@@ -711,7 +711,7 @@ def dump_struct_mem(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     dump(x.type_);
-    if not isnull(x.default) { dump(x.default); }
+    if not isnull(x.initializer) { dump(x.initializer); }
     dump_indent = dump_indent - 1;
 }
 

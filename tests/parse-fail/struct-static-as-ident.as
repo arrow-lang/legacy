@@ -1,0 +1,1 @@
+struct StaticPoint {static: int}

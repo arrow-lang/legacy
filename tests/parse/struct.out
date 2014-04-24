@@ -34,7 +34,18 @@ ModuleDecl <?> _
           Ident <?> bool
     Struct <?> Box
       Members <?> 
-        StructMem <?> a
+        StructMem <?> mut a
           Ident <?> bool
     Struct <?> Nil
       Members <?> 
+    Struct <?> StaticPoint
+      Members <?> 
+        StructStaticMem <?> x
+          Ident <?> int
+          NumericNegateExpr <?>
+            IntegerExpr <?> 3 (10)
+    Struct <?> StaticPoint
+      Members <?> 
+        StructStaticMem <?> mut x
+          Ident <?> int
+          IntegerExpr <?> 3 (10)

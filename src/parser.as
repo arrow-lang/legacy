@@ -232,8 +232,22 @@ def parse_struct(&mut self) -> bool {
 
     while self.peek_token(1) <> tokens.TOK_RBRACE {
 
-        let struct_mem_node: ast.Node = ast.make(ast.TAG_STRUCT_MEM);
+        let mut struct_mem_node: ast.Node = ast.make(ast.TAG_STRUCT_MEM);
         let struct_mem : ^ast.StructMem = struct_mem_node.unwrap() as ^ast.StructMem;
+        let is_static: bool = false;
+
+        if self.peek_token(1) == tokens.TOK_STATIC {
+            #We know its a static struct, lets change our node
+            struct_mem_node._set_tag(ast.TAG_STRUCT_SMEM);
+            is_static = true;
+            self.pop_token();
+        }
+
+        if self.peek_token(1) == tokens.TOK_MUT {
+            #We know its a static struct, lets change our node
+            struct_mem.mutable = true;
+            self.pop_token();
+        }
 
         if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
             # Report the error.
@@ -242,10 +256,12 @@ def parse_struct(&mut self) -> bool {
             return false;
         }
 
-
         if not self.parse_ident_expr() { return false; }
+
         # We got an identifier!
         struct_mem.id = self.stack.pop();
+
+
 
         # Now, we'd better get a colon, or shit's going to get real
         if not self.expect(tokens.TOK_COLON) {
@@ -260,6 +276,28 @@ def parse_struct(&mut self) -> bool {
         }
 
         struct_mem.type_ = self.stack.pop();
+
+        if self.peek_token(1) == tokens.TOK_EQ {
+            # Consume the "="
+            self.pop_token() ;
+
+            if not self.parse_expr() { 
+                self.consume_until(tokens.TOK_RBRACE);
+                return false; 
+            }
+
+            struct_mem.initializer =self.stack.pop();
+        } else if is_static {
+            # Should probably throw an error message, too lazy to however.
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "expected %s but found %s (static members must have an initializer)" as ^int8,
+                           tokens.to_str(tokens.TOK_EQ),
+                           tokens.to_str(self.peek_token(1)));
+            errors.end();
+            self.consume_until(tokens.TOK_RBRACE);
+            return false;
+        }
 
         # Push the node.
         structN.nodes.push(struct_mem_node);

@@ -78,12 +78,20 @@ implement Node {
 # heterogeneous linked-list of nodes.
 type Nodes { mut elements: list.List }
 
+def make_nodes() -> Nodes {
+    let nodes: Nodes;
+    nodes.elements = list.make_generic(_sizeof(TAG_NODE));
+    nodes;
+}
+
 def new_nodes() -> ^Nodes {
     let node: Node = make(TAG_NODES);
     node.data as ^Nodes;
 }
 
 implement Nodes {
+
+    def dispose(&mut self) { self.elements.dispose(); }
 
     def size(&self) -> uint { self.elements.size; }
 
@@ -95,10 +103,19 @@ implement Nodes {
         self.elements.push(&el as ^void);
     }
 
+    def pop(&mut self) -> Node {
+        let ptr: ^Node = self.elements.at(-1) as ^Node;
+        let val: Node = ptr^;
+        self.elements.erase(-1);
+        val;
+    }
+
     def get(&self, i: int) -> Node {
         let ptr: ^Node = self.elements.at(i) as ^Node;
         ptr^;
     }
+
+    def clear(&mut self) { self.elements.clear(); }
 
 }
 

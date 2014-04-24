@@ -13,7 +13,11 @@ type Parser {
     # Tokens get pushed as they are read from the input stream and popped
     # when consumed. This is implemented as a list so that we can
     # roll back the stream or insert additional tokens.
-    mut tokens: list.List
+    mut tokens: list.List,
+
+    # Node stack.
+    # Nodes get pushed as they are realized and popped as consumed.
+    mut stack: ast.Nodes
 }
 
 implement Parser {
@@ -23,6 +27,9 @@ implement Parser {
 def dispose(&mut self) {
     # Dispose of the token buffer.
     self.tokens.dispose();
+
+    # Dispose of the node stack.
+    self.stack.dispose();
 }
 
 # Push N tokens onto the buffer.
@@ -98,6 +105,9 @@ def parse(&mut self, name: str) -> ast.Node {
     # Initialize the token buffer.
     self.tokens = list.make(types.INT);
 
+    # Initialize the node stack.
+    self.stack = ast.make_nodes();
+
     # Declare the top-level module decl node.
     let node: ast.Node = ast.make(ast.TAG_MODULE);
     let mod: ^ast.ModuleDecl = node.unwrap() as ^ast.ModuleDecl;
@@ -108,13 +118,15 @@ def parse(&mut self, name: str) -> ast.Node {
     id.name.extend(name);
 
     # Iterate and attempt to match items until the stream is empty.
-    let mut tok: int = self.peek_token(1);
-    while tok <> tokens.TOK_END {
+    while self.peek_token(1) <> tokens.TOK_END {
         # Try and parse a module node.
-        self.parse_module_node(mod.nodes);
-
-        # Peek the next token.
-        tok = self.peek_token(1);
+        if self.parse_module_node() {
+            # Consume the parsed node and push it into the module.
+            mod.nodes.push(self.stack.pop());
+        } else {
+            # Clear the node stack.
+            self.stack.clear();
+        }
     }
 
     # Return our node.
@@ -125,7 +137,7 @@ def parse(&mut self, name: str) -> ast.Node {
 # -----------------------------------------------------------------------------
 # module-node = module | common-statement ;
 # -----------------------------------------------------------------------------
-def parse_module_node(&mut self, &mut nodes: ast.Nodes) -> bool {
+def parse_module_node(&mut self) -> bool {
     # Peek ahead and see if we are a module `item`.
     let tok: int = self.peek_token(1);
     # if tok == tokens.TOK_MODULE { return self.parse_module(nodes); }
@@ -133,11 +145,11 @@ def parse_module_node(&mut self, &mut nodes: ast.Nodes) -> bool {
     if tok == tokens.TOK_SEMICOLON {
         # Consume the semicolon and attempt to match the next item.
         self.pop_token();
-        return self.parse_module_node(nodes);
+        return self.parse_module_node();
     }
 
     # We could still be a common statement.
-    self.parse_common_statement(nodes);
+    self.parse_common_statement();
 }
 
 # "Common" statement
@@ -146,7 +158,7 @@ def parse_module_node(&mut self, &mut nodes: ast.Nodes) -> bool {
 #                  | import | struct | enum | use | implement | function
 #                  | block-expr | expr ;
 # -----------------------------------------------------------------------------
-def parse_common_statement(&mut self, &mut nodes: ast.Nodes) -> bool {
+def parse_common_statement(&mut self) -> bool {
     # Peek ahead and see if we are a common statement.
     let tok: int = self.peek_token(1);
     # if tok == tokens.TOK_LET    { return self.parse_local_slot(nodes); }
@@ -174,42 +186,26 @@ def parse_common_statement(&mut self, &mut nodes: ast.Nodes) -> bool {
         {
             # Block expression is treated as if it appeared in a
             # function (no `item` may appear inside).
-            let node: ast.Node = self.parse_block_expr(nodes);
-            if ast.isnull(node) { return false; }
-            nodes.push(node);
-            return true;
+            return self.parse_block_expr();
         }
     }
 
     # We could still be an expression; forward.
-    if self.parse_expr_to(nodes) { self.expect(tokens.TOK_SEMICOLON); }
-    else                         { false; }
+    if self.parse_expr() { self.expect(tokens.TOK_SEMICOLON); }
+    else                 { false; }
 }
 
 # Expression
 # -----------------------------------------------------------------------------
 # expr = unary-expr | binop-rhs ;
 # -----------------------------------------------------------------------------
-def parse_expr_to(&mut self, &mut nodes: ast.Nodes) -> bool {
+def parse_expr(&mut self) -> bool {
     # Try and parse a unary expression.
-    let res: ast.Node = self.parse_expr(nodes);
-    if ast.isnull(res) { return false; }
+    if not self.parse_unary_expr() { return false; }
 
-    # Push our node into the stack.
-    nodes.push(res);
-
-    # Return success.
+    # Try and continue the unary expression as a binary expression.
+    # self.parse_binop_rhs(0, 0);
     true;
-}
-
-def parse_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node {
-    # Try and parse a unary expression.
-    let res: ast.Node = self.parse_unary_expr(nodes);
-    if ast.isnull(res) { return ast.null(); }
-
-    # TODO: Try and continue the unary expression as a binary expression.
-    # self.parse_binop_rhs(nodes, 0, 0, res);
-    res;
 }
 
 # Unary expression
@@ -217,7 +213,7 @@ def parse_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node {
 # unary-expr = unary-op postfix-expr ;
 # unary-op = "+" | "-" | "not" | "!" ;
 # -----------------------------------------------------------------------------
-def parse_unary_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node {
+def parse_unary_expr(&mut self) -> bool {
     # If this is not a unary expression then forward us to check for a
     # postfix expression.
     let tok: int = self.peek_token(1);
@@ -226,15 +222,15 @@ def parse_unary_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node {
         and tok <> tokens.TOK_NOT
         # and tok <> tokens.TOK_BANG
     {
-        return self.parse_postfix_expr(nodes);
+        return self.parse_postfix_expr();
     }
 
     # This -is- a unary expression; carry on.
     self.pop_token();
 
     # Parse the operand of this expression.
-    let operand: ast.Node = self.parse_unary_expr(nodes);
-    if ast.isnull(operand) { return ast.null(); }
+    if not self.parse_unary_expr() { return false; }
+    let operand: ast.Node = self.stack.pop();
 
     # Determine the AST tag for this unary expression.
     # FIXME: Replace with a HashMap<int, int> when available
@@ -250,8 +246,11 @@ def parse_unary_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node {
     let expr: ^ast.UnaryExpr = node.unwrap() as ^ast.UnaryExpr;
     expr.operand = operand;
 
-    # Return our constructed node.
-    node;
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Postfix expression
@@ -264,14 +263,10 @@ def parse_unary_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node {
 #              | postfix-expr "{" sequence-members "}"
 #              ;
 # -----------------------------------------------------------------------------
-def parse_postfix_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node {
+def parse_postfix_expr(&mut self) -> bool {
     # Attempt to parse the `operand` as a primary expression.
-    let operand: ast.Node = self.parse_primary_expr(nodes);
-    if ast.isnull(operand) { return ast.null(); }
-
     # TODO: Implement
-    # DEBUG: Pretend this cannot be a postifx expression.
-    operand;
+    self.parse_primary_expr();
 }
 
 # Primary expression
@@ -280,7 +275,7 @@ def parse_postfix_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node {
 #              | identifier | select-expr | type-expr | global-expr
 #              | array-expr | block-expr ;
 # -----------------------------------------------------------------------------
-def parse_primary_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_primary_expr(&mut self) -> bool
 {
     # FIXME: Replace this with a Map<int, ..>
     let tok: int = self.peek_token(1);
@@ -289,39 +284,39 @@ def parse_primary_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
         or tok == tokens.TOK_DEC_INTEGER
         or tok == tokens.TOK_HEX_INTEGER
     {
-        self.parse_integer_expr(nodes);
+        self.parse_integer_expr();
     }
     else if tok == tokens.TOK_FLOAT
     {
-        self.parse_float_expr(nodes);
+        self.parse_float_expr();
     }
     else if tok == tokens.TOK_TRUE or tok == tokens.TOK_FALSE
     {
-        self.parse_bool_expr(nodes);
+        self.parse_bool_expr();
     }
     else if tok == tokens.TOK_LPAREN
     {
-        self.parse_paren_expr(nodes);
+        self.parse_paren_expr();
     }
     else if tok == tokens.TOK_LBRACKET
     {
-        self.parse_array_expr(nodes);
+        self.parse_array_expr();
     }
     else if tok == tokens.TOK_IDENTIFIER
     {
-        self.parse_ident_expr(nodes);
+        self.parse_ident_expr();
     }
     # else if tok == tokens.TOK_TYPE
     # {
-    #     self.parse_type_expr(nodes);
+    #     self.parse_type_expr();
     # }
     else if tok == tokens.TOK_GLOBAL
     {
-        self.parse_global_expr(nodes);
+        self.parse_global_expr();
     }
     # else if tok == tokens.TOK_IF
     # {
-    #     self.parse_select_expr(nodes);
+    #     self.parse_select_expr();
     # }
     else if tok == tokens.TOK_LBRACE
     {
@@ -332,12 +327,12 @@ def parse_primary_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
         {
             # A record expression /always/ starts like `{` `identifier` `:`
             # There cannot be an "empty" record expression.
-            self.parse_record_expr(nodes);
+            self.parse_record_expr();
         }
         else
         {
             # This is some kind of block.
-            self.parse_block_expr(nodes);
+            self.parse_block_expr();
         }
     }
     else
@@ -356,13 +351,13 @@ def parse_primary_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
         }
 
         # Return nil.
-        ast.null();
+        false;
     }
 }
 
 # Integer expression
 # -----------------------------------------------------------------------------
-def parse_integer_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_integer_expr(&mut self) -> bool
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_INTEGER);
@@ -383,13 +378,16 @@ def parse_integer_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     # Consume the token.
     self.pop_token();
 
-    # Return our node.
-    node;
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Float expression
 # -----------------------------------------------------------------------------
-def parse_float_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_float_expr(&mut self) -> bool
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_FLOAT);
@@ -401,13 +399,16 @@ def parse_float_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     # Consume our token.
     self.pop_token();
 
-    # Return our node.
-    node;
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Boolean expression
 # -----------------------------------------------------------------------------
-def parse_bool_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_bool_expr(&mut self) -> bool
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_BOOLEAN);
@@ -416,13 +417,16 @@ def parse_bool_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     # Set our value and consume our token.
     boole.value = self.pop_token() == tokens.TOK_TRUE;
 
-    # Return our node.
-    node;
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Identifier expression
 # -----------------------------------------------------------------------------
-def parse_ident_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_ident_expr(&mut self) -> bool
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_IDENT);
@@ -434,13 +438,16 @@ def parse_ident_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     # Consume the `identifier` token.
     self.pop_token();
 
-    # Return our node.
-    node;
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Parenthetical expression
 # -----------------------------------------------------------------------------
-def parse_paren_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_paren_expr(&mut self) -> bool
 {
     # Consume the `(` token.
     self.pop_token();
@@ -452,12 +459,14 @@ def parse_paren_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
         self.pop_token();
 
         # Allocate and create the node for the tuple.
-        # Return the node immediately.
-        return ast.make(ast.TAG_TUPLE_EXPR);
+        # Return immediately.
+        self.stack.push(ast.make(ast.TAG_TUPLE_EXPR));
+        return true;
     }
 
     # Parse an expression node.
-    let mut node: ast.Node = self.parse_expr(nodes);
+    if not self.parse_expr() { return false; }
+    let node: ast.Node = self.stack.pop();
 
     # Check for a comma that would begin a tuple.
     if self.peek_token(1) == tokens.TOK_COMMA
@@ -472,13 +481,11 @@ def parse_paren_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
         # Push the initial node.
         expr.nodes.push(node);
 
-        # Switch our node.
-        node = tup_node;
-
         # Enumerate until we reach the `)` token.
         while self.peek_token(1) <> tokens.TOK_RPAREN {
             # Parse an expression node.
-            if not self.parse_expr_to(expr.nodes) { return ast.null(); }
+            if not self.parse_expr() { return false; }
+            expr.nodes.push(self.stack.pop());
 
             # Peek and consume the `,` token if present.
             let tok: int = self.peek_token(1);
@@ -494,24 +501,30 @@ def parse_paren_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
                                tokens.to_str(tokens.TOK_RPAREN),
                                tokens.to_str(tok));
                 errors.end();
-                return ast.null();
+                return false;
             }
 
             # Done here; too bad.
             break;
         }
+
+        # Switch our node.
+        node = tup_node;
     }
 
     # Expect a `)` token.
     self.expect(tokens.TOK_RPAREN);
 
-    # Return our node.
-    node;
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Array expression
 # -----------------------------------------------------------------------------
-def parse_array_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_array_expr(&mut self) -> bool
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_ARRAY_EXPR);
@@ -523,7 +536,8 @@ def parse_array_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     # Enumerate until we reach the `]` token.
     while self.peek_token(1) <> tokens.TOK_RBRACKET {
         # Parse an expression node.
-        if not self.parse_expr_to(expr.nodes) { return ast.null(); }
+        if not self.parse_expr() { return false; }
+        expr.nodes.push(self.stack.pop());
 
         # Peek and consume the `,` token if present.
         let tok: int = self.peek_token(1);
@@ -539,7 +553,7 @@ def parse_array_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
                            tokens.to_str(tokens.TOK_RBRACKET),
                            tokens.to_str(tok));
             errors.end();
-            return ast.null();
+            return false;
         }
 
         # Done here; too bad.
@@ -547,15 +561,18 @@ def parse_array_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     }
 
     # Expect a `]` token.
-    if not self.expect(tokens.TOK_RBRACKET) { return ast.null(); }
+    if not self.expect(tokens.TOK_RBRACKET) { return false; }
 
-    # Return our node.
-    node;
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Record expression
 # -----------------------------------------------------------------------------
-def parse_record_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_record_expr(&mut self) -> bool
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_RECORD_EXPR);
@@ -565,6 +582,7 @@ def parse_record_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     self.pop_token();
 
     # Enumerate until we reach the `}` token.
+    let mut error: bool = false;
     while self.peek_token(1) <> tokens.TOK_RBRACE {
         # Allocate and create a member node.
         let member_node: ast.Node = ast.make(ast.TAG_RECORD_EXPR_MEM);
@@ -575,24 +593,25 @@ def parse_record_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
             # Report the error.
             self.expect(tokens.TOK_IDENTIFIER);
             self.consume_until(tokens.TOK_RBRACE);
-            return ast.null();
+            return false;
         }
 
         # Parse the identifier.
-        member.id = self.parse_ident_expr(nodes);
+        if not self.parse_ident_expr() { error = true; break; }
+        member.id = self.stack.pop();
 
         # Expect a `:` token.
         if not self.expect(tokens.TOK_COLON) {
             self.consume_until(tokens.TOK_RBRACE);
-            return ast.null();
+            error = true; break;
         }
 
         # Parse an expression node.
-        member.expression = self.parse_expr(expr.nodes);
-        if ast.isnull(member.expression) {
+        if not self.parse_expr() {
             self.consume_until(tokens.TOK_RBRACE);
-            return ast.null();
+            error = true; break;
         }
+        member.expression = self.stack.pop();
 
         # Push the node.
         expr.nodes.push(member_node);
@@ -611,26 +630,34 @@ def parse_record_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
                            tokens.to_str(tokens.TOK_RBRACE),
                            tokens.to_str(tok));
             errors.end();
-            return ast.null();
+            error = true; break;
         }
 
         # Done here; too bad.
         break;
     }
 
-    # Expect a `}` token.
-    if not self.expect(tokens.TOK_RBRACE) { return ast.null(); }
+    if error { false; }
+    else {
+        # Expect a `}` token.
+        if self.expect(tokens.TOK_RBRACE) {
+            # Push our node on the stack.
+            self.stack.push(node);
 
-    # Return our node.
-    node;
+            # Return success.
+            true;
+        }
+        else { false; }
+    }
 }
 
 # Block expression
 # -----------------------------------------------------------------------------
-def parse_block_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_block_expr(&mut self) -> bool
 {
     # Parse a brace expression.
-    let mut node: ast.Node = self.parse_brace_expr(nodes);
+    if not self.parse_brace_expr() { return false; }
+    let mut node: ast.Node = self.stack.pop();
 
     # If we are a sequence expr ...
     if node.tag == ast.TAG_SEQ_EXPR
@@ -650,17 +677,20 @@ def parse_block_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
             errors.fprintf(errors.stderr,
                            "expected `block` but found `sequence` (a sequence expression must be prefixed by a nominal type)" as ^int8);
             errors.end();
-            return ast.null();
+            return false;
         }
     }
 
-    # Return our node.
-    node;
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Brace expression
 # -----------------------------------------------------------------------------
-def parse_brace_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_brace_expr(&mut self) -> bool
 {
     # Allocate and create the node.
     # Note that we assume we are a sequence until proven otherwise.
@@ -668,7 +698,7 @@ def parse_brace_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
     let expr: ^ast.SequenceExpr = node.unwrap() as ^ast.SequenceExpr;
 
     # Expect and consume the `{` token.
-    if not self.expect(tokens.TOK_LBRACE) { return ast.null(); }
+    if not self.expect(tokens.TOK_LBRACE) { return false; }
 
     # Iterate and attempt to match statements.
     while self.peek_token(1) <> tokens.TOK_RBRACE {
@@ -678,14 +708,13 @@ def parse_brace_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
                 and self._possible_expr(self.peek_token(1))
         {
             # Parse the expression node directly.
-            let expr_node: ast.Node = self.parse_expr(nodes);
-            if ast.isnull(expr_node) {
+            if not self.parse_expr() {
                 self.consume_until(tokens.TOK_RBRACE);
-                return ast.null();
+                return false;
             }
 
             # Push the expression node.
-            expr.nodes.push(expr_node);
+            expr.nodes.push(self.stack.pop());
 
             # Peek and consume the `,` token if present.
             let tok: int = self.peek_token(1);
@@ -708,7 +737,7 @@ def parse_brace_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
                                    tokens.to_str(tokens.TOK_RBRACE),
                                    tokens.to_str(tok));
                     errors.end();
-                    return ast.null();
+                    return false;
                 }
 
                 # No `,` and no `}` -- we are some kind of block, expect
@@ -722,7 +751,7 @@ def parse_brace_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
 
                 # Bad news; no idea what we are.
                 self.consume_until(tokens.TOK_RBRACE);
-                return ast.null();
+                return false;
             }
 
             # We are a one-element sequence.
@@ -730,35 +759,42 @@ def parse_brace_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
         }
 
         # Try and parse a node.
-        if not self.parse_common_statement(nodes) {
+        if not self.parse_common_statement() {
             # Bad news.
             self.consume_until(tokens.TOK_RBRACE);
-            return ast.null();
+            return false;
+        } else {
+            # Pop and push in.
+            expr.nodes.push(self.stack.pop());
         }
     }
 
     # Expect and consume the `}` token.
     if not self.expect(tokens.TOK_RBRACE) {
         self.consume_until(tokens.TOK_RBRACE);
-        return ast.null();
+        return false;
     }
 
-    # Return the constructed node.
-    node;
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Global expression
 # -----------------------------------------------------------------------------
-def parse_global_expr(&mut self, &mut nodes: ast.Nodes) -> ast.Node
+def parse_global_expr(&mut self) -> bool
 {
-    # Allocate and create the node.
-    let node: ast.Node = ast.make(ast.TAG_GLOBAL);
-
     # Consume the `global` token.
     self.pop_token();
 
-    # Return our node.
-    node;
+    # Allocate and create the node.
+    # Push our node on the stack.
+    self.stack.push(ast.make(ast.TAG_GLOBAL));
+
+    # Return success.
+    true;
 }
 
 # Check if a token could possibly begin an expression.
@@ -793,7 +829,6 @@ def _possible_expr(&mut self, tok: int) -> bool {
 }
 
 } # Parser
-
 
 # Test driver using `stdin`.
 # =============================================================================

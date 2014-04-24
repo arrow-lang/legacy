@@ -301,6 +301,20 @@ implement List {
         self.size = self.size - 1;
     }
 
+    # Pop the last item in the list.
+    # -------------------------------------------------------------------------
+    def pop(&mut self) -> ^void {
+        let ptr: ^void = self.at(-1);
+        self.erase(-1);
+        ptr;
+    }
+
+    def pop_ptr(&mut self) -> ^void {
+        let ptr: ^void = self.at_ptr(-1);
+        self.erase(-1);
+        ptr;
+    }
+
     # Remove 'all' elements that compare equal to `el`.
     # -------------------------------------------------------------------------
     def remove(&mut self, el: ^void) {

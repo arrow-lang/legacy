@@ -112,6 +112,19 @@ def expect(&mut self, req: int) -> bool {
     }
 }
 
+# Empty the stack into the passed `nodes`.
+# -----------------------------------------------------------------------------
+def empty_stack_to(&mut self, &mut nodes: ast.Nodes)
+{
+    let mut i: int = 0;
+    while i as uint < self.stack.size()
+    {
+        nodes.push(self.stack.get(i));
+        i = i + 1;
+    }
+    self.stack.clear();
+}
+
 # Begin the parsing process.
 # -----------------------------------------------------------------------------
 def parse(&mut self, name: str) -> ast.Node {
@@ -138,7 +151,7 @@ def parse(&mut self, name: str) -> ast.Node {
         # Try and parse a module node.
         if self.parse_module_node() {
             # Consume the parsed node and push it into the module.
-            mod.nodes.push(self.stack.pop());
+            self.empty_stack_to(mod.nodes);
         } else {
             # Clear the node stack.
             self.stack.clear();
@@ -349,6 +362,9 @@ def parse_expr(&mut self) -> bool {
 
     # Try and continue the unary expression as a binary expression.
     self.parse_binop_rhs(0, 0);
+
+    # TODO: Try and continue the binary expression into a postfix
+    #   control flow statement.
 }
 
 # Binary expression
@@ -371,9 +387,42 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int) -> bool 
         if tok_prec == -1 { return true; }
         if tok_prec < expr_prec and expr_assoc == ASSOC_LEFT { return true; }
 
-        # We know this is a binary operator.
+        if tok == tokens.TOK_IF
+        {
+            # An expression of the form `x if y` may be a postfix control
+            # flow statement or the beginning of a ternary expression that
+            # can be continued in the expression chain.
+
+            # Parse the <if {condition} ...> as a postfix selection
+            # statement. If it only sees <if {condition}> it will pop
+            # the LHS and apply a `SelectOp` on it.
+            # If it sees <if {condition} else {y}> it will pop the
+            # LHS and apply a `ConditionalExpr` on it. It it sees
+            # a complete <if-expression> then it will partition if the
+            # LHS can stand alone.
+            if self.parse_postfix_selection()
+            {
+                # If an expression of the form <{x} if {condition} else {y}>
+                # is what remains then this could possibly continue.
+                let top: ast.Node = self.stack.get(-1);
+                if top.tag == ast.TAG_CONDITIONAL
+                {
+                    # Try and continue the expression.
+                    return self.parse_binop_rhs(tok_prec + 1, tok_assoc);
+                }
+
+                # Return success.
+                return true;
+            }
+
+            # Return failure.
+            return false;
+        }
+
         # Pop the LHS from the stack.
         let lhs: ast.Node = self.stack.pop();
+
+        # We know this is a normal binary operator.
         self.pop_token();
 
         # Parse the RHS of this expression.
@@ -411,6 +460,87 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int) -> bool 
 
     # Should never reach here normally.
     false;
+}
+
+# Postfix selection
+# -----------------------------------------------------------------------------
+def parse_postfix_selection(&mut self) -> bool
+{
+    # Pop the LHS (or selection body) from the stack.
+    let lhs: ast.Node = self.stack.pop();
+
+    # Pop the `if` token.
+    self.pop_token();
+
+    # Attempt to parse a condition expression.
+    if not self.parse_expr() { return false; }
+    let condition: ast.Node = self.stack.pop();
+
+    # Is there a `{` token following (if so we could very well be
+    # a full selection expression)?
+    if self.peek_token(1) == tokens.TOK_LBRACE
+    {
+        # Push back the `lhs` untouched.
+        self.stack.push(lhs);
+
+        # Declare the selection expr node.
+        let node: ast.Node = ast.make(ast.TAG_SELECT);
+        let sel: ^mut ast.SelectExpr = ast.unwrap(node) as ^ast.SelectExpr;
+        let mut else_: bool = false;
+
+        # Construct the initial branch.
+        # Declare the branch node.
+        let br_node: ast.Node = ast.make(ast.TAG_SELECT_BRANCH);
+        let mut branch: ^ast.SelectBranch =
+            ast.unwrap(br_node) as ^ast.SelectBranch;
+        branch.condition = condition;
+
+        # Parse the block.
+        if not self.parse_block_expr() { return false; }
+        branch.block = self.stack.pop();
+
+        # Push the branch.
+        sel.branches.push(br_node);
+
+        # Check for an "else" branch.
+        let mut continue_: bool = false;
+        if self.peek_token(1) == tokens.TOK_ELSE {
+            else_ = true;
+            continue_ = true;
+
+            # Consume the "else" token.
+            self.pop_token();
+
+            # Check for an adjacent "if" token (which would make this
+            # an "else if" and part of this selection expression).
+            if self.peek_token(1) == tokens.TOK_IF { else_ = false; }
+        }
+
+        # Continue and parse if we should.
+        if continue_
+        {
+            if not self.parse_select_expr_inner(sel^, else_) { return false; }
+            if not self.parse_select_expr_else(sel^, else_) { return false; }
+        }
+
+        # Push our node on the stack.
+        self.stack.push(node);
+
+        # Return success.
+        return true;
+    }
+
+    # Merge into a postfix selection operation.
+    let node: ast.Node = ast.make(ast.TAG_SELECT_OP);
+    let expr: ^ast.BinaryExpr = ast.unwrap(node) as ^ast.BinaryExpr;
+    expr.lhs = lhs;
+    expr.rhs = condition;
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Unary expression
@@ -1096,8 +1226,25 @@ def parse_select_expr(&mut self) -> bool
 {
     # Declare the selection expr node.
     let node: ast.Node = ast.make(ast.TAG_SELECT);
-    let select: ^ast.SelectExpr = ast.unwrap(node) as ^ast.SelectExpr;
-    let have_else: bool = false;
+    let select: ^mut ast.SelectExpr = ast.unwrap(node) as ^ast.SelectExpr;
+    let mut else_: bool = false;
+
+    # Parse the selection expression
+    if not self.parse_select_expr_inner(select^, else_) { return false; }
+    if not self.parse_select_expr_else(select^, else_) { return false; }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+def parse_select_expr_inner(
+    &mut self, &mut x: ast.SelectExpr, &mut have_else: bool) -> bool
+{
+    # If we are already at `else` then drop.
+    if have_else { return true; }
 
     loop
     {
@@ -1109,7 +1256,7 @@ def parse_select_expr(&mut self) -> bool
         if ast.isnull(branch) { return false; }
 
         # Append the branch to the selection expression.
-        select.branches.push(branch);
+        x.branches.push(branch);
 
         # Check for an "else" branch.
         if self.peek_token(1) == tokens.TOK_ELSE {
@@ -1132,6 +1279,13 @@ def parse_select_expr(&mut self) -> bool
         break;
     }
 
+    # Return success.
+    true;
+}
+
+def parse_select_expr_else(
+    &mut self, &mut x: ast.SelectExpr, &mut have_else: bool) -> bool
+{
     # Parse the trailing "else" (if we have one).
     if have_else {
         # Parse the condition-less branch.
@@ -1139,11 +1293,8 @@ def parse_select_expr(&mut self) -> bool
         if ast.isnull(branch) { return false; }
 
         # Append the branch to the selection expression.
-        select.branches.push(branch);
+        x.branches.push(branch);
     }
-
-    # Push our node on the stack.
-    self.stack.push(node);
 
     # Return success.
     true;

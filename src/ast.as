@@ -69,6 +69,7 @@ let TAG_BITAND          : int = 59;             # BitAndExpr
 let TAG_BITOR           : int = 60;             # BitOrExpr
 let TAG_BITXOR          : int = 61;             # BitXorExpr
 let TAG_BITNEG          : int = 62;             # BitNegExpr
+let TAG_TYPE_PARAM      : int = 63;             # TypeParam
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -219,8 +220,11 @@ type LocalSlotDecl {
     initializer: Node
 }
 
+# TypeParam
+type TypeParam { id: Node, default: Node, variadic: bool, bounds: Node }
+
 # Struct
-type Struct { mut nodes: Nodes, id: Node }
+type Struct { mut nodes: Nodes, id: Node, type_params: Nodes }
 
 # StructMem
 type StructMem { id: Node, type_: Node, mutable: bool, initializer: Node }
@@ -307,6 +311,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_INDEX   { let tmp: IndexExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CALL    { let tmp: CallExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CALL_ARG{ let tmp: Argument; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_TYPE_PARAM{ let tmp: TypeParam; ((&tmp + 1) - &tmp); }
     else if tag == TAG_STATIC_SLOT {
         let tmp: StaticSlotDecl;
         ((&tmp + 1) - &tmp);
@@ -454,6 +459,7 @@ def dump(&node: Node) {
         dump_table[TAG_STRUCT_MEM] = dump_struct_mem;
         dump_table[TAG_STRUCT_SMEM] = dump_struct_smem;
         dump_table[TAG_POSTFIX_EXPR] = dump_postfix_expr;
+        dump_table[TAG_TYPE_PARAM] = dump_type_param;
         dump_initialized = true;
     }
 
@@ -716,7 +722,24 @@ def dump_struct(node: ^Node) {
     printf("\n");
 
     dump_indent = dump_indent + 1;
+    dump_nodes("Type Parameters", x.type_params);
     dump_nodes("Members", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_type_param
+# -----------------------------------------------------------------------------
+def dump_type_param(node: ^Node) {
+    let x: ^TypeParam = unwrap(node^) as ^TypeParam;
+    printf("TypeParam <?> ");
+    if x.variadic { printf("variadic "); }
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    printf("%s", id.name.data());
+    printf("\n");
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.default) { dump(x.default); }
+    if not isnull(x.bounds)  { dump(x.bounds);  }
     dump_indent = dump_indent - 1;
 }
 

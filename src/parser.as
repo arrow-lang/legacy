@@ -248,25 +248,28 @@ def parse_struct(&mut self) -> bool {
     structN.id = self.stack.pop();
 
     # Check for type param --------------------------------------
-    if self.peek_token(1) == tokens.TOK_RCARET {
+    if self.peek_token(1) == tokens.TOK_LCARET {
+
+        self.pop_token();
 
         while self.peek_token(1) <> tokens.TOK_RCARET {
 
             let type_param_node : ast.Node = ast.make(ast.TAG_TYPE_PARAM);
-            let type_paramN : ^ast.TypeParam =  struct_node.unwrap() as ^ast.TypeParam;
+            let type_paramN : ^ast.TypeParam =  type_param_node.unwrap() as ^ast.TypeParam;
 
 
-            if self.parse_ident_expr() {
-                type_paramN.id = self.stack.pop();
-                self.pop_token();
+            if not self.parse_ident_expr() {
+                self.consume_until(tokens.TOK_RCARET);
+                return false;
             }
+            type_paramN.id = self.stack.pop();
 
             structN.type_params.push(type_param_node);
 
             let tok: int = self.peek_token(1);
             if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
 
-
+            break;
         }
 
         self.pop_token();

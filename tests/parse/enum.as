@@ -15,3 +15,7 @@ enum Option { Some(int), None }
 enum Result { Ok(int), Error(int) }
 enum List { Nil, Cons(int, List = Nil) }
 enum Tree { Leaf, Node(int, Tree = Leaf, Tree = Leaf) }
+
+# Declare some unions with type parameters.
+enum Option<T> { Some(T), None }
+enum Result<T, E> { Ok(T), Error(E) }

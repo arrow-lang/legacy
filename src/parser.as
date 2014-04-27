@@ -228,6 +228,7 @@ def parse_common_statement(&mut self) -> bool {
     else                 { false; }
 }
 
+
 def parse_struct(&mut self) -> bool {
 
     # Allocate space for the node
@@ -245,6 +246,32 @@ def parse_struct(&mut self) -> bool {
     # Set the identifier attribute of the last item added to the stack
     # (If we have gotten this far, its an identifier)
     structN.id = self.stack.pop();
+
+    # Check for type param --------------------------------------
+    if self.peek_token(1) == TOK_RCARET {
+
+        while self.peek_token(1) <> tokens.TOK_RCARET {
+
+            let type_param_node : ast.Node = ast.make(ast.TAG_TYPE_PARAM);
+            let type_paramN : ^ast.TypeParam =  struct_node.unwrap() as ^ast.TypeParam;
+
+
+            if self.parse_ident_expr() {
+                type_paramN.id = self.stack.pop();
+                self.pop_token();
+            }
+
+            structN.type_params.push(type_paramN);
+
+            let tok: int = self.peek_token(1);
+            if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
+
+
+        }
+
+        self.pop_token();
+
+    } # ---------------------------------------------------------
 
     if not  self.expect(tokens.TOK_LBRACE) {
         self.consume_until(tokens.TOK_RBRACE);

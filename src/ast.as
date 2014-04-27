@@ -224,7 +224,7 @@ type LocalSlotDecl {
 type TypeParam { id: Node, default: Node, variadic: bool, bounds: Node }
 
 # Struct
-type Struct { mut nodes: Nodes, id: Node, type_params: Nodes }
+type Struct { mut nodes: Nodes, id: Node, mut type_params: Nodes }
 
 # StructMem
 type StructMem { id: Node, type_: Node, mutable: bool, initializer: Node }

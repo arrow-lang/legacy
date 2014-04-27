@@ -248,7 +248,7 @@ def parse_struct(&mut self) -> bool {
     structN.id = self.stack.pop();
 
     # Check for type param --------------------------------------
-    if self.peek_token(1) == TOK_RCARET {
+    if self.peek_token(1) == tokens.TOK_RCARET {
 
         while self.peek_token(1) <> tokens.TOK_RCARET {
 
@@ -261,7 +261,7 @@ def parse_struct(&mut self) -> bool {
                 self.pop_token();
             }
 
-            structN.type_params.push(type_paramN);
+            structN.type_params.push(type_param_node);
 
             let tok: int = self.peek_token(1);
             if tok == tokens.TOK_COMMA { self.pop_token(); continue; }

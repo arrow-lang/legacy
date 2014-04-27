@@ -252,11 +252,12 @@ def parse_struct(&mut self) -> bool {
 
         self.pop_token();
 
-        while self.peek_token(1) <> tokens.TOK_RCARET {
+        while self.peek_token(1) <> tokens.TOK_LCARET {
 
             let type_param_node : ast.Node = ast.make(ast.TAG_TYPE_PARAM);
             let type_paramN : ^ast.TypeParam =  type_param_node.unwrap() as ^ast.TypeParam;
 
+            # if self.peek_token(1) == tokens.TOK_COLON { self.pop_token(); continue; }
 
             if not self.parse_ident_expr() {
                 self.consume_until(tokens.TOK_RCARET);
@@ -267,6 +268,7 @@ def parse_struct(&mut self) -> bool {
             structN.type_params.push(type_param_node);
 
             let tok: int = self.peek_token(1);
+
             if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
 
             break;

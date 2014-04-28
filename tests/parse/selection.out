@@ -1,0 +1,258 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          BooleanExpr <?> true
+          Block <?>
+            Nodes <?> 
+              AssignExpr <?>
+                Ident <?> x
+                IntegerExpr <?> 42 (10)
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          LTExpr <?>
+            Ident <?> x
+            IntegerExpr <?> 10 (10)
+          Block <?>
+            Nodes <?> 
+        SelectBranch <?> 
+          LTExpr <?>
+            Ident <?> x
+            IntegerExpr <?> 100 (10)
+          Block <?>
+            Nodes <?> 
+        SelectBranch <?> 
+          LTExpr <?>
+            Ident <?> x
+            IntegerExpr <?> 1000 (10)
+          Block <?>
+            Nodes <?> 
+        SelectBranch <?> 
+          Block <?>
+            Nodes <?> 
+    SelectOpExpr <?>
+      AssignExpr <?>
+        Ident <?> y
+        IntegerExpr <?> 320 (10)
+      Ident <?> some_condition
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          Ident <?> some_condition
+          Block <?>
+            Nodes <?> 
+              AssignExpr <?>
+                Ident <?> y
+                IntegerExpr <?> 320 (10)
+    ConditionalExpr <?> 
+      Ident <?> some_condition
+      IntegerExpr <?> 42 (10)
+      IntegerExpr <?> 83 (10)
+    ConditionalExpr <?> 
+      Ident <?> some_condition
+      SelectExpr <?> 
+        Branches <?> 
+          SelectBranch <?> 
+            GEExpr <?>
+              Ident <?> x
+              IntegerExpr <?> 1 (10)
+            Block <?>
+              Nodes <?> 
+      SelectExpr <?> 
+        Branches <?> 
+          SelectBranch <?> 
+            GEExpr <?>
+              Ident <?> x
+              IntegerExpr <?> 6 (10)
+            Block <?>
+              Nodes <?> 
+          SelectBranch <?> 
+            Block <?>
+              Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          Ident <?> some_condition
+          Block <?>
+            Nodes <?> 
+              SelectExpr <?> 
+                Branches <?> 
+                  SelectBranch <?> 
+                    GEExpr <?>
+                      Ident <?> x
+                      IntegerExpr <?> 1 (10)
+                    Block <?>
+                      Nodes <?> 
+        SelectBranch <?> 
+          Block <?>
+            Nodes <?> 
+              SelectExpr <?> 
+                Branches <?> 
+                  SelectBranch <?> 
+                    GEExpr <?>
+                      Ident <?> x
+                      IntegerExpr <?> 6 (10)
+                    Block <?>
+                      Nodes <?> 
+                  SelectBranch <?> 
+                    Block <?>
+                      Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          Ident <?> condition
+          Block <?>
+            Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          Ident <?> some_condition
+          Block <?>
+            Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          Ident <?> some_other_condition
+          Block <?>
+            Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          Ident <?> point
+          Block <?>
+            Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          PostfixExpr <?>
+            Ident <?> point
+            SequenceExpr <?>
+              Members <?> 
+          Block <?>
+            Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          PostfixExpr <?>
+            Ident <?> point
+            SequenceExpr <?>
+              Members <?> 
+          Block <?>
+            Nodes <?> 
+    Block <?>
+      Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          PostfixExpr <?>
+            Ident <?> point
+            RecordExpr <?>
+              Members <?> 
+                RecordExprMem <?> x
+                  IntegerExpr <?> 10 (10)
+          Block <?>
+            Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          PostfixExpr <?>
+            Ident <?> point
+            RecordExpr <?>
+              Members <?> 
+                RecordExprMem <?> x
+                  IntegerExpr <?> 20 (10)
+                RecordExprMem <?> y
+                  IntegerExpr <?> 50 (10)
+          Block <?>
+            Nodes <?> 
+    Block <?>
+      Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          PostfixExpr <?>
+            Ident <?> point
+            SequenceExpr <?>
+              Members <?> 
+                IntegerExpr <?> 10 (10)
+          Block <?>
+            Nodes <?> 
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          PostfixExpr <?>
+            Ident <?> point
+            SequenceExpr <?>
+              Members <?> 
+                IntegerExpr <?> 10 (10)
+          Block <?>
+            Nodes <?> 
+              IntegerExpr <?> 10 (10)
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          Ident <?> point
+          Block <?>
+            Nodes <?> 
+              IntegerExpr <?> 10 (10)
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          SelectExpr <?> 
+            Branches <?> 
+              SelectBranch <?> 
+                BooleanExpr <?> false
+                Block <?>
+                  Nodes <?> 
+                    BooleanExpr <?> true
+              SelectBranch <?> 
+                Block <?>
+                  Nodes <?> 
+                    BooleanExpr <?> false
+          Block <?>
+            Nodes <?> 
+              IntegerExpr <?> 20 (10)
+    SelectExpr <?> 
+      Branches <?> 
+        SelectBranch <?> 
+          SelectExpr <?> 
+            Branches <?> 
+              SelectBranch <?> 
+                BooleanExpr <?> false
+                Block <?>
+                  Nodes <?> 
+                    BooleanExpr <?> true
+              SelectBranch <?> 
+                Block <?>
+                  Nodes <?> 
+                    BooleanExpr <?> false
+          Block <?>
+            Nodes <?> 
+    ConditionalExpr <?> 
+      EQExpr <?>
+        PostfixExpr <?>
+          Ident <?> other
+          SequenceExpr <?>
+            Members <?> 
+              IntegerExpr <?> 20 (10)
+        PostfixExpr <?>
+          Ident <?> some
+          SequenceExpr <?>
+            Members <?> 
+              IntegerExpr <?> 10 (10)
+      SelectExpr <?> 
+        Branches <?> 
+          SelectBranch <?> 
+            Ident <?> cond
+            Block <?>
+              Nodes <?> 
+                IntegerExpr <?> 10 (10)
+          SelectBranch <?> 
+            Block <?>
+              Nodes <?> 
+                IntegerExpr <?> 20 (10)
+      Block <?>
+        Nodes <?> 
+          IntegerExpr <?> 50 (10)

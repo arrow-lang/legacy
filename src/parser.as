@@ -30,7 +30,7 @@ type Parser {
     mut _expect_block: list.List
 }
 
-    implement Parser {
+implement Parser {
 
 # Dispose of internal resources used during parsing.
 # -----------------------------------------------------------------------------
@@ -201,7 +201,6 @@ def parse_common_statement(&mut self) -> bool {
     # if tok == tokens.TOK_ENUM   { return self.parse_enum(); }
     # if tok == tokens.TOK_USE    { return self.parse_use(); }
     # if tok == tokens.TOK_IMPL   { return self.parse_impl(); }
-    if tok == tokens.TOK_IF       { return self.parse_select_expr(); }
 
     # if tok == tokens.TOK_DEF {
     #     # Functions are only declarations if they are named.
@@ -224,8 +223,8 @@ def parse_common_statement(&mut self) -> bool {
     }
 
     # We could still be an expression; forward.
-    if self.parse_expr() { self.expect(tokens.TOK_SEMICOLON); }
-    else                 { false; }
+    if self.parse_expr(true) { self.expect(tokens.TOK_SEMICOLON); }
+    else                     { false; }
 }
 
 
@@ -334,7 +333,7 @@ def parse_struct(&mut self) -> bool {
             # Consume the "="
             self.pop_token() ;
 
-            if not self.parse_expr() {
+            if not self.parse_expr(false) {
                 self.consume_until(tokens.TOK_RBRACE);
                 return false;
             }
@@ -388,12 +387,12 @@ def parse_struct(&mut self) -> bool {
 # -----------------------------------------------------------------------------
 # expr = unary-expr | binop-rhs ;
 # -----------------------------------------------------------------------------
-def parse_expr(&mut self) -> bool {
+def parse_expr(&mut self, statement: bool) -> bool {
     # Try and parse a unary expression.
     if not self.parse_unary_expr() { return false; }
 
     # Try and continue the unary expression as a binary expression.
-    self.parse_binop_rhs(0, 0);
+    self.parse_binop_rhs(0, 0, statement);
 
     # TODO: Try and continue the binary expression into a postfix
     #   control flow statement.
@@ -406,12 +405,16 @@ def parse_expr(&mut self) -> bool {
 #            | ">"  | "<"  | "<=" | ">=" | "="  | ":="  | "+=" | "-=" | "*="
 #            | "/=" | "%=" | "if" | "."  | "//" | "//="
 # -----------------------------------------------------------------------------
-def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int) -> bool {
+def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
+                    statement: bool) -> bool {
     loop {
         # Get the token precedence (if it is a binary operator token).
         let tok: int = self.peek_token(1);
         let tok_prec: int = self.get_binop_tok_precedence(tok);
         let tok_assoc: int = self.get_binop_tok_associativity(tok);
+
+        # If the stack is too full; get out.
+        if self.stack.size() > 1 { return true; }
 
         # If the proceeding token is not a binary operator token
         # or the token binds less tightly and is left-associative,
@@ -440,7 +443,21 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int) -> bool 
                 if top.tag == ast.TAG_CONDITIONAL
                 {
                     # Try and continue the expression.
-                    return self.parse_binop_rhs(tok_prec + 1, tok_assoc);
+                    return self.parse_binop_rhs(
+                        tok_prec + 1, tok_assoc, statement);
+                }
+
+                # If this is not a coinditional and this is not a
+                # statement; this cannot be a select-op.
+                if not statement and top.tag == ast.TAG_SELECT_OP
+                {
+                    errors.begin_error();
+                    errors.fprintf(errors.stderr,
+                                   "unexpected postfix selection statement" as ^int8);
+                    errors.end();
+
+                    # Return failure.
+                    return false;
                 }
 
                 # Return success.
@@ -465,7 +482,7 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int) -> bool 
         let nprec: int = self.get_binop_tok_precedence(self.peek_token(1));
         if tok_prec < nprec or (tok_assoc == ASSOC_RIGHT and tok_prec == nprec)
         {
-            if not self.parse_binop_rhs(tok_prec + 1, tok_assoc)
+            if not self.parse_binop_rhs(tok_prec + 1, tok_assoc, statement)
             {
                 return false;
             }
@@ -505,7 +522,7 @@ def parse_postfix_selection(&mut self) -> bool
     self.pop_token();
 
     # Attempt to parse a condition expression.
-    if not self.parse_expr() { return false; }
+    if not self.parse_expr(false) { return false; }
     let condition: ast.Node = self.stack.pop();
 
     # Is there a `{` token following (if so we could very well be
@@ -554,6 +571,31 @@ def parse_postfix_selection(&mut self) -> bool
             if not self.parse_select_expr_inner(sel^, else_) { return false; }
             if not self.parse_select_expr_else(sel^, else_) { return false; }
         }
+
+        # Push our node on the stack.
+        self.stack.push(node);
+
+        # Return success.
+        return true;
+    }
+
+    # Else is there a `else` directly following, then this is a
+    # conditional expression.
+    if self.peek_token(1) == tokens.TOK_ELSE
+    {
+        # Merge into a conditional expression.
+        let node: ast.Node = ast.make(ast.TAG_CONDITIONAL);
+        let expr: ^ast.ConditionalExpr = ast.unwrap(node) as ^ast.ConditionalExpr;
+        expr.lhs = lhs;
+        expr.condition = condition;
+
+        # Consume the "else" token.
+        self.pop_token();
+
+        # Parse the RHS (or false case).
+        let res: bool = self.parse_expr(false);
+        if not res { return false; }
+        expr.rhs = self.stack.pop();
 
         # Push our node on the stack.
         self.stack.push(node);
@@ -659,8 +701,25 @@ def parse_postfix_expr_operand(&mut self) -> bool
 {
     # Recurse downwards depending on our token.
     let tok: int = self.peek_token(1);
-    if tok == tokens.TOK_LBRACE { self.parse_postfix_brace_expr(); }
-    else { false; }
+    if tok == tokens.TOK_LBRACE
+    {
+        let last: ast.Node = self.stack.get(-1);
+        if last.tag == ast.TAG_IDENT
+        {
+            # A postfix `{` expression is only considered
+            # after an identifier (or a path).
+            self.parse_postfix_brace_expr();
+        }
+        else
+        {
+            # Didn't match a postfix-expr; continue.
+            true;
+        }
+    }
+    else
+    {
+        false;
+    }
 }
 
 def parse_postfix_brace_expr(&mut self) -> bool
@@ -703,7 +762,7 @@ def parse_postfix_brace_expr(&mut self) -> bool
             if self.peek_token(1) <> tokens.TOK_LBRACE {
                 # Ignore the sequence and pretend its a block.
                 is_block = true;
-                # self._expect_block = false;
+                self._expect_block.erase(-1);
             }
         }
 
@@ -920,7 +979,7 @@ def parse_paren_expr(&mut self) -> bool
     }
 
     # Parse an expression node.
-    if not self.parse_expr() { return false; }
+    if not self.parse_expr(false) { return false; }
     let node: ast.Node = self.stack.pop();
 
     # Check for a comma that would begin a tuple.
@@ -939,7 +998,7 @@ def parse_paren_expr(&mut self) -> bool
         # Enumerate until we reach the `)` token.
         while self.peek_token(1) <> tokens.TOK_RPAREN {
             # Parse an expression node.
-            if not self.parse_expr() { return false; }
+            if not self.parse_expr(false) { return false; }
             expr.nodes.push(self.stack.pop());
 
             # Peek and consume the `,` token if present.
@@ -991,7 +1050,7 @@ def parse_array_expr(&mut self) -> bool
     # Enumerate until we reach the `]` token.
     while self.peek_token(1) <> tokens.TOK_RBRACKET {
         # Parse an expression node.
-        if not self.parse_expr() { return false; }
+        if not self.parse_expr(false) { return false; }
         expr.nodes.push(self.stack.pop());
 
         # Peek and consume the `,` token if present.
@@ -1062,7 +1121,7 @@ def parse_record_expr(&mut self) -> bool
         }
 
         # Parse an expression node.
-        if not self.parse_expr() {
+        if not self.parse_expr(false) {
             self.consume_until(tokens.TOK_RBRACE);
             error = true; break;
         }
@@ -1163,7 +1222,7 @@ def parse_brace_expr(&mut self) -> bool
                 and self._possible_expr(self.peek_token(1))
         {
             # Parse the expression node directly.
-            if not self.parse_expr() {
+            if not self.parse_expr(false) {
                 self.consume_until(tokens.TOK_RBRACE);
                 return false;
             }
@@ -1343,7 +1402,7 @@ def parse_select_branch(&mut self, condition: bool) -> ast.Node
 
     if condition {
         # Expect and parse the condition expression.
-        if not self.parse_expr() {
+        if not self.parse_expr(false) {
             return ast.null();
         }
         branch.condition = self.stack.pop();
@@ -1377,7 +1436,7 @@ def parse_select_branch(&mut self, condition: bool) -> ast.Node
     }
 
     # HACK: Stop expecting.
-    self._expect_block.erase(-1);
+    self._expect_block.clear();
 
     # Parse the block.
     if not self.parse_block_expr() { return ast.null(); }

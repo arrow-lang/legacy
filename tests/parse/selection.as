@@ -5,7 +5,6 @@ if true { x = 42; };
 
 # Selection statments may have any number of condition branches followed
 # by a single branch without a condition.
-# let x = 2;
 if      x <   10 {  }
 else if x <  100 {  }
 else if x < 1000 {  }
@@ -13,7 +12,6 @@ else             {  };
 
 # A selection statement may be postfixed (eg. used as a binary
 # operator) to invert the standard order.
-# let y: int;
 y = 320 if some_condition;
 
 # Is equivalent to:

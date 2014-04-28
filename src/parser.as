@@ -529,54 +529,15 @@ def parse_postfix_selection(&mut self) -> bool
     # a full selection expression)?
     if self.peek_token(1) == tokens.TOK_LBRACE
     {
-        # Push back the `lhs` untouched.
-        self.stack.push(lhs);
+        # It is an error to have a full selection expression in
+        # the postfix space.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "unexpected selection statement" as ^int8);
+        errors.end();
 
-        # Declare the selection expr node.
-        let node: ast.Node = ast.make(ast.TAG_SELECT);
-        let sel: ^mut ast.SelectExpr = ast.unwrap(node) as ^ast.SelectExpr;
-        let mut else_: bool = false;
-
-        # Construct the initial branch.
-        # Declare the branch node.
-        let br_node: ast.Node = ast.make(ast.TAG_SELECT_BRANCH);
-        let mut branch: ^ast.SelectBranch =
-            ast.unwrap(br_node) as ^ast.SelectBranch;
-        branch.condition = condition;
-
-        # Parse the block.
-        if not self.parse_block_expr() { return false; }
-        branch.block = self.stack.pop();
-
-        # Push the branch.
-        sel.branches.push(br_node);
-
-        # Check for an "else" branch.
-        let mut continue_: bool = false;
-        if self.peek_token(1) == tokens.TOK_ELSE {
-            else_ = true;
-            continue_ = true;
-
-            # Consume the "else" token.
-            self.pop_token();
-
-            # Check for an adjacent "if" token (which would make this
-            # an "else if" and part of this selection expression).
-            if self.peek_token(1) == tokens.TOK_IF { else_ = false; }
-        }
-
-        # Continue and parse if we should.
-        if continue_
-        {
-            if not self.parse_select_expr_inner(sel^, else_) { return false; }
-            if not self.parse_select_expr_else(sel^, else_) { return false; }
-        }
-
-        # Push our node on the stack.
-        self.stack.push(node);
-
-        # Return success.
-        return true;
+        # Return failure.
+        return false;
     }
 
     # Else is there a `else` directly following, then this is a

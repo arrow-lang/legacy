@@ -1150,7 +1150,8 @@ def parse_block_expr(&mut self) -> bool
             # are illegal.
             errors.begin_error();
             errors.fprintf(errors.stderr,
-                           "expected `block` but found `sequence` (a sequence expression must be prefixed by a nominal type)" as ^int8);
+                           "expected `block` but found `sequence` (%s)" as ^int8,
+                           "a sequence expression must be prefixed by a nominal type");
             errors.end();
             return false;
         }

@@ -1,51 +1,29 @@
 ModuleDecl <?> _
   Nodes <?> 
-    RecordExpr <?>
-      Members <?> 
-        RecordExprMem <?> x
-          IntegerExpr <?> 10 (10)
-    RecordExpr <?>
-      Members <?> 
-        RecordExprMem <?> y
-          IntegerExpr <?> 20 (10)
-    RecordExpr <?>
-      Members <?> 
-        RecordExprMem <?> a
-          IntegerExpr <?> 20 (10)
-        RecordExprMem <?> b
-          BooleanExpr <?> false
-        RecordExprMem <?> c
-          FloatExpr <?> 3.123
     Struct <?> Point
+      Type Parameters <?> 
       Members <?> 
         StructMem <?> x
           Ident <?> int
+          IntegerExpr <?> 50 (10)
         StructMem <?> y
-          Ident <?> str
-    Struct <?> Point
-      Members <?> 
-        StructMem <?> x
           Ident <?> int
-        StructMem <?> y
-          Ident <?> str
-    Struct <?> Box
-      Members <?> 
-        StructMem <?> a
-          Ident <?> bool
-    Struct <?> Box
-      Members <?> 
-        StructMem <?> mut a
-          Ident <?> bool
+          IntegerExpr <?> 20 (10)
     Struct <?> Nil
+      Type Parameters <?> 
       Members <?> 
-    Struct <?> StaticPoint
+    Struct <?> Box
+      Type Parameters <?> 
+        TypeParam <?> T
       Members <?> 
-        StructStaticMem <?> x
-          Ident <?> int
-          NumericNegateExpr <?>
-            IntegerExpr <?> 3 (10)
-    Struct <?> StaticPoint
+        StructMem <?> value
+          Ident <?> T
+    Struct <?> Point
+      Type Parameters <?> 
+        TypeParam <?> T
+        TypeParam <?> U
       Members <?> 
-        StructStaticMem <?> mut x
-          Ident <?> int
-          IntegerExpr <?> 3 (10)
+        StructMem <?> x
+          Ident <?> T
+        StructMem <?> y
+          Ident <?> U

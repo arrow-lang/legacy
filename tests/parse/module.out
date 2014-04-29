@@ -1,0 +1,11 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    ModuleDecl <?> math
+      Nodes <?> 
+        Struct <?> Point
+          Type Parameters <?> 
+          Members <?> 
+            StructMem <?> x
+              Ident <?> int
+            StructMem <?> y
+              Ident <?> int

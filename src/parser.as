@@ -162,6 +162,64 @@ def parse(&mut self, name: str) -> ast.Node {
     node;
 }
 
+# Module
+# -----------------------------------------------------------------------------
+# module = "module" ident "{" { module-node } "}" ;
+# -----------------------------------------------------------------------------
+def parse_module(&mut self) -> bool
+{
+    # Declare the module decl node.
+    let node: ast.Node = ast.make(ast.TAG_MODULE);
+    let mod: ^ast.ModuleDecl = node.unwrap() as ^ast.ModuleDecl;
+
+    # Pop the `module` token.
+    self.pop_token();
+
+    # Expect an `identifier` next.
+    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+        # Report the error.
+        self.expect(tokens.TOK_IDENTIFIER);
+        self.consume_until(tokens.TOK_RBRACE);
+        return false;
+    }
+
+    # Parse and set the identifier (this shouldn't fail).
+    if not self.parse_ident_expr() {
+        self.consume_until(tokens.TOK_RBRACE);
+        return false;
+    }
+
+    mod.id = self.stack.pop();
+
+    # Expect and parse the `{` token.
+    if not self.expect(tokens.TOK_LBRACE) {
+        self.consume_until(tokens.TOK_RBRACE);
+        return false;
+    }
+
+    # Iterate and attempt to match items until the stream is empty.
+    while self.peek_token(1) <> tokens.TOK_RBRACE
+            and self.peek_token(1) <> tokens.TOK_END {
+        # Try and parse a module node.
+        if self.parse_module_node() {
+            # Consume the parsed node and push it into the module.
+            self.empty_stack_to(mod.nodes);
+        } else {
+            # Clear the node stack.
+            self.stack.clear();
+        }
+    }
+
+    # Expect and parse the `}` token.
+    if not self.expect(tokens.TOK_RBRACE) { return false; }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
 # Module node
 # -----------------------------------------------------------------------------
 # module-node = module | common-statement ;
@@ -169,7 +227,7 @@ def parse(&mut self, name: str) -> ast.Node {
 def parse_module_node(&mut self) -> bool {
     # Peek ahead and see if we are a module `item`.
     let tok: int = self.peek_token(1);
-    # if tok == tokens.TOK_MODULE { return self.parse_module(nodes); }
+    if tok == tokens.TOK_MODULE { return self.parse_module(); }
 
     if tok == tokens.TOK_SEMICOLON {
         # Consume the semicolon and attempt to match the next item.

@@ -227,10 +227,7 @@ type TypeParam { id: Node, default: Node, variadic: bool, bounds: Node }
 type Struct { mut nodes: Nodes, id: Node, mut type_params: Nodes }
 
 # StructMem
-type StructMem { id: Node, type_: Node, mutable: bool, initializer: Node }
-
-# StructStaticMem
-type StructStaticMem { id: Node, type_: Node, mutable: bool, initializer: Node }
+type StructMem { id: Node, type_: Node, initializer: Node }
 
 # Call expression
 type CallExpr { expression: Node, mut arguments: Nodes }
@@ -351,9 +348,6 @@ def _sizeof(tag: int) -> uint {
     } else if tag == TAG_STRUCT_MEM {
         let tmp: StructMem;
         ((&tmp + 1) - &tmp);
-    } else if tag == TAG_STRUCT_SMEM {
-        let tmp: StructStaticMem;
-        ((&tmp + 1) - &tmp);
     } else if tag == TAG_POSTFIX_EXPR {
         let tmp: PostfixExpr;
         ((&tmp + 1) - &tmp);
@@ -457,7 +451,6 @@ def dump(&node: Node) {
         dump_table[TAG_RECORD_EXPR_MEM] = dump_record_expr_mem;
         dump_table[TAG_STRUCT] = dump_struct;
         dump_table[TAG_STRUCT_MEM] = dump_struct_mem;
-        dump_table[TAG_STRUCT_SMEM] = dump_struct_smem;
         dump_table[TAG_POSTFIX_EXPR] = dump_postfix_expr;
         dump_table[TAG_TYPE_PARAM] = dump_type_param;
         dump_initialized = true;
@@ -748,28 +741,12 @@ def dump_type_param(node: ^Node) {
 def dump_struct_mem(node: ^Node) {
     let x: ^StructMem = unwrap(node^) as ^StructMem;
     printf("StructMem <?> ");
-    if x.mutable { printf("mut "); }
     let id: ^Ident = unwrap(x.id) as ^Ident;
     printf("%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
     dump(x.type_);
     if not isnull(x.initializer) { dump(x.initializer); }
-    dump_indent = dump_indent - 1;
-}
-
-# dump_struct_smem
-# -----------------------------------------------------------------------------
-def dump_struct_smem(node: ^Node) {
-    let x: ^StructStaticMem = unwrap(node^) as ^StructStaticMem;
-    printf("StructStaticMem <?> ");
-    if x.mutable { printf("mut "); }
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    printf("%s\n", id.name.data());
-
-    dump_indent = dump_indent + 1;
-    dump(x.type_);
-    dump(x.initializer);
     dump_indent = dump_indent - 1;
 }
 

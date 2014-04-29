@@ -227,162 +227,6 @@ def parse_common_statement(&mut self) -> bool {
     else                     { false; }
 }
 
-
-def parse_struct(&mut self) -> bool {
-
-    # Allocate space for the node
-    let struct_node : ast.Node = ast.make(ast.TAG_STRUCT);
-    let structN : ^ast.Struct =  struct_node.unwrap() as ^ast.Struct;
-
-    # Take and remove "struct"
-    self.pop_token();
-
-    if not self.parse_ident_expr() {
-        self.consume_until(tokens.TOK_RBRACE);
-        return false;
-    }
-
-    # Set the identifier attribute of the last item added to the stack
-    # (If we have gotten this far, its an identifier)
-    structN.id = self.stack.pop();
-
-    # Check for type param --------------------------------------
-    if self.peek_token(1) == tokens.TOK_LCARET {
-
-        self.pop_token();
-
-        while self.peek_token(1) <> tokens.TOK_LCARET {
-
-            let type_param_node : ast.Node = ast.make(ast.TAG_TYPE_PARAM);
-            let type_paramN : ^ast.TypeParam =  type_param_node.unwrap() as ^ast.TypeParam;
-
-            # if self.peek_token(1) == tokens.TOK_COLON { self.pop_token(); continue; }
-
-            if not self.parse_ident_expr() {
-                self.consume_until(tokens.TOK_RCARET);
-                return false;
-            }
-            type_paramN.id = self.stack.pop();
-
-            structN.type_params.push(type_param_node);
-
-            let tok: int = self.peek_token(1);
-
-            if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
-
-            break;
-        }
-
-        self.pop_token();
-
-    } # ---------------------------------------------------------
-
-    if not  self.expect(tokens.TOK_LBRACE) {
-        self.consume_until(tokens.TOK_RBRACE);
-        return false;
-    }
-
-    while self.peek_token(1) <> tokens.TOK_RBRACE {
-
-        let mut struct_mem_node: ast.Node = ast.make(ast.TAG_STRUCT_MEM);
-        let struct_mem : ^ast.StructMem = struct_mem_node.unwrap() as ^ast.StructMem;
-        let is_static: bool = false;
-
-        if self.peek_token(1) == tokens.TOK_STATIC {
-            #We know its a static struct, lets change our node
-            struct_mem_node._set_tag(ast.TAG_STRUCT_SMEM);
-            is_static = true;
-            self.pop_token();
-        }
-
-        if self.peek_token(1) == tokens.TOK_MUT {
-            #We know its a static struct, lets change our node
-            struct_mem.mutable = true;
-            self.pop_token();
-        }
-
-        if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
-            # Report the error.
-            self.expect(tokens.TOK_IDENTIFIER);
-            self.consume_until(tokens.TOK_RBRACE);
-            return false;
-        }
-
-        if not self.parse_ident_expr() { return false; }
-
-        # We got an identifier!
-        struct_mem.id = self.stack.pop();
-
-
-
-        # Now, we'd better get a colon, or shit's going to get real
-        if not self.expect(tokens.TOK_COLON) {
-            self.consume_until(tokens.TOK_RBRACE);
-            return false;
-        }
-
-        # Now for a type!
-        if not self.parse_ident_expr() {
-            self.consume_until(tokens.TOK_RBRACE);
-            return false;
-        }
-
-        struct_mem.type_ = self.stack.pop();
-
-        if self.peek_token(1) == tokens.TOK_EQ {
-            # Consume the "="
-            self.pop_token() ;
-
-            if not self.parse_expr(false) {
-                self.consume_until(tokens.TOK_RBRACE);
-                return false;
-            }
-
-            struct_mem.initializer =self.stack.pop();
-        } else if is_static {
-            # Should probably throw an error message, too lazy to however.
-            errors.begin_error();
-            errors.fprintf(errors.stderr,
-                           "expected %s but found %s (static members must have an initializer)" as ^int8,
-                           tokens.to_str(tokens.TOK_EQ),
-                           tokens.to_str(self.peek_token(1)));
-            errors.end();
-            self.consume_until(tokens.TOK_RBRACE);
-            return false;
-        }
-
-        # Push the node.
-        structN.nodes.push(struct_mem_node);
-
-        let tok: int = self.peek_token(1);
-        if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
-
-        else if tok <> tokens.TOK_RBRACE {
-            self.consume_until(tokens.TOK_RBRACE);
-            errors.begin_error();
-            errors.fprintf(errors.stderr,
-                           "expected %s or %s but found %s" as ^int8,
-                           tokens.to_str(tokens.TOK_COMMA),
-                           tokens.to_str(tokens.TOK_RBRACE),
-                           tokens.to_str(tok));
-            errors.end();
-            return false;
-
-            # Done here; too bad.
-        }
-
-        # THIS SHOULD NEVER HAPPEN
-        break;
-
-    }
-
-    # Push our node on the stack.
-    self.stack.push(struct_node);
-
-    # Return success.
-    true;
-}
-
 # Expression
 # -----------------------------------------------------------------------------
 # expr = unary-expr | binop-rhs ;
@@ -1406,6 +1250,173 @@ def parse_select_branch(&mut self, condition: bool) -> ast.Node
 
     # Return our parsed node.
     node;
+}
+
+# Type Parameters
+# -----------------------------------------------------------------------------
+def parse_type_params(&mut self, &mut params: ast.Nodes) -> bool
+{
+    if self.peek_token(1) == tokens.TOK_LCARET
+    {
+        # Pop the `<` token.
+        self.pop_token();
+
+        # Enumerate until we reach the final `>`.
+        while self.peek_token(1) <> tokens.TOK_RCARET
+        {
+            # Declare the type parameter node.
+            let node: ast.Node = ast.make(ast.TAG_TYPE_PARAM);
+            let param: ^ast.TypeParam =  node.unwrap() as ^ast.TypeParam;
+
+            # Bail if we don't have an identifier next.
+            if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+                self.consume_until(tokens.TOK_RCARET);
+                self.expect(tokens.TOK_IDENTIFIER);
+                return false;
+            }
+
+            # Parse and set the identifier (this shouldn't fail).
+            if not self.parse_ident_expr() {
+                self.consume_until(tokens.TOK_RCARET);
+                return false;
+            }
+
+            param.id = self.stack.pop();
+
+            # Push the type parameter.
+            params.push(node);
+
+            # Peek and consume the `,` token if present.
+            let tok: int = self.peek_token(1);
+            if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
+            else if tok <> tokens.TOK_RCARET {
+                # Expected a comma and didn't receive one.. consume tokens until
+                # we reach a `>`.
+                self.consume_until(tokens.TOK_RCARET);
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "expected %s or %s but found %s" as ^int8,
+                               tokens.to_str(tokens.TOK_COMMA),
+                               tokens.to_str(tokens.TOK_RCARET),
+                               tokens.to_str(tok));
+                errors.end();
+                return false;
+            }
+
+            # Done here; too bad.
+            break;
+        }
+
+        # Pop the `>` token.
+        self.pop_token();
+    }
+
+    # Return true.
+    return true;
+}
+
+# Structure
+# -----------------------------------------------------------------------------
+def parse_struct(&mut self) -> bool {
+    # Allocate space for the node
+    let struct_node : ast.Node = ast.make(ast.TAG_STRUCT);
+    let struct_ : ^ast.Struct =  struct_node.unwrap() as ^ast.Struct;
+
+    # Take and remove "struct"
+    self.pop_token();
+
+    # Bail if we don't have an identifier next.
+    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+        self.expect(tokens.TOK_IDENTIFIER);
+        return false;
+    }
+
+    # Parse and set the identifier (this shouldn't fail).
+    if not self.parse_ident_expr() { return false; }
+    struct_.id = self.stack.pop();
+
+    # Check for and parse type type parameters.
+    if not self.parse_type_params(struct_.type_params) { return true; }
+
+    if not  self.expect(tokens.TOK_LBRACE) {
+        self.consume_until(tokens.TOK_RBRACE);
+        return false;
+    }
+
+    while self.peek_token(1) <> tokens.TOK_RBRACE {
+
+        let mut struct_mem_node: ast.Node = ast.make(ast.TAG_STRUCT_MEM);
+        let struct_mem : ^ast.StructMem = struct_mem_node.unwrap() as ^ast.StructMem;
+        let is_static: bool = false;
+
+        if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+            # Report the error.
+            self.expect(tokens.TOK_IDENTIFIER);
+            self.consume_until(tokens.TOK_RBRACE);
+            return false;
+        }
+
+        if not self.parse_ident_expr() { return false; }
+
+        # We got an identifier!
+        struct_mem.id = self.stack.pop();
+
+        # Now, we'd better get a colon, or shit's going to get real
+        if not self.expect(tokens.TOK_COLON) {
+            self.consume_until(tokens.TOK_RBRACE);
+            return false;
+        }
+
+        # Now for a type!
+        if not self.parse_ident_expr() {
+            self.consume_until(tokens.TOK_RBRACE);
+            return false;
+        }
+
+        struct_mem.type_ = self.stack.pop();
+
+        if self.peek_token(1) == tokens.TOK_EQ {
+            # Consume the "="
+            self.pop_token() ;
+
+            if not self.parse_expr(false) {
+                self.consume_until(tokens.TOK_RBRACE);
+                return false;
+            }
+
+            struct_mem.initializer =self.stack.pop();
+        }
+
+        # Push the node.
+        struct_.nodes.push(struct_mem_node);
+
+        let tok: int = self.peek_token(1);
+        if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
+
+        else if tok <> tokens.TOK_RBRACE {
+            self.consume_until(tokens.TOK_RBRACE);
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "expected %s or %s but found %s" as ^int8,
+                           tokens.to_str(tokens.TOK_COMMA),
+                           tokens.to_str(tokens.TOK_RBRACE),
+                           tokens.to_str(tok));
+            errors.end();
+            return false;
+
+            # Done here; too bad.
+        }
+
+        # THIS SHOULD NEVER HAPPEN
+        break;
+
+    }
+
+    # Push our node on the stack.
+    self.stack.push(struct_node);
+
+    # Return success.
+    true;
 }
 
 # Check if a token could possibly begin an expression.

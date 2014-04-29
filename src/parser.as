@@ -809,7 +809,7 @@ def parse_paren_expr(&mut self) -> bool
             # Peek and consume the `,` token if present; else, consume
             # tokens until we reach the `)`.
             if self._expect_sequence_continue(tokens.TOK_RPAREN) { continue; }
-            break;
+            return false;
         }
 
         # Switch our node.
@@ -846,7 +846,7 @@ def parse_array_expr(&mut self) -> bool
         # Peek and consume the `,` token if present; else, consume
         # tokens until we reach the `]`.
         if self._expect_sequence_continue(tokens.TOK_RBRACKET) { continue; }
-        break;
+        return false;
     }
 
     # Expect a `]` token.
@@ -907,7 +907,7 @@ def parse_record_expr(&mut self) -> bool
         # Peek and consume the `,` token if present; else, consume
         # tokens until we reach the `}`.
         if self._expect_sequence_continue(tokens.TOK_RBRACE) { continue; }
-        break;
+        return false;
     }
 
     # Expect a `}` token.
@@ -1239,7 +1239,7 @@ def parse_type_params(&mut self, &mut params: ast.Nodes) -> bool
             # Peek and consume the `,` token if present; else, consume
             # tokens until we reach the `>`.
             if self._expect_sequence_continue(tokens.TOK_RCARET) { continue; }
-            break;
+            return false;
         }
 
         # Pop the `>` token.
@@ -1407,7 +1407,7 @@ def _expect_sequence_continue(&mut self, end: int) -> bool
     }
 
     # Done anyway.
-    return false;
+    return true;
 }
 
 # Get the binary operator token precedence.

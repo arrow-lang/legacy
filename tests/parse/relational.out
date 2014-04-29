@@ -1,0 +1,29 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    GTExpr <?>
+      IntegerExpr <?> 10 (10)
+      IntegerExpr <?> 430 (10)
+    LTExpr <?>
+      IntegerExpr <?> 60 (10)
+      IntegerExpr <?> 43 (10)
+    GEExpr <?>
+      IntegerExpr <?> 350 (10)
+      IntegerExpr <?> 403 (10)
+    LEExpr <?>
+      IntegerExpr <?> 32 (10)
+      IntegerExpr <?> 302 (10)
+    LTExpr <?>
+      LogicalNegateExpr <?>
+        IntegerExpr <?> 023 (10)
+      IntegerExpr <?> 302 (10)
+    GTExpr <?>
+      IntegerExpr <?> 40 (10)
+      IntegerExpr <?> 502 (10)
+    LogicalAndExpr <?>
+      GTExpr <?>
+        LogicalNegateExpr <?>
+          IntegerExpr <?> 40 (10)
+        IntegerExpr <?> 40 (10)
+      GTExpr <?>
+        IntegerExpr <?> 70 (10)
+        IntegerExpr <?> 403 (10)

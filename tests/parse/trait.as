@@ -18,5 +18,6 @@ trait Sequence<T> {
 
 # Equality trait.
 trait Eq {
-    def equals(self, other: Self): bool;
+    def eq(self, other: Self): bool;
+    def ne(self, other: Self): bool { not self.eq(other); }
 }

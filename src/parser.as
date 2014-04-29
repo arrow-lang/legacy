@@ -386,7 +386,7 @@ def parse_function(&mut self) -> bool
     if not self.parse_type_params(decl.type_params) { return false; }
 
     # Parse the parameter list.
-    self.parse_function_params(decl.params);
+    if not self.parse_function_params(decl.params) { return false; }
 
     # Check for a return type annotation which would again
     # be preceeded by a `:` token.

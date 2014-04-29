@@ -108,26 +108,26 @@ def build(ctx):
         source="parser.o",
         target="parser")
 
-    # # Compile the generator to the llvm IL.
-    # ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
-    #     source="src/generator.as",
-    #     target="generator.ll")
+    # Compile the generator to the llvm IL.
+    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
+        source="src/generator.as",
+        target="generator.ll")
 
-    # # Optimize the generator.
-    # ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
-    #     source="generator.ll",
-    #     target="generator.opt.ll")
+    # Optimize the generator.
+    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
+        source="generator.ll",
+        target="generator.opt.ll")
 
-    # # Compile the generator from llvm IL into native object code.
-    # ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
-    #     source="generator.opt.ll",
-    #     target="generator.o")
+    # Compile the generator from llvm IL into native object code.
+    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
+        source="generator.opt.ll",
+        target="generator.o")
 
-    # # Link the generator into a final executable.
-    # libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
-    # ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
-    #     source="generator.o",
-    #     target="generator")
+    # Link the generator into a final executable.
+    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
+    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
+        source="generator.o",
+        target="generator")
 
 def test(ctx):
     print(ws.test._sep("test session starts", "="))
@@ -137,6 +137,6 @@ def test(ctx):
     ws.test._test_parser(ctx)
     print(ws.test._sep("parse-fail", "-"))
     ws.test._test_parser_fail(ctx)
-    # print(_sep("run", "-"))
-    # _test_run(ctx)
+    print(ws.test._sep("run", "-"))
+    ws.test._test_run(ctx)
     ws.test._print_report()

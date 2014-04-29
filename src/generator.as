@@ -800,7 +800,9 @@ def _extract_item_func(&mut self, x: ^ast.FuncDecl) {
     # Generate each node in the module and place items that didn't
     # get extracted into the new node block.
     let nodes: ^mut ast.Nodes = ast.new_nodes();
-    self._extract_items(nodes, x.nodes);
+    let blk_node: ast.Node = x.block;
+    let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
+    self._extract_items(nodes, blk.nodes);
     self.nodes.set_ptr(qname.data() as str, nodes as ^void);
 
     # Pop our name off the namespace stack.
@@ -1706,6 +1708,8 @@ def resolve_select_expr(g: ^mut Generator, _: ^code.Handle,
     while i as uint < x.branches.size() {
         let brn: ast.Node = x.branches.get(i);
         let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
+        let blk_node: ast.Node = br.block;
+        let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
 
         if not ast.isnull(br.condition) {
             # Attempt to resolve the type of the condition and ensure it is of
@@ -1718,7 +1722,7 @@ def resolve_select_expr(g: ^mut Generator, _: ^code.Handle,
 
         if has_value {
             # Does this block have any nodes?
-            if br.nodes.size() == 0 {
+            if blk.nodes.size() == 0 {
                 # Nope; this expression no longer has values.
                 has_value = false;
                 break;
@@ -1727,7 +1731,7 @@ def resolve_select_expr(g: ^mut Generator, _: ^code.Handle,
             # Resolve the type of the final node in the block.
             # Iterate through each node in the branch.
             # Resolve this node.
-            let node: ast.Node = br.nodes.get(-1);
+            let node: ast.Node = blk.nodes.get(-1);
             let han: ^code.Handle = resolve_scoped_type(g, scope, &node);
             if code.isnil(han) {
                 # This block does not resolve to a value; this causes
@@ -2824,6 +2828,8 @@ def build_select_expr(g: ^mut Generator, _: ^code.Handle,
     while i as uint < x.branches.size() {
         let brn: ast.Node = x.branches.get(i);
         let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
+        let blk_node: ast.Node = br.block;
+        let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
 
         # Is this the `else` block?
         if ast.isnull(br.condition) {
@@ -2853,14 +2859,14 @@ def build_select_expr(g: ^mut Generator, _: ^code.Handle,
         # Build each node in the branch.
         let mut j: int = 0;
         let mut res: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
-        while j as uint < br.nodes.size() {
+        while j as uint < blk.nodes.size() {
             # Resolve this node.
-            let node: ast.Node = br.nodes.get(j);
+            let node: ast.Node = blk.nodes.get(j);
 
             # Resolve the type of the node.
             let cur_count: uint = errors.count;
             let target: ^code.Handle = resolve_st_type(
-                g, type_target if (j as uint) + 1 >= br.nodes.size() else code.make_nil(),
+                g, type_target if (j as uint) + 1 >= blk.nodes.size() else code.make_nil(),
                 scope, &node);
             if cur_count < errors.count { continue; }
 
@@ -2874,7 +2880,7 @@ def build_select_expr(g: ^mut Generator, _: ^code.Handle,
                 # If we were supposed to get a value ...
                 if _._tag <> code.TAG_VOID_TYPE {
                     # ... set the last handle as our value.
-                    if j as uint + 1 >= br.nodes.size() {
+                    if j as uint + 1 >= blk.nodes.size() {
                         res = val.handle;
                     }
                 }
@@ -2908,18 +2914,20 @@ def build_select_expr(g: ^mut Generator, _: ^code.Handle,
     if i as uint < x.branches.size() {
         let brn: ast.Node = x.branches.get(i);
         let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
+        let blk_node: ast.Node = br.block;
+        let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
 
         # Build each node in the branch.
         let mut j: int = 0;
         let mut res: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
-        while j as uint < br.nodes.size() {
+        while j as uint < blk.nodes.size() {
             # Resolve this node.
-            let node: ast.Node = br.nodes.get(j);
+            let node: ast.Node = blk.nodes.get(j);
 
             # Resolve the type of the node.
             let cur_count: uint = errors.count;
             let target: ^code.Handle = resolve_st_type(
-                g, type_target if (j as uint) + 1 >= br.nodes.size() else code.make_nil(),
+                g, type_target if (j as uint) + 1 >= blk.nodes.size() else code.make_nil(),
                 scope, &node);
             if cur_count < errors.count { continue; }
 
@@ -2933,7 +2941,7 @@ def build_select_expr(g: ^mut Generator, _: ^code.Handle,
                 # If we were supposed to get a value ...
                 if _._tag <> code.TAG_VOID_TYPE {
                     # ... set the last handle as our value.
-                    if j as uint + 1 >= br.nodes.size() {
+                    if j as uint + 1 >= blk.nodes.size() {
                         res = val.handle;
                     }
                 }
@@ -2986,8 +2994,11 @@ def build_select_expr(g: ^mut Generator, _: ^code.Handle,
 # Test driver using `stdin`.
 # =============================================================================
 def main() {
+    # Declare the parser.
+    let mut p: parser.Parser;
+
     # Parse the AST from the standard input.
-    let unit: ast.Node = parser.parse();
+    let unit: ast.Node = p.parse("_");
     if errors.count > 0 { libc.exit(-1); }
 
     # Declare the generator.

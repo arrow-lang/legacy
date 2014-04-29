@@ -220,6 +220,33 @@ def parse_module(&mut self) -> bool
     true;
 }
 
+# Unsafe
+# -----------------------------------------------------------------------------
+# unsafe = "unsafe" "{" { statement } "}" ;
+# -----------------------------------------------------------------------------
+def parse_unsafe(&mut self) -> bool
+{
+    # Declare the unsafe block.
+    let mut node: ast.Node;
+
+    # Pop the `unsafe` token.
+    self.pop_token();
+
+    # Parse a block.
+    if not self.parse_block_expr() { return false; }
+    node = self.stack.pop();
+
+    # Make this an unsafe block.
+    node._set_tag(ast.TAG_UNSAFE);
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+
 # Module node
 # -----------------------------------------------------------------------------
 # module-node = module | common-statement ;
@@ -249,7 +276,7 @@ def parse_common_statement(&mut self) -> bool {
     # Peek ahead and see if we are a common statement.
     let tok: int = self.peek_token(1);
     # if tok == tokens.TOK_LET    { return self.parse_local_slot(); }
-    # if tok == tokens.TOK_UNSAFE { return self.parse_unsafe(); }
+    if tok == tokens.TOK_UNSAFE { return self.parse_unsafe(); }
     # if tok == tokens.TOK_MATCH  { return self.parse_match(); }
     # if tok == tokens.TOK_LOOP   { return self.parse_loop(); }
     # if tok == tokens.TOK_WHILE  { return self.parse_while(); }

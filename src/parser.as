@@ -275,17 +275,21 @@ def parse_module_node(&mut self) -> bool {
 def parse_common_statement(&mut self) -> bool {
     # Peek ahead and see if we are a common statement.
     let tok: int = self.peek_token(1);
-    # if tok == tokens.TOK_LET    { return self.parse_local_slot(); }
     if tok == tokens.TOK_UNSAFE { return self.parse_unsafe(); }
     # if tok == tokens.TOK_MATCH  { return self.parse_match(); }
     # if tok == tokens.TOK_LOOP   { return self.parse_loop(); }
     # if tok == tokens.TOK_WHILE  { return self.parse_while(); }
-    # if tok == tokens.TOK_STATIC { return self.parse_static_slot(); }
     # if tok == tokens.TOK_IMPORT { return self.parse_import(); }
     if tok == tokens.TOK_STRUCT { return self.parse_struct(); }
     # if tok == tokens.TOK_ENUM   { return self.parse_enum(); }
     # if tok == tokens.TOK_USE    { return self.parse_use(); }
     # if tok == tokens.TOK_IMPL   { return self.parse_impl(); }
+
+    if tok == tokens.TOK_LET or tok == tokens.TOK_STATIC
+    {
+        if self.parse_slot() { return self.expect(tokens.TOK_SEMICOLON); }
+        return false;
+    }
 
     # if tok == tokens.TOK_DEF {
     #     # Functions are only declarations if they are named.
@@ -1435,6 +1439,73 @@ def parse_struct(&mut self) -> bool {
 
     # Push our node on the stack.
     self.stack.push(struct_node);
+
+    # Return success.
+    true;
+}
+
+# Slot
+# -----------------------------------------------------------------------------
+def parse_slot(&mut self) -> bool
+{
+    # Determine our tag.
+    let tag: int =
+        if self.peek_token(1) == tokens.TOK_STATIC { ast.TAG_STATIC_SLOT; }
+        else { ast.TAG_LOCAL_SLOT; };
+
+    # Allocate space for the node
+    let node : ast.Node = ast.make(tag);
+    let slot : ^ast.StaticSlotDecl =  node.unwrap() as ^ast.StaticSlotDecl;
+
+    # Pop the decl token.
+    self.pop_token();
+
+    # Check for a `mut` token which would make the slot mutable.
+    if self.peek_token(1) == tokens.TOK_MUT
+    {
+        # Pop the `mut` token.
+        self.pop_token();
+
+        # Make the slot mutable.
+        slot.mutable = true;
+    }
+
+    # Bail if we don't have an identifier next.
+    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+        self.expect(tokens.TOK_IDENTIFIER);
+        self.consume_until(tokens.TOK_SEMICOLON);
+        return false;
+    }
+
+    # Parse and set the identifier (this shouldn't fail).
+    if not self.parse_ident_expr() { return false; }
+    slot.id = self.stack.pop();
+
+    # Check for a type declaration which would be preceeded by a `:` token.
+    if self.peek_token(1) == tokens.TOK_COLON
+    {
+        # Pop the `:` token.
+        self.pop_token();
+
+        # Parse and set the type.
+        # FIXME: This should be something like `parse_type_expr`.
+        if not self.parse_ident_expr() { return false; }
+        slot.type_ = self.stack.pop();
+    }
+
+    # Check for an initializer which would be preceeded by a `=` token.
+    if self.peek_token(1) == tokens.TOK_EQ
+    {
+        # Pop the `=` token.
+        self.pop_token();
+
+        # Parse and set the initializer.
+        if not self.parse_expr(false) { return false; }
+        slot.initializer = self.stack.pop();
+    }
+
+    # Push our node on the stack.
+    self.stack.push(node);
 
     # Return success.
     true;

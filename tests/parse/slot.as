@@ -31,16 +31,16 @@ let mut h;
 let mut i: int;
 let mut j: int = 26;
 
-# Multiple local slot declarations. The way it works / is implemented is that
-# a local slot declaration can use a pattern to match the right-hand
-# expression. Note that this is not possible for static slot declarations.
-# TODO: Below requires tuples to be understood by the parser.
-let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
-let mut (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
-let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
-let (x, y, z, w): (int, bool, float64, str);
-let mut (x, y, z, w): (int, bool, float64, str);
-let mut (x, y, z, w) = (32, false, 243.5, "sg");
-let (x, y, z, w) = (32, false, 243.5, "sg");
-let (x, y, z, w);
-let mut (x, y, z, w);
+# # Multiple local slot declarations. The way it works / is implemented is that
+# # a local slot declaration can use a pattern to match the right-hand
+# # expression. Note that this is not possible for static slot declarations.
+# # TODO: Below requires tuples to be understood by the parser.
+# let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
+# let mut (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
+# let (x, y, z, w): (int, bool, float64, str) = (32, false, 243.5, "sg");
+# let (x, y, z, w): (int, bool, float64, str);
+# let mut (x, y, z, w): (int, bool, float64, str);
+# let mut (x, y, z, w) = (32, false, 243.5, "sg");
+# let (x, y, z, w) = (32, false, 243.5, "sg");
+# let (x, y, z, w);
+# let mut (x, y, z, w);

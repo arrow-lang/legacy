@@ -1,0 +1,30 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    StaticSlotDecl <?> a
+      Ident <?> int
+      IntegerExpr <?> 0 (10)
+    StaticSlotDecl <?> b
+      Ident <?> int
+      IntegerExpr <?> 320 (10)
+    StaticSlotDecl <?> mut c
+      Ident <?> int
+      IntegerExpr <?> 0 (10)
+    StaticSlotDecl <?> mut c
+      Ident <?> int
+      MultiplyExpr <?>
+        IntegerExpr <?> 23 (10)
+        IntegerExpr <?> 3209 (10)
+    LocalSlotDecl <?> d
+      Ident <?> int
+    LocalSlotDecl <?> e
+      Ident <?> int
+      IntegerExpr <?> 3402 (10)
+    LocalSlotDecl <?> f
+    LocalSlotDecl <?> g
+      IntegerExpr <?> 42 (10)
+    LocalSlotDecl <?> mut h
+    LocalSlotDecl <?> mut i
+      Ident <?> int
+    LocalSlotDecl <?> mut j
+      Ident <?> int
+      IntegerExpr <?> 26 (10)

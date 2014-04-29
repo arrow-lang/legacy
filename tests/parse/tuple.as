@@ -14,11 +14,9 @@ let y: (uint,);
 # Assign some tuples into those slots.
 q = (32, true,);
 w = (432, 32);
-e = (2, "SIOJDGOHS", 32.31);
 y = (135161,);
 
-# Declare and initialize various slots for automatic tuple types.
+# # Declare and initialize various slots for automatic tuple types.
 let z: (int,) = (324,);
 let x: (int, int,) = (324, 12);
 let c: (int, int, int, int) = (523, 23, 321, 12);
-let v: (str, int, bool, char) = ("ssgsd", 32, true, 'A');

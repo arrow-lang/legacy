@@ -2,4 +2,4 @@
 def main() { return; }
 
 # A function that explicitly returns something.
-def some() -> int { return 4; }
+def some(): int { return 4; }

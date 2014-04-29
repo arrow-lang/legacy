@@ -1,0 +1,11 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    CastExpr <?>
+      IntegerExpr <?> 10 (10)
+      Ident <?> uint
+    CastExpr <?>
+      IntegerExpr <?> 2 (10)
+      Ident <?> int
+    CastExpr <?>
+      IntegerExpr <?> 0A (16)
+      Ident <?> char

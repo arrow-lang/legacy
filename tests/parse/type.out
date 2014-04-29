@@ -1,0 +1,36 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    FuncDecl <?> that
+      TypeExpr <?> 
+        Ident <?> double
+      Type Parameters <?> 
+      Parameters <?> 
+      Block <?>
+        Nodes <?> 
+          Ident <?> double
+    FuncDecl <?> double
+      TypeExpr <?> 
+        MultiplyExpr <?>
+          Ident <?> x
+          IntegerExpr <?> 2 (10)
+      Type Parameters <?> 
+      Parameters <?> 
+        FuncParam <?> a
+          TypeExpr <?> 
+            Ident <?> x
+      Block <?>
+        Nodes <?> 
+          MultiplyExpr <?>
+            Ident <?> a
+            IntegerExpr <?> 2 (10)
+    StaticSlotDecl <?> x
+      Ident <?> uint
+      IntegerExpr <?> 40 (10)
+    StaticSlotDecl <?> u
+      TypeExpr <?> 
+        Ident <?> x
+    StaticSlotDecl <?> t
+      TypeBox <?> 
+    StaticSlotDecl <?> t
+      TypeExpr <?> 
+        TypeBox <?> 

@@ -1,0 +1,103 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    FuncDecl <?> name
+      Type Parameters <?> 
+      Parameters <?> 
+      Block <?>
+        Nodes <?> 
+    FuncDecl <?> sum
+      Type Parameters <?> 
+      Parameters <?> 
+        FuncParam <?> x
+          Ident <?> int
+        FuncParam <?> y
+          Ident <?> int
+        FuncParam <?> y
+          Ident <?> int
+      Block <?>
+        Nodes <?> 
+    FuncDecl <?> defualt_sum1
+      Type Parameters <?> 
+      Parameters <?> 
+        FuncParam <?> x
+          Ident <?> int
+          IntegerExpr <?> 67 (10)
+        FuncParam <?> y
+          Ident <?> int
+      Block <?>
+        Nodes <?> 
+    FuncDecl <?> defualt_sum2
+      Type Parameters <?> 
+      Parameters <?> 
+        FuncParam <?> x
+          Ident <?> int
+        FuncParam <?> y
+          Ident <?> int
+          IntegerExpr <?> 0 (10)
+      Block <?>
+        Nodes <?> 
+    FuncDecl <?> defualt_sum3
+      Type Parameters <?> 
+      Parameters <?> 
+        FuncParam <?> x
+          Ident <?> int
+          IntegerExpr <?> 0 (10)
+        FuncParam <?> y
+          Ident <?> int
+          IntegerExpr <?> 0 (10)
+      Block <?>
+        Nodes <?> 
+    FuncDecl <?> read
+      Ident <?> int
+      Type Parameters <?> 
+      Parameters <?> 
+      Block <?>
+        Nodes <?> 
+    FuncDecl <?> some
+      Ident <?> bool
+      Type Parameters <?> 
+      Parameters <?> 
+      Block <?>
+        Nodes <?> 
+          StaticSlotDecl <?> y
+            Ident <?> int
+            IntegerExpr <?> 32 (10)
+          LocalSlotDecl <?> x
+            Ident <?> int
+            IntegerExpr <?> 43 (10)
+          LocalSlotDecl <?> y
+            Ident <?> int
+          AssignExpr <?>
+            Ident <?> y
+            IntegerExpr <?> 436 (10)
+          BooleanExpr <?> true
+    FuncDecl <?> main
+      Type Parameters <?> 
+      Parameters <?> 
+      Block <?>
+        Nodes <?> 
+          FuncDecl <?> nested
+            Ident <?> int
+            Type Parameters <?> 
+            Parameters <?> 
+            Block <?>
+              Nodes <?> 
+                IntegerExpr <?> 432 (10)
+    FuncDecl <?> some
+      Type Parameters <?> 
+        TypeParam <?> T
+      Parameters <?> 
+        FuncParam <?> a
+          Ident <?> T
+      Block <?>
+        Nodes <?> 
+    FuncDecl <?> add
+      Type Parameters <?> 
+      Parameters <?> 
+        FuncParam <?> a
+        FuncParam <?> b
+      Block <?>
+        Nodes <?> 
+          AddExpr <?>
+            Ident <?> a
+            Ident <?> b

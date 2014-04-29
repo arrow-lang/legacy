@@ -70,6 +70,8 @@ let TAG_BITOR           : int = 60;             # BitOrExpr
 let TAG_BITXOR          : int = 61;             # BitXorExpr
 let TAG_BITNEG          : int = 62;             # BitNegExpr
 let TAG_TYPE_PARAM      : int = 63;             # TypeParam
+let TAG_CAST            : int = 64;             # CastExpr
+let TAG_TYPE_BOX        : int = 65;             # TypeBox
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -140,6 +142,9 @@ type BooleanExpr { value: bool }
 # "Generic" binary expression type.
 type BinaryExpr { lhs: Node, rhs: Node }
 
+# Cast expression.
+type CastExpr { operand: Node, type_: Node }
+
 # Index expression type.
 type IndexExpr { expression: Node, subscript: Node }
 
@@ -192,8 +197,9 @@ type SelectBranch { condition: Node, block: Node }
 type FuncDecl {
     id: Node,
     return_type: Node,
+    mut type_params: Nodes,
     mut params: Nodes,
-    mut nodes: Nodes
+    block: Node
 }
 
 # Function parameter.
@@ -306,6 +312,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IMPORT  { let tmp: Import; ((&tmp + 1) - &tmp); }
     else if tag == TAG_INDEX   { let tmp: IndexExpr; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_CAST    { let tmp: CastExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CALL    { let tmp: CallExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CALL_ARG{ let tmp: Argument; ((&tmp + 1) - &tmp); }
     else if tag == TAG_TYPE_PARAM{ let tmp: TypeParam; ((&tmp + 1) - &tmp); }
@@ -440,9 +447,11 @@ def dump(&node: Node) {
         dump_table[TAG_MEMBER] = dump_binop_expr;
         dump_table[TAG_IMPORT] = dump_import;
         dump_table[TAG_INDEX] = dump_index_expr;
+        dump_table[TAG_CAST] = dump_cast_expr;
         dump_table[TAG_CALL] = dump_call_expr;
         dump_table[TAG_CALL_ARG] = dump_call_arg;
         dump_table[TAG_TYPE_EXPR] = dump_type_expr;
+        dump_table[TAG_TYPE_BOX] = dump_type_box;
         dump_table[TAG_GLOBAL] = dump_global;
         dump_table[TAG_ARRAY_EXPR] = dump_array_expr;
         dump_table[TAG_SEQ_EXPR] = dump_seq_expr;
@@ -564,6 +573,17 @@ def dump_index_expr(node: ^Node) {
     dump_indent = dump_indent + 1;
     dump(x.expression);
     dump(x.subscript);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_cast_expr
+# -----------------------------------------------------------------------------
+def dump_cast_expr(node: ^Node) {
+    let x: ^CastExpr = unwrap(node^) as ^CastExpr;
+    printf("CastExpr <?>\n");
+    dump_indent = dump_indent + 1;
+    dump(x.operand);
+    dump(x.type_);
     dump_indent = dump_indent - 1;
 }
 
@@ -778,7 +798,7 @@ def dump_static_slot(node: ^Node) {
     printf("%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
-    dump(x.type_);
+    if not isnull(x.type_) { dump(x.type_); }
     if not isnull(x.initializer) { dump(x.initializer); }
     dump_indent = dump_indent - 1;
 }
@@ -861,8 +881,9 @@ def dump_func_decl(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     if not isnull(x.return_type) { dump(x.return_type); }
+    dump_nodes("Type Parameters", x.type_params);
     dump_nodes("Parameters", x.params);
-    dump_nodes("Nodes", x.nodes);
+    dump(x.block);
     dump_indent = dump_indent - 1;
 }
 
@@ -876,7 +897,7 @@ def dump_func_param(node: ^Node) {
     printf("%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
-    dump(x.type_);
+    if not isnull(x.type_) { dump(x.type_); }
     if not isnull(x.default) { dump(x.default); }
     dump_indent = dump_indent - 1;
 }
@@ -901,6 +922,12 @@ def dump_type_expr(node: ^Node) {
     dump_indent = dump_indent + 1;
     dump(x.expression);
     dump_indent = dump_indent - 1;
+}
+
+# dump_type_box
+# -----------------------------------------------------------------------------
+def dump_type_box(node: ^Node) {
+    printf("TypeBox <?> \n");
 }
 
 # dump_global

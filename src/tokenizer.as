@@ -577,4 +577,5 @@ def main() {
         println_token(tok);
         if tok == tokens.TOK_END { break; }
     }
+    libc.exit(0);
 }

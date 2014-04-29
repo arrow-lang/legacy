@@ -1,0 +1,16 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    FuncDecl <?> main
+      Type Parameters <?> 
+      Parameters <?> 
+      Block <?>
+        Nodes <?> 
+          ReturnExpr <?> 
+    FuncDecl <?> some
+      Ident <?> int
+      Type Parameters <?> 
+      Parameters <?> 
+      Block <?>
+        Nodes <?> 
+          ReturnExpr <?> 
+            IntegerExpr <?> 4 (10)

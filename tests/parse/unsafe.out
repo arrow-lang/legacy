@@ -1,0 +1,9 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    UnsafeBlock <?>
+      Nodes <?> 
+    UnsafeBlock <?>
+      Nodes <?> 
+        AssignAddExpr <?>
+          Ident <?> data_race
+          IntegerExpr <?> 21 (10)

@@ -68,7 +68,7 @@ def _report(filename, status):
             print("{:<72}: \033[32m{}\033[0m".format(filename, 'PASS'))
 
 def _test_tokenizer(ctx):
-    for fixture in glob("tests/tokenize/*.as"):
+    for fixture in sorted(glob("tests/tokenize/*.as")):
         # Run the tokenizer over our fixture.
         returncode, stdout, stderr = _run(fixture, 'tokenizer', [])
 
@@ -82,7 +82,7 @@ def _test_tokenizer(ctx):
         _report(fixture, status)
 
 def _test_parser(ctx):
-    for fixture in glob("tests/parse/*.as"):
+    for fixture in sorted(glob("tests/parse/*.as")):
         # Run the parser over our fixture.
         returncode, stdout, stderr = _run(fixture, 'parser', [])
 
@@ -95,7 +95,7 @@ def _test_parser(ctx):
         _report(fixture, status)
 
 def _test_parser_fail(ctx):
-    for fixture in glob("tests/parse-fail/*.as"):
+    for fixture in sorted(glob("tests/parse-fail/*.as")):
         # Run the parser over our fixture.
         returncode, stdout, stderr = _run(fixture, 'parser', [])
 
@@ -108,7 +108,7 @@ def _test_parser_fail(ctx):
         _report(fixture, status)
 
 def _test_run(ctx):
-    for fixture in glob("tests/run/*.as"):
+    for fixture in sorted(glob("tests/run/*.as")):
         # Run the generator over our fixture.
         with open(fixture) as stream:
             # Execute and run the test case.

@@ -85,7 +85,8 @@ def pop_token(&mut self) -> int {
 def consume_until(&mut self, token: int) {
     let mut tok: int = self.pop_token();
     while       tok <> token
-            and tok <> tokens.TOK_SEMICOLON {
+            and tok <> tokens.TOK_SEMICOLON
+            and tok <> tokens.TOK_END {
         tok = self.pop_token();
     }
 }
@@ -284,6 +285,7 @@ def parse_common_statement(&mut self) -> bool {
     # if tok == tokens.TOK_ENUM   { return self.parse_enum(); }
     # if tok == tokens.TOK_USE    { return self.parse_use(); }
     # if tok == tokens.TOK_IMPL   { return self.parse_impl(); }
+    if tok == tokens.TOK_RETURN   { return self.parse_return(); }
 
     if tok == tokens.TOK_LET or tok == tokens.TOK_STATIC
     {
@@ -291,12 +293,12 @@ def parse_common_statement(&mut self) -> bool {
         return false;
     }
 
-    # if tok == tokens.TOK_DEF {
-    #     # Functions are only declarations if they are named.
-    #     if self.peek_token(2) == tokens.TOK_IDENTIFIER {
-    #         return self.parse_function(nodes);
-    #     }
-    # }
+    if tok == tokens.TOK_DEF {
+        # Functions are only declarations if they are named.
+        if self.peek_token(2) == tokens.TOK_IDENTIFIER {
+            return self.parse_function();
+        }
+    }
 
     # Checks to see if its an anon struct expression
     # If not, resume parsing as a block
@@ -314,6 +316,183 @@ def parse_common_statement(&mut self) -> bool {
     # We could still be an expression; forward.
     if self.parse_expr(true) { self.expect(tokens.TOK_SEMICOLON); }
     else                     { false; }
+}
+
+# Return
+# -----------------------------------------------------------------------------
+def parse_return(&mut self) -> bool
+{
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_RETURN);
+    let expr: ^ast.ReturnExpr = node.unwrap() as ^ast.ReturnExpr;
+
+    # Pop the `return` token.
+    self.pop_token();
+
+    # If we haven't been terminated, attempt to continue.
+    let tok: int = self.peek_token(1);
+    if tok <> tokens.TOK_SEMICOLON and tok <> tokens.TOK_IF {
+        # Parse the direct value expression.
+        if not self.parse_unary_expr() { return false; }
+
+        # Try and continue the unary expression as a binary expression.
+        if not self.parse_binop_rhs(0, 0, false) { return false; }
+        expr.expression = self.stack.pop();
+    }
+
+    # Push our node.
+    self.stack.push(node);
+
+    if tok <> tokens.TOK_SEMICOLON
+    {
+        # Parse the remainder of the `return` expression (capturing those
+        # now allowed binary operators like `if`).
+        if not self.parse_binop_rhs(0, 0, true) { return false; }
+
+        # Expect a `;`.
+        self.expect(tokens.TOK_SEMICOLON);
+    }
+    else {
+        # Pop the `;` token.
+        self.pop_token();
+
+        # Return success.
+        true;
+    }
+}
+
+# Function declaration
+# -----------------------------------------------------------------------------
+def parse_function(&mut self) -> bool
+{
+    # Declare the function decl node.
+    let node: ast.Node = ast.make(ast.TAG_FUNC_DECL);
+    let decl: ^ast.FuncDecl = node.unwrap() as ^ast.FuncDecl;
+
+    # Pop the `def` token.
+    self.pop_token();
+
+    # Expect an `identifier` next.
+    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+        self.expect(tokens.TOK_IDENTIFIER);
+        return false;
+    }
+
+    # Parse and set the identifier (this shouldn't fail).
+    if not self.parse_ident_expr() { return false; }
+    decl.id = self.stack.pop();
+
+    # Check for and parse type type parameters.
+    if not self.parse_type_params(decl.type_params) { return false; }
+
+    # Parse the parameter list.
+    self.parse_function_params(decl.params);
+
+    # Check for a return type annotation which would again
+    # be preceeded by a `:` token.
+    if self.peek_token(1) == tokens.TOK_COLON
+    {
+        # Pop the `:` token.
+        self.pop_token();
+
+        # Parse and set the type.
+        if not self.parse_type() { return false; }
+        decl.return_type = self.stack.pop();
+    }
+
+    # Parse the function block next.
+    if not self.parse_block_expr() { return false; }
+    decl.block = self.stack.pop();
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Function parameter list
+# -----------------------------------------------------------------------------
+def parse_function_params(&mut self, &mut nodes: ast.Nodes) -> bool
+{
+    # Expect a `(` token to start the parameter list.
+    if not self.expect(tokens.TOK_LPAREN) { return false; }
+
+    # Iterate through and parse each parameter.
+    while self.peek_token(1) <> tokens.TOK_RPAREN
+    {
+        # Parse the parameter.
+        if not self.parse_function_param() { return false; }
+        nodes.push(self.stack.pop());
+
+        # Peek and consume the `,` token if present; else, consume
+        # tokens until we reach the `)`.
+        if self._expect_sequence_continue(tokens.TOK_RPAREN) { continue; }
+        return false;
+    }
+
+    # Expect a `)` token to close the parameter list.
+    if not self.expect(tokens.TOK_RPAREN) { return false; }
+
+    # Return success.
+    true;
+}
+
+# Function parameter
+# -----------------------------------------------------------------------------
+def parse_function_param(&mut self) -> bool
+{
+    # Declare the function param node.
+    let node: ast.Node = ast.make(ast.TAG_FUNC_PARAM);
+    let param: ^ast.FuncParam = node.unwrap() as ^ast.FuncParam;
+
+    # Check for a `mut` token which would make the slot mutable.
+    if self.peek_token(1) == tokens.TOK_MUT
+    {
+        # Pop the `mut` token.
+        self.pop_token();
+
+        # Make the slot mutable.
+        param.mutable = true;
+    }
+
+    # Expect an `identifier` next.
+    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+        self.expect(tokens.TOK_IDENTIFIER);
+        return false;
+    }
+
+    # Parse and set the identifier (this shouldn't fail).
+    if not self.parse_ident_expr() { return false; }
+    param.id = self.stack.pop();
+
+    # Check for a type annotation which would be preceeded by a `:` token.
+    if self.peek_token(1) == tokens.TOK_COLON
+    {
+        # Pop the `:` token.
+        self.pop_token();
+
+        # Parse and set the type.
+        if not self.parse_type() { return false; }
+        param.type_ = self.stack.pop();
+    }
+
+    # Check for an default which would be preceeded by a `=` token.
+    if self.peek_token(1) == tokens.TOK_EQ
+    {
+        # Pop the `=` token.
+        self.pop_token();
+
+        # Parse and set the default.
+        if not self.parse_expr(false) { return false; }
+        param.default = self.stack.pop();
+    }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Expression
@@ -574,9 +753,10 @@ def parse_postfix_expr(&mut self) -> bool
     # Can we possibly consume this as a postfix expression ?
     let tok: int = self.peek_token(1);
     if     tok == tokens.TOK_LBRACE     # Sequence or struct expression
-        # or tok == tokens.TOK_LPAREN     # Call expression
-        # or tok == tokens.TOK_LBRACKET   # Index expression
-        # or tok == tokens.TOK_DOT        # Member expression
+        or tok == tokens.TOK_LPAREN     # Call expression
+        or tok == tokens.TOK_LBRACKET   # Index expression
+        or tok == tokens.TOK_DOT        # Member expression
+        or tok == tokens.TOK_AS         # Cast expression
     {
         if not self.parse_postfix_expr_operand()
         {
@@ -602,18 +782,46 @@ def parse_postfix_expr_operand(&mut self) -> bool
         {
             # A postfix `{` expression is only considered
             # after an identifier (or a path).
-            self.parse_postfix_brace_expr();
+            return self.parse_postfix_brace_expr();
         }
-        else
-        {
-            # Didn't match a postfix-expr; continue.
-            true;
-        }
+
+        # Didn't match a postfix-expr; continue.
+        return true;
     }
-    else
+
+    if tok == tokens.TOK_LPAREN
     {
-        false;
+        if not self.parse_call_expr() { return false; }
     }
+    else if tok == tokens.TOK_DOT
+    {
+        if not self.parse_member_expr() { return false; }
+    }
+    else if tok == tokens.TOK_LBRACKET
+    {
+        if not self.parse_index_expr() { return false; }
+    }
+    else if tok == tokens.TOK_AS
+    {
+        if not self.parse_cast_expr() { return false; }
+    }
+
+    # Should we continue the postfix expression?
+    let tok: int = self.peek_token(1);
+    if     tok == tokens.TOK_LBRACE     # Sequence or struct expression
+        or tok == tokens.TOK_LPAREN     # Call expression
+        or tok == tokens.TOK_LBRACKET   # Index expression
+        or tok == tokens.TOK_DOT        # Member expression
+        or tok == tokens.TOK_AS         # Cast expression
+    {
+        if not self.parse_postfix_expr_operand()
+        {
+            return false;
+        }
+    }
+
+    # Return success.
+    true;
 }
 
 def parse_postfix_brace_expr(&mut self) -> bool
@@ -677,6 +885,114 @@ def parse_postfix_brace_expr(&mut self) -> bool
     true;
 }
 
+# Call expression
+# -----------------------------------------------------------------------------
+def parse_call_expr(&mut self) -> bool { false; }
+
+# Index expression
+# -----------------------------------------------------------------------------
+def parse_index_expr(&mut self) -> bool { false; }
+
+# Cast expression
+# -----------------------------------------------------------------------------
+def parse_cast_expr(&mut self) -> bool
+{
+    # Declare and allocate the node.
+    let node: ast.Node = ast.make(ast.TAG_CAST);
+    let expr: ^ast.CastExpr = node.unwrap() as ^ast.CastExpr;
+
+    # Pop the operand in the stack as our operand.
+    expr.operand = self.stack.pop();
+
+    # Pop the `as` token.
+    self.pop_token();
+
+    # Try and parse a type expression as the target type.
+    if not self.parse_type() {
+        self.consume_until(tokens.TOK_SEMICOLON);
+        return false;
+    }
+
+    expr.type_ = self.stack.pop();
+
+    # Push our operand.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Type
+# -----------------------------------------------------------------------------
+# type = path | tuple-type | function-type | array-type ;
+# tuple-type = "(" path "," ")"
+#            | "(" path { "," path } [ "," ] ")" ;
+# -----------------------------------------------------------------------------
+def parse_type(&mut self) -> bool
+{
+    # Delegate based on what we are.
+    let tok: int = self.peek_token(1);
+    if      tok == tokens.TOK_IDENTIFIER { self.parse_ident_expr(); }
+    else if tok == tokens.TOK_LPAREN     { self.parse_paren_expr(); }
+    else if tok == tokens.TOK_TYPE       { self.parse_type_expr(); }
+    else
+    {
+        # Expected some kind of type expression node.
+        self.consume_until(tokens.TOK_SEMICOLON);
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "expected %s or %s but found %s" as ^int8,
+                       tokens.to_str(tokens.TOK_IDENTIFIER),
+                       tokens.to_str(tokens.TOK_LPAREN),
+                       tokens.to_str(tok));
+        errors.end();
+
+        # Return failure.
+        false;
+    }
+}
+
+# Type expression
+# -----------------------------------------------------------------------------
+def parse_type_expr(&mut self) -> bool
+{
+    # Declare and allocate the node.
+    let mut node: ast.Node = ast.make(ast.TAG_TYPE_EXPR);
+    let expr: ^ast.TypeExpr = node.unwrap() as ^ast.TypeExpr;
+
+    # Pop the `type` token.
+    self.pop_token();
+
+    # Check if we have a `(` next.
+    if self.peek_token(1) <> tokens.TOK_LPAREN
+    {
+        # We are actually a type box.
+        node._set_tag(ast.TAG_TYPE_BOX);
+    }
+    else
+    {
+        # Expect a `(` token to open the expression.
+        if not self.expect(tokens.TOK_LPAREN) { return false; }
+
+        # Try to parse a general expression.
+        if not self.parse_expr(false) { return false; }
+        expr.expression = self.stack.pop();
+
+        # Expect a `)` token to close the expression.
+        if not self.expect(tokens.TOK_RPAREN) { return false; }
+    }
+
+    # Push our node.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Member expression
+# -----------------------------------------------------------------------------
+def parse_member_expr(&mut self) -> bool { false; }
+
 # Primary expression
 # -----------------------------------------------------------------------------
 # primary-expr = integer-expr | float-expr | bool-expr | paren-expr
@@ -714,10 +1030,10 @@ def parse_primary_expr(&mut self) -> bool
     {
         self.parse_ident_expr();
     }
-    # else if tok == tokens.TOK_TYPE
-    # {
-    #     self.parse_type_expr();
-    # }
+    else if tok == tokens.TOK_TYPE
+    {
+        self.parse_type_expr();
+    }
     else if tok == tokens.TOK_GLOBAL
     {
         self.parse_global_expr();
@@ -1117,6 +1433,9 @@ def parse_brace_expr(&mut self) -> bool
             break;
         }
 
+        # Continue as a block.
+        node._set_tag(ast.TAG_BLOCK);
+
         # Try and parse a node.
         if not self.parse_common_statement() {
             # Bad news.
@@ -1361,9 +1680,9 @@ def parse_struct(&mut self) -> bool {
     struct_.id = self.stack.pop();
 
     # Check for and parse type type parameters.
-    if not self.parse_type_params(struct_.type_params) { return true; }
+    if not self.parse_type_params(struct_.type_params) { return false; }
 
-    if not  self.expect(tokens.TOK_LBRACE) {
+    if not self.expect(tokens.TOK_LBRACE) {
         self.consume_until(tokens.TOK_RBRACE);
         return false;
     }
@@ -1438,8 +1757,8 @@ def parse_slot(&mut self) -> bool
         else { ast.TAG_LOCAL_SLOT; };
 
     # Allocate space for the node
-    let node : ast.Node = ast.make(tag);
-    let slot : ^ast.StaticSlotDecl =  node.unwrap() as ^ast.StaticSlotDecl;
+    let node: ast.Node = ast.make(tag);
+    let slot: ^ast.StaticSlotDecl =  node.unwrap() as ^ast.StaticSlotDecl;
 
     # Pop the decl token.
     self.pop_token();
@@ -1465,15 +1784,14 @@ def parse_slot(&mut self) -> bool
     if not self.parse_ident_expr() { return false; }
     slot.id = self.stack.pop();
 
-    # Check for a type declaration which would be preceeded by a `:` token.
+    # Check for a type annotation which would be preceeded by a `:` token.
     if self.peek_token(1) == tokens.TOK_COLON
     {
         # Pop the `:` token.
         self.pop_token();
 
         # Parse and set the type.
-        # FIXME: This should be something like `parse_type_expr`.
-        if not self.parse_ident_expr() { return false; }
+        if not self.parse_type() { return false; }
         slot.type_ = self.stack.pop();
     }
 
@@ -1499,27 +1817,28 @@ def parse_slot(&mut self) -> bool
 # -----------------------------------------------------------------------------
 def _possible_expr(&mut self, tok: int) -> bool {
     let tok: int = self.peek_token(1);
-    if tok == tokens.TOK_LET    { false; }
-    if tok == tokens.TOK_UNSAFE { false; }
-    if tok == tokens.TOK_MATCH  { false; }
-    if tok == tokens.TOK_LOOP   { false; }
-    if tok == tokens.TOK_WHILE  { false; }
-    if tok == tokens.TOK_STATIC { false; }
-    if tok == tokens.TOK_IMPORT { false; }
-    if tok == tokens.TOK_STRUCT { false; }
-    if tok == tokens.TOK_ENUM   { false; }
-    if tok == tokens.TOK_USE    { false; }
-    if tok == tokens.TOK_IMPL   { false; }
+    if tok == tokens.TOK_LET    { return false; }
+    if tok == tokens.TOK_UNSAFE { return false; }
+    if tok == tokens.TOK_MATCH  { return false; }
+    if tok == tokens.TOK_LOOP   { return false; }
+    if tok == tokens.TOK_WHILE  { return false; }
+    if tok == tokens.TOK_STATIC { return false; }
+    if tok == tokens.TOK_IMPORT { return false; }
+    if tok == tokens.TOK_STRUCT { return false; }
+    if tok == tokens.TOK_ENUM   { return false; }
+    if tok == tokens.TOK_USE    { return false; }
+    if tok == tokens.TOK_IMPL   { return false; }
+    if tok == tokens.TOK_RETURN { return false; }
 
     if tok == tokens.TOK_DEF {
-        if self.peek_token(2) == tokens.TOK_IDENTIFIER { false; }
+        if self.peek_token(2) == tokens.TOK_IDENTIFIER { return false; }
     }
 
     if tok == tokens.TOK_LBRACE {
         if not (    self.peek_token(2) == tokens.TOK_IDENTIFIER
                 and self.peek_token(3) == tokens.TOK_COLON)
         {
-            true;
+            return true;
         }
     }
 

@@ -1415,26 +1415,10 @@ def parse_struct(&mut self) -> bool {
         # Push the node.
         struct_.nodes.push(struct_mem_node);
 
-        let tok: int = self.peek_token(1);
-        if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
-
-        else if tok <> tokens.TOK_RBRACE {
-            self.consume_until(tokens.TOK_RBRACE);
-            errors.begin_error();
-            errors.fprintf(errors.stderr,
-                           "expected %s or %s but found %s" as ^int8,
-                           tokens.to_str(tokens.TOK_COMMA),
-                           tokens.to_str(tokens.TOK_RBRACE),
-                           tokens.to_str(tok));
-            errors.end();
-            return false;
-
-            # Done here; too bad.
-        }
-
-        # THIS SHOULD NEVER HAPPEN
-        break;
-
+        # Peek and consume the `,` token if present; else, consume
+        # tokens until we reach the `}`.
+        if self._expect_sequence_continue(tokens.TOK_RBRACE) { continue; }
+        return false;
     }
 
     # Push our node on the stack.

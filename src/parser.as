@@ -806,24 +806,9 @@ def parse_paren_expr(&mut self) -> bool
             if not self.parse_expr(false) { return false; }
             expr.nodes.push(self.stack.pop());
 
-            # Peek and consume the `,` token if present.
-            let tok: int = self.peek_token(1);
-            if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
-            else if tok <> tokens.TOK_RPAREN {
-                # Expected a comma and didn't receive one.. consume tokens
-                # until we reach a `)`.
-                self.consume_until(tokens.TOK_RPAREN);
-                errors.begin_error();
-                errors.fprintf(errors.stderr,
-                               "expected %s or %s but found %s" as ^int8,
-                               tokens.to_str(tokens.TOK_COMMA),
-                               tokens.to_str(tokens.TOK_RPAREN),
-                               tokens.to_str(tok));
-                errors.end();
-                return false;
-            }
-
-            # Done here; too bad.
+            # Peek and consume the `,` token if present; else, consume
+            # tokens until we reach the `)`.
+            if self._expect_sequence_continue(tokens.TOK_RPAREN) { continue; }
             break;
         }
 
@@ -858,24 +843,9 @@ def parse_array_expr(&mut self) -> bool
         if not self.parse_expr(false) { return false; }
         expr.nodes.push(self.stack.pop());
 
-        # Peek and consume the `,` token if present.
-        let tok: int = self.peek_token(1);
-        if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
-        else if tok <> tokens.TOK_RBRACKET {
-            # Expected a comma and didn't receive one.. consume tokens until
-            # we reach a `]`.
-            self.consume_until(tokens.TOK_RBRACKET);
-            errors.begin_error();
-            errors.fprintf(errors.stderr,
-                           "expected %s or %s but found %s" as ^int8,
-                           tokens.to_str(tokens.TOK_COMMA),
-                           tokens.to_str(tokens.TOK_RBRACKET),
-                           tokens.to_str(tok));
-            errors.end();
-            return false;
-        }
-
-        # Done here; too bad.
+        # Peek and consume the `,` token if present; else, consume
+        # tokens until we reach the `]`.
+        if self._expect_sequence_continue(tokens.TOK_RBRACKET) { continue; }
         break;
     }
 
@@ -901,7 +871,6 @@ def parse_record_expr(&mut self) -> bool
     self.pop_token();
 
     # Enumerate until we reach the `}` token.
-    let mut error: bool = false;
     while self.peek_token(1) <> tokens.TOK_RBRACE {
         # Allocate and create a member node.
         let member_node: ast.Node = ast.make(ast.TAG_RECORD_EXPR_MEM);
@@ -916,58 +885,39 @@ def parse_record_expr(&mut self) -> bool
         }
 
         # Parse the identifier.
-        if not self.parse_ident_expr() { error = true; break; }
+        if not self.parse_ident_expr() { return false; }
         member.id = self.stack.pop();
 
         # Expect a `:` token.
         if not self.expect(tokens.TOK_COLON) {
             self.consume_until(tokens.TOK_RBRACE);
-            error = true; break;
+            return false;
         }
 
         # Parse an expression node.
         if not self.parse_expr(false) {
             self.consume_until(tokens.TOK_RBRACE);
-            error = true; break;
+            return false;
         }
         member.expression = self.stack.pop();
 
         # Push the node.
         expr.nodes.push(member_node);
 
-        # Peek and consume the `,` token if present.
-        let tok: int = self.peek_token(1);
-        if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
-        else if tok <> tokens.TOK_RBRACE {
-            # Expected a comma and didn't receive one.. consume tokens until
-            # we reach a `}`.
-            self.consume_until(tokens.TOK_RBRACE);
-            errors.begin_error();
-            errors.fprintf(errors.stderr,
-                           "expected %s or %s but found %s" as ^int8,
-                           tokens.to_str(tokens.TOK_COMMA),
-                           tokens.to_str(tokens.TOK_RBRACE),
-                           tokens.to_str(tok));
-            errors.end();
-            error = true; break;
-        }
-
-        # Done here; too bad.
+        # Peek and consume the `,` token if present; else, consume
+        # tokens until we reach the `}`.
+        if self._expect_sequence_continue(tokens.TOK_RBRACE) { continue; }
         break;
     }
 
-    if error { false; }
-    else {
-        # Expect a `}` token.
-        if self.expect(tokens.TOK_RBRACE) {
-            # Push our node on the stack.
-            self.stack.push(node);
+    # Expect a `}` token.
+    if not self.expect(tokens.TOK_RBRACE) { return false; }
 
-            # Return success.
-            true;
-        }
-        else { false; }
-    }
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Block expression
@@ -1286,24 +1236,9 @@ def parse_type_params(&mut self, &mut params: ast.Nodes) -> bool
             # Push the type parameter.
             params.push(node);
 
-            # Peek and consume the `,` token if present.
-            let tok: int = self.peek_token(1);
-            if tok == tokens.TOK_COMMA { self.pop_token(); continue; }
-            else if tok <> tokens.TOK_RCARET {
-                # Expected a comma and didn't receive one.. consume tokens until
-                # we reach a `>`.
-                self.consume_until(tokens.TOK_RCARET);
-                errors.begin_error();
-                errors.fprintf(errors.stderr,
-                               "expected %s or %s but found %s" as ^int8,
-                               tokens.to_str(tokens.TOK_COMMA),
-                               tokens.to_str(tokens.TOK_RCARET),
-                               tokens.to_str(tok));
-                errors.end();
-                return false;
-            }
-
-            # Done here; too bad.
+            # Peek and consume the `,` token if present; else, consume
+            # tokens until we reach the `>`.
+            if self._expect_sequence_continue(tokens.TOK_RCARET) { continue; }
             break;
         }
 
@@ -1449,6 +1384,30 @@ def _possible_expr(&mut self, tok: int) -> bool {
     }
 
     true;
+}
+
+# Expect a sequence continuation or the end of the sequence.
+# -----------------------------------------------------------------------------
+def _expect_sequence_continue(&mut self, end: int) -> bool
+{
+    let tok: int = self.peek_token(1);
+    if tok == tokens.TOK_COMMA { self.pop_token(); return true; }
+    else if tok <> end {
+        # Expected a comma and didn't receive one.. consume tokens until
+        # we reach the end.
+        self.consume_until(end);
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "expected %s or %s but found %s" as ^int8,
+                       tokens.to_str(tokens.TOK_COMMA),
+                       tokens.to_str(end),
+                       tokens.to_str(tok));
+        errors.end();
+        return false;
+    }
+
+    # Done anyway.
+    return false;
 }
 
 # Get the binary operator token precedence.

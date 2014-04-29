@@ -1084,9 +1084,9 @@ def parse_brace_expr(&mut self) -> bool
             self.consume_until(tokens.TOK_RBRACE);
             return false;
         } else {
-            # Pop and push in.
-            expr.nodes.push(self.stack.pop());
-        }
+            # Consume the parsed node and push it into the module.
+            self.empty_stack_to(expr.nodes);
+       }
     }
 
     # Expect and consume the `}` token.
@@ -1328,6 +1328,7 @@ def parse_struct(&mut self) -> bool {
     # Bail if we don't have an identifier next.
     if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
         self.expect(tokens.TOK_IDENTIFIER);
+        self.consume_until(tokens.TOK_RBRACE);
         return false;
     }
 

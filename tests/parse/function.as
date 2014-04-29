@@ -22,11 +22,11 @@ defualt_sum2(320);
 defualt_sum2(x=320);
 defualt_sum3(y=320, x=32);
 
-# The return type is specified using an "->" following the parameter list.
-def read() -> int { }
+# The return type is specified using an ":" following the parameter list.
+def read(): int { }
 
 # Any non top-level statements may be present in the function block.
-def some() -> bool {
+def some(): bool {
     # Declare a couple slots.
     static y: int = 32;
     let x: int = 43;
@@ -34,7 +34,7 @@ def some() -> bool {
     y = 436;
 
     # Returns may be explicit.
-    # return false if x > y;
+    return false if x > y;
 
     # Otherwise the final value of the function is implicitly returned.
     true;
@@ -45,7 +45,7 @@ some.y == 32;
 
 # Functions may be nested in other functions.
 def main() {
-    def nested() -> int { 432; }
+    def nested(): int { 432; }
 }
 
 # Invoking nested functions.
@@ -56,13 +56,13 @@ main.nested();
 static static_fn: def() = name;
 
 # A more complex function type.
-let more_fn: def(int, bool) -> int;
+let more_fn: def(int, bool): int;
 
 # A function type that takes a function and
 # returns a function that returns an int.
-let fn_fn: def(def(int) -> int) -> def(int) -> int;
+let fn_fn: def(def(int): int): def(int): int;
 
 # A named function that fulfils the above type.
-def fn_fn_named(fn: def(int) -> int) -> def(int) -> int {
+def fn_fn_named(fn: def(int): int): def(int): int {
     fn;
 }

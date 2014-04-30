@@ -36,25 +36,8 @@ if condition { };
 if some_condition { };
 if some_other_condition { };
 
-# Some more forms using structure and sequence expressions
 # if <expression> <block>
 if point { };
-
-# if <sequence expression> <block>
-if point { } { };
-
-# if <sequence expression> <block> <block>
-if point { } { }; { }
-
-# if <structure expression> <block>
-if point { x: 10 } { };
-
-# if <structure expression> <block> <block>
-if point { x: 20, y: 50 } { }; { }
-
-# if <sequence expression> <block>
-if point { 10 } { };
-if point { 10 } { 10; };
 
 # if <expression> <block>
 if point { 10; };
@@ -64,4 +47,4 @@ if if false { true; } else { false; } { 20; };
 if if false { true; } else { false; } { };
 
 # Ensure some crazy selection combinations compile.
-if cond { 10; } else { 20; } if other{20} == some{10} else { 50; };
+if cond { 10; } else { 20; } if other == some else { 50; };

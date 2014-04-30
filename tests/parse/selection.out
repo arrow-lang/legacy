@@ -126,73 +126,6 @@ ModuleDecl <?> _
     SelectExpr <?> 
       Branches <?> 
         SelectBranch <?> 
-          PostfixExpr <?>
-            Ident <?> point
-            SequenceExpr <?>
-              Members <?> 
-          Block <?>
-            Nodes <?> 
-    SelectExpr <?> 
-      Branches <?> 
-        SelectBranch <?> 
-          PostfixExpr <?>
-            Ident <?> point
-            SequenceExpr <?>
-              Members <?> 
-          Block <?>
-            Nodes <?> 
-    Block <?>
-      Nodes <?> 
-    SelectExpr <?> 
-      Branches <?> 
-        SelectBranch <?> 
-          PostfixExpr <?>
-            Ident <?> point
-            RecordExpr <?>
-              Members <?> 
-                RecordExprMem <?> x
-                  IntegerExpr <?> 10 (10)
-          Block <?>
-            Nodes <?> 
-    SelectExpr <?> 
-      Branches <?> 
-        SelectBranch <?> 
-          PostfixExpr <?>
-            Ident <?> point
-            RecordExpr <?>
-              Members <?> 
-                RecordExprMem <?> x
-                  IntegerExpr <?> 20 (10)
-                RecordExprMem <?> y
-                  IntegerExpr <?> 50 (10)
-          Block <?>
-            Nodes <?> 
-    Block <?>
-      Nodes <?> 
-    SelectExpr <?> 
-      Branches <?> 
-        SelectBranch <?> 
-          PostfixExpr <?>
-            Ident <?> point
-            SequenceExpr <?>
-              Members <?> 
-                IntegerExpr <?> 10 (10)
-          Block <?>
-            Nodes <?> 
-    SelectExpr <?> 
-      Branches <?> 
-        SelectBranch <?> 
-          PostfixExpr <?>
-            Ident <?> point
-            SequenceExpr <?>
-              Members <?> 
-                IntegerExpr <?> 10 (10)
-          Block <?>
-            Nodes <?> 
-              IntegerExpr <?> 10 (10)
-    SelectExpr <?> 
-      Branches <?> 
-        SelectBranch <?> 
           Ident <?> point
           Block <?>
             Nodes <?> 
@@ -232,16 +165,8 @@ ModuleDecl <?> _
             Nodes <?> 
     ConditionalExpr <?> 
       EQExpr <?>
-        PostfixExpr <?>
-          Ident <?> other
-          SequenceExpr <?>
-            Members <?> 
-              IntegerExpr <?> 20 (10)
-        PostfixExpr <?>
-          Ident <?> some
-          SequenceExpr <?>
-            Members <?> 
-              IntegerExpr <?> 10 (10)
+        Ident <?> other
+        Ident <?> some
       SelectExpr <?> 
         Branches <?> 
           SelectBranch <?> 

@@ -22,12 +22,7 @@ type Parser {
 
     # Node stack.
     # Nodes get pushed as they are realized and popped as consumed.
-    mut stack: ast.Nodes,
-
-    # HACK: A block is currently being expected to be
-    #   resolved from a brace expression (used by control flow
-    #   statements).
-    mut _expect_block: list.List
+    mut stack: ast.Nodes
 }
 
 implement Parser {
@@ -40,9 +35,6 @@ def dispose(&mut self) {
 
     # Dispose of the node stack.
     self.stack.dispose();
-
-    # HACK: Dispose of process variables.
-    self._expect_block.dispose();
 }
 
 # Push N tokens onto the buffer.
@@ -134,9 +126,6 @@ def parse(&mut self, name: str) -> ast.Node {
 
     # Initialize the node stack.
     self.stack = ast.make_nodes();
-
-    # HACK: Initialize process variables.
-    self._expect_block = list.make(types.I8);
 
     # Declare the top-level module decl node.
     let node: ast.Node = ast.make(ast.TAG_MODULE);
@@ -300,17 +289,10 @@ def parse_common_statement(&mut self) -> bool {
         }
     }
 
-    # Checks to see if its an anon struct expression
-    # If not, resume parsing as a block
     if tok == tokens.TOK_LBRACE {
-        # if not ({ x :)
-        if not (    self.peek_token(2) == tokens.TOK_IDENTIFIER
-                and self.peek_token(3) == tokens.TOK_COLON)
-        {
-            # Block expression is treated as if it appeared in a
-            # function (no `item` may appear inside).
-            return self.parse_block_expr();
-        }
+        # Block expression is treated as if it appeared in a
+        # function (no `item` may appear inside).
+        return self.parse_block_expr();
     }
 
     # We could still be an expression; forward.
@@ -752,8 +734,7 @@ def parse_postfix_expr(&mut self) -> bool
 
     # Can we possibly consume this as a postfix expression ?
     let tok: int = self.peek_token(1);
-    if     tok == tokens.TOK_LBRACE     # Sequence or struct expression
-        or tok == tokens.TOK_LPAREN     # Call expression
+    if     tok == tokens.TOK_LPAREN     # Call expression
         or tok == tokens.TOK_LBRACKET   # Index expression
         or tok == tokens.TOK_DOT        # Member expression
         or tok == tokens.TOK_AS         # Cast expression
@@ -775,20 +756,6 @@ def parse_postfix_expr_operand(&mut self) -> bool
 {
     # Recurse downwards depending on our token.
     let tok: int = self.peek_token(1);
-    if tok == tokens.TOK_LBRACE
-    {
-        let last: ast.Node = self.stack.get(-1);
-        if last.tag == ast.TAG_IDENT
-        {
-            # A postfix `{` expression is only considered
-            # after an identifier (or a path).
-            return self.parse_postfix_brace_expr();
-        }
-
-        # Didn't match a postfix-expr; continue.
-        return true;
-    }
-
     if tok == tokens.TOK_LPAREN
     {
         if not self.parse_call_expr() { return false; }
@@ -808,8 +775,7 @@ def parse_postfix_expr_operand(&mut self) -> bool
 
     # Should we continue the postfix expression?
     let tok: int = self.peek_token(1);
-    if     tok == tokens.TOK_LBRACE     # Sequence or struct expression
-        or tok == tokens.TOK_LPAREN     # Call expression
+    if     tok == tokens.TOK_LPAREN     # Call expression
         or tok == tokens.TOK_LBRACKET   # Index expression
         or tok == tokens.TOK_DOT        # Member expression
         or tok == tokens.TOK_AS         # Cast expression
@@ -819,67 +785,6 @@ def parse_postfix_expr_operand(&mut self) -> bool
             return false;
         }
     }
-
-    # Return success.
-    true;
-}
-
-def parse_postfix_brace_expr(&mut self) -> bool
-{
-    # Grab the operand from the stack.
-    let operand: ast.Node = self.stack.pop();
-
-    # A postfix brace expression can be a record or sequence
-    # expression. Attempt to parse one.
-    if      self.peek_token(2) == tokens.TOK_IDENTIFIER
-        and self.peek_token(3) == tokens.TOK_COLON
-    {
-        if not self.parse_record_expr() { return false; }
-    }
-    else {
-        if not self.parse_brace_expr() { return false; }
-    }
-
-    # Check what we happened to parse.
-    # If we parsed a block expression then just push it back on the
-    # stack and return success (don't consume the operand).
-    let expr_node: ast.Node = self.stack.get(-1);
-    if expr_node.tag == ast.TAG_RECORD_EXPR
-    {
-        # Construct a postfix record expression node.
-        let node: ast.Node = ast.make(ast.TAG_POSTFIX_EXPR);
-        let pf: ^ast.PostfixExpr = node.unwrap() as ^ast.PostfixExpr;
-        pf.operand = operand;
-        pf.expression = self.stack.pop();
-        operand = node;
-    }
-    else if expr_node.tag == ast.TAG_SEQ_EXPR
-    {
-        # If we can be coerced into a block and we are currently expecting
-        # a block (eg. in a control flow statement) and there isn't a
-        # `{` directly following then do so.
-        let seq: ^ast.SequenceExpr = expr_node.unwrap() as ^ast.SequenceExpr;
-        let is_block: bool = false;
-        if self._expect_block.size > 0 and seq.nodes.size() <= 1 {
-            if self.peek_token(1) <> tokens.TOK_LBRACE {
-                # Ignore the sequence and pretend its a block.
-                is_block = true;
-                self._expect_block.erase(-1);
-            }
-        }
-
-        if not is_block {
-            # Construct a postfix seq expression node.
-            let node: ast.Node = ast.make(ast.TAG_POSTFIX_EXPR);
-            let pf: ^ast.PostfixExpr = node.unwrap() as ^ast.PostfixExpr;
-            pf.operand = operand;
-            pf.expression = self.stack.pop();
-            operand = node;
-        }
-    }
-
-    # Push our operand.
-    self.stack.push(operand);
 
     # Return success.
     true;
@@ -1044,20 +949,8 @@ def parse_primary_expr(&mut self) -> bool
     }
     else if tok == tokens.TOK_LBRACE
     {
-        # A block expression (not in a postfix position) can be a `block`
-        # or a `record` expression.
-        if      self.peek_token(2) == tokens.TOK_IDENTIFIER
-            and self.peek_token(3) == tokens.TOK_COLON
-        {
-            # A record expression /always/ starts like `{` `identifier` `:`
-            # There cannot be an "empty" record expression.
-            self.parse_record_expr();
-        }
-        else
-        {
-            # This is some kind of block.
-            self.parse_block_expr();
-        }
+        # This is some kind of block.
+        self.parse_block_expr();
     }
     else
     {
@@ -1264,178 +1157,19 @@ def parse_array_expr(&mut self) -> bool
     true;
 }
 
-# Record expression
-# -----------------------------------------------------------------------------
-def parse_record_expr(&mut self) -> bool
-{
-    # Allocate and create the node.
-    let node: ast.Node = ast.make(ast.TAG_RECORD_EXPR);
-    let expr: ^ast.RecordExpr = node.unwrap() as ^ast.RecordExpr;
-
-    # Consume the `{` token.
-    self.pop_token();
-
-    # Enumerate until we reach the `}` token.
-    while self.peek_token(1) <> tokens.TOK_RBRACE {
-        # Allocate and create a member node.
-        let member_node: ast.Node = ast.make(ast.TAG_RECORD_EXPR_MEM);
-        let member: ^ast.RecordExprMem =
-            member_node.unwrap() as ^ast.RecordExprMem;
-
-        if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
-            # Report the error.
-            self.expect(tokens.TOK_IDENTIFIER);
-            self.consume_until(tokens.TOK_RBRACE);
-            return false;
-        }
-
-        # Parse the identifier.
-        if not self.parse_ident_expr() { return false; }
-        member.id = self.stack.pop();
-
-        # Expect a `:` token.
-        if not self.expect(tokens.TOK_COLON) {
-            self.consume_until(tokens.TOK_RBRACE);
-            return false;
-        }
-
-        # Parse an expression node.
-        if not self.parse_expr(false) {
-            self.consume_until(tokens.TOK_RBRACE);
-            return false;
-        }
-        member.expression = self.stack.pop();
-
-        # Push the node.
-        expr.nodes.push(member_node);
-
-        # Peek and consume the `,` token if present; else, consume
-        # tokens until we reach the `}`.
-        if self._expect_sequence_continue(tokens.TOK_RBRACE) { continue; }
-        return false;
-    }
-
-    # Expect a `}` token.
-    if not self.expect(tokens.TOK_RBRACE) { return false; }
-
-    # Push our node on the stack.
-    self.stack.push(node);
-
-    # Return success.
-    true;
-}
-
 # Block expression
 # -----------------------------------------------------------------------------
 def parse_block_expr(&mut self) -> bool
 {
-    # Parse a brace expression.
-    if not self.parse_brace_expr() { return false; }
-    let mut node: ast.Node = self.stack.pop();
-
-    # If we are a sequence expr ...
-    if node.tag == ast.TAG_SEQ_EXPR
-    {
-        # ... and we have <= 1 members
-        let expr: ^ast.SequenceExpr = node.unwrap() as ^ast.SequenceExpr;
-        if expr.nodes.size() <= 1
-        {
-            # Transpose us as a block.
-            node._set_tag(ast.TAG_BLOCK);
-        }
-        else
-        {
-            # Die; sequence expressions except in a postfix situation
-            # are illegal.
-            errors.begin_error();
-            errors.fprintf(errors.stderr,
-                           "expected `block` but found `sequence` (%s)" as ^int8,
-                           "a sequence expression must be prefixed by a nominal type");
-            errors.end();
-            return false;
-        }
-    }
-
-    # Push our node on the stack.
-    self.stack.push(node);
-
-    # Return success.
-    true;
-}
-
-# Brace expression
-# -----------------------------------------------------------------------------
-def parse_brace_expr(&mut self) -> bool
-{
     # Allocate and create the node.
-    # Note that we assume we are a sequence until proven otherwise.
-    let mut node: ast.Node = ast.make(ast.TAG_SEQ_EXPR);
-    let expr: ^ast.SequenceExpr = node.unwrap() as ^ast.SequenceExpr;
+    let mut node: ast.Node = ast.make(ast.TAG_BLOCK);
+    let expr: ^ast.Block = node.unwrap() as ^ast.Block;
 
     # Expect and consume the `{` token.
     if not self.expect(tokens.TOK_LBRACE) { return false; }
 
     # Iterate and attempt to match statements.
     while self.peek_token(1) <> tokens.TOK_RBRACE {
-        # If we are still a sequence ...
-        # ... and If we could possibly be an expression ...
-        if  node.tag == ast.TAG_SEQ_EXPR
-                and self._possible_expr(self.peek_token(1))
-        {
-            # Parse the expression node directly.
-            if not self.parse_expr(false) {
-                self.consume_until(tokens.TOK_RBRACE);
-                return false;
-            }
-
-            # Push the expression node.
-            expr.nodes.push(self.stack.pop());
-
-            # Peek and consume the `,` token if present.
-            let tok: int = self.peek_token(1);
-            if tok == tokens.TOK_COMMA
-            {
-                # We are definitely a sequence; no questsions, continue.
-                self.pop_token();
-                continue;
-            }
-            if tok <> tokens.TOK_RBRACE
-            {
-                if expr.nodes.elements.size > 1
-                {
-                    # We know we are sequence; this is an error.
-                    self.consume_until(tokens.TOK_RBRACE);
-                    errors.begin_error();
-                    errors.fprintf(errors.stderr,
-                                   "expected %s or %s but found %s" as ^int8,
-                                   tokens.to_str(tokens.TOK_COMMA),
-                                   tokens.to_str(tokens.TOK_RBRACE),
-                                   tokens.to_str(tok));
-                    errors.end();
-                    return false;
-                }
-
-                # No `,` and no `}` -- we are some kind of block, expect
-                # an `;`.
-                if self.expect(tokens.TOK_SEMICOLON)
-                {
-                    # All good; continue onwards as a block.
-                    node._set_tag(ast.TAG_BLOCK);
-                    continue;
-                }
-
-                # Bad news; no idea what we are.
-                self.consume_until(tokens.TOK_RBRACE);
-                return false;
-            }
-
-            # We are a one-element sequence.
-            break;
-        }
-
-        # Continue as a block.
-        node._set_tag(ast.TAG_BLOCK);
-
         # Try and parse a node.
         if not self.parse_common_statement() {
             # Bad news.
@@ -1561,48 +1295,13 @@ def parse_select_branch(&mut self, condition: bool) -> ast.Node
     let node: ast.Node = ast.make(ast.TAG_SELECT_BRANCH);
     let mut branch: ^ast.SelectBranch = ast.unwrap(node) as ^ast.SelectBranch;
 
-    # HACK: Expect a block unless otherwise.
-    self._expect_block.push_i8(1);
-
     if condition {
         # Expect and parse the condition expression.
-        if not self.parse_expr(false) {
-            return ast.null();
-        }
+        if not self.parse_expr(false) { return ast.null(); }
         branch.condition = self.stack.pop();
     }
 
-    # Check for a block in the stack.
-    if self.stack.size() > 0
-    {
-        let mut st_node: ast.Node = self.stack.get(-1);
-        if st_node.tag == ast.TAG_BLOCK
-        {
-            # We have a block; use and return.
-            branch.block = self.stack.pop();
-            return node;
-        }
-
-        if st_node.tag == ast.TAG_SEQ_EXPR
-        {
-            let seq: ^ast.SequenceExpr = st_node.unwrap() as ^ast.SequenceExpr;
-            if seq.nodes.size() <= 1
-            {
-                # Transpose us as a block.
-                st_node._set_tag(ast.TAG_BLOCK);
-
-                # We have a block; use and return.
-                branch.block = st_node;
-                self.stack.pop();
-                return node;
-            }
-        }
-    }
-
-    # HACK: Stop expecting.
-    self._expect_block.clear();
-
-    # Parse the block.
+    # Expect and parse the block.
     if not self.parse_block_expr() { return ast.null(); }
     branch.block = self.stack.pop();
 
@@ -1832,14 +1531,6 @@ def _possible_expr(&mut self, tok: int) -> bool {
 
     if tok == tokens.TOK_DEF {
         if self.peek_token(2) == tokens.TOK_IDENTIFIER { return false; }
-    }
-
-    if tok == tokens.TOK_LBRACE {
-        if not (    self.peek_token(2) == tokens.TOK_IDENTIFIER
-                and self.peek_token(3) == tokens.TOK_COLON)
-        {
-            return true;
-        }
     }
 
     true;

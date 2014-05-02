@@ -140,7 +140,7 @@ type FloatExpr { mut text: string.String }
 type BooleanExpr { value: bool }
 
 # "Generic" binary expression type.
-type BinaryExpr { lhs: Node, rhs: Node }
+type BinaryExpr { mut lhs: Node, mut rhs: Node }
 
 # Cast expression.
 type CastExpr { operand: Node, type_: Node }
@@ -155,7 +155,7 @@ type ConditionalExpr { lhs: Node, rhs: Node, condition: Node }
 type UnaryExpr { operand: Node }
 
 # Module declaration that contains a sequence of nodes.
-type ModuleDecl { id: Node, mut nodes: Nodes }
+type ModuleDecl { mut id: Node, mut nodes: Nodes }
 
 # Unsafe block.
 type UnsafeBlock { mut nodes: Nodes }
@@ -176,7 +176,7 @@ type RecordExpr { mut nodes: Nodes }
 type SequenceExpr { mut nodes: Nodes }
 
 # RecordExprMem
-type RecordExprMem { id: Node, expression: Node }
+type RecordExprMem { mut id: Node, expression: Node }
 
 # TupleExpr.
 type TupleExpr { mut nodes: Nodes }
@@ -195,7 +195,7 @@ type SelectBranch { condition: Node, block: Node }
 
 # Function declaration.
 type FuncDecl {
-    id: Node,
+    mut id: Node,
     return_type: Node,
     mut type_params: Nodes,
     mut params: Nodes,
@@ -204,7 +204,7 @@ type FuncDecl {
 
 # Function parameter.
 type FuncParam {
-    id: Node,
+    mut id: Node,
     type_: Node,
     mutable: bool,
     default: Node
@@ -212,7 +212,7 @@ type FuncParam {
 
 # Static slot declaration.
 type StaticSlotDecl {
-    id: Node,
+    mut id: Node,
     type_: Node,
     mutable: bool,
     initializer: Node
@@ -220,26 +220,26 @@ type StaticSlotDecl {
 
 # Local slot declaration.
 type LocalSlotDecl {
-    id: Node,
+    mut id: Node,
     type_: Node,
     mutable: bool,
     initializer: Node
 }
 
 # TypeParam
-type TypeParam { id: Node, default: Node, variadic: bool, bounds: Node }
+type TypeParam { mut id: Node, default: Node, variadic: bool, bounds: Node }
 
 # Struct
-type Struct { mut nodes: Nodes, id: Node, mut type_params: Nodes }
+type Struct { mut nodes: Nodes, mut id: Node, mut type_params: Nodes }
 
 # StructMem
-type StructMem { id: Node, type_: Node, initializer: Node }
+type StructMem { mut id: Node, type_: Node, initializer: Node }
 
 # Call expression
 type CallExpr { expression: Node, mut arguments: Nodes }
 
 # Call arguments
-type Argument { expression: Node, name: Node }
+type Argument { expression: Node, mut name: Node }
 
 # Identifier.
 type Ident { mut name: string.String }

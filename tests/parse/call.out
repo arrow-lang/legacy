@@ -1,0 +1,39 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    CallExpr <?>
+      Ident <?> name
+      Arguments <?> 
+    CallExpr <?>
+      Ident <?> sum
+      Arguments <?> 
+        Argument <?>
+          IntegerExpr <?> 53 (10)
+        Argument <?>
+          IntegerExpr <?> 3 (10)
+        Argument <?>
+          IntegerExpr <?> 23 (10)
+    CallExpr <?>
+      Ident <?> defualt_sum1
+      Arguments <?> 
+        Argument <?> y
+          IntegerExpr <?> 320 (10)
+    CallExpr <?>
+      Ident <?> defualt_sum2
+      Arguments <?> 
+        Argument <?>
+          IntegerExpr <?> 320 (10)
+    CallExpr <?>
+      Ident <?> defualt_sum2
+      Arguments <?> 
+        Argument <?> x
+          IntegerExpr <?> 320 (10)
+    CallExpr <?>
+      Ident <?> defualt_sum3
+      Arguments <?> 
+        Argument <?> y
+          IntegerExpr <?> 320 (10)
+        Argument <?> x
+          IntegerExpr <?> 32 (10)
+    CallExpr <?>
+      Ident <?> nested
+      Arguments <?> 

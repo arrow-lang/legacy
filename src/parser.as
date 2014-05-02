@@ -165,21 +165,11 @@ def parse_module(&mut self) -> bool
     # Pop the `module` token.
     self.pop_token();
 
-    # Expect an `identifier` next.
-    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
-        # Report the error.
-        self.expect(tokens.TOK_IDENTIFIER);
+    # Expect and parse and the identifier.
+    if not self._expect_parse_ident_to(mod.id) {
         self.consume_until(tokens.TOK_RBRACE);
         return false;
     }
-
-    # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident_expr() {
-        self.consume_until(tokens.TOK_RBRACE);
-        return false;
-    }
-
-    mod.id = self.stack.pop();
 
     # Expect and parse the `{` token.
     if not self.expect(tokens.TOK_LBRACE) {
@@ -792,7 +782,76 @@ def parse_postfix_expr_operand(&mut self) -> bool
 
 # Call expression
 # -----------------------------------------------------------------------------
-def parse_call_expr(&mut self) -> bool { false; }
+def parse_call_expr(&mut self) -> bool
+{
+    # Declare and allocate the node.
+    let node: ast.Node = ast.make(ast.TAG_CALL);
+    let expr: ^ast.CallExpr = node.unwrap() as ^ast.CallExpr;
+
+    # Pop the expression in the stack as our expression.
+    expr.expression = self.stack.pop();
+
+    # Pop the `(` token.
+    self.pop_token();
+
+    # Enumerate until we reach the `)` token.
+    let mut in_named_args: bool = false;
+    while self.peek_token(1) <> tokens.TOK_RPAREN {
+        # Declare the argument node.
+        let arg_node: ast.Node = ast.make(ast.TAG_CALL_ARG);
+        let arg: ^ast.Argument = ast.unwrap(arg_node) as ^ast.Argument;
+
+        # This is a named argument if we have a ( `ident` `:` ) sequence.
+        if      self.peek_token(1) == tokens.TOK_IDENTIFIER
+            and self.peek_token(2) == tokens.TOK_COLON
+        {
+            # Expect and parse the identifier.
+            if not self._expect_parse_ident_to(arg.name) {
+                self.consume_until(tokens.TOK_RPAREN);
+                return false;
+            }
+
+            # Pop the `:` token.
+            self.pop_token();
+
+            # Mark that we have entered the land of named arguments.
+            in_named_args = true;
+        }
+        else if in_named_args
+        {
+            # If we didn't get a named argument but are in the
+            # land of named arguments throw an error.
+            self.consume_until(tokens.TOK_RPAREN);
+
+            errors.begin_error();
+            errors.fprintf(errors.stderr, "non-keyword argument after keyword argument" as ^int8);
+            errors.end();
+
+            return false;
+        }
+
+        # Parse an expression node for the argument.
+        if not self.parse_expr(false) { return false; }
+        arg.expression = self.stack.pop();
+
+        # Push the argument into our arguments collection.
+        expr.arguments.push(arg_node);
+
+        # Peek and consume the `,` token if present; else, consume
+        # tokens until we reach the `)`.
+        if self._expect_sequence_continue(tokens.TOK_RPAREN) { continue; }
+        return false;
+    }
+
+    # Expect a `)` token.
+    if not self.expect(tokens.TOK_RPAREN) { return false; }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
 
 # Index expression
 # -----------------------------------------------------------------------------
@@ -896,7 +955,27 @@ def parse_type_expr(&mut self) -> bool
 
 # Member expression
 # -----------------------------------------------------------------------------
-def parse_member_expr(&mut self) -> bool { false; }
+def parse_member_expr(&mut self) -> bool
+{
+    # Declare and allocate the node.
+    let node: ast.Node = ast.make(ast.TAG_MEMBER);
+    let expr: ^ast.BinaryExpr = node.unwrap() as ^ast.BinaryExpr;
+
+    # Pop the operand in the stack as our operand.
+    expr.lhs = self.stack.pop();
+
+    # Pop the `.` token.
+    self.pop_token();
+
+    # Expect and parse the identifier.
+    if not self._expect_parse_ident_to(expr.rhs) { return false; }
+
+    # Push our operand.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
 
 # Primary expression
 # -----------------------------------------------------------------------------
@@ -1558,6 +1637,38 @@ def _expect_sequence_continue(&mut self, end: int) -> bool
 
     # Done anyway.
     return true;
+}
+
+# Expect and parse an identifier node.
+# -----------------------------------------------------------------------------
+def _expect_parse_ident(&mut self) -> bool
+{
+    # Expect an `identifier` next.
+    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+        # Report the error.
+        self.expect(tokens.TOK_IDENTIFIER);
+        return false;
+    }
+
+    # Parse the identifier.
+    if not self.parse_ident_expr() { return false; }
+
+    # Return success.
+    true;
+}
+
+# Expect and parse an identifier node (into a passed slot).
+# -----------------------------------------------------------------------------
+def _expect_parse_ident_to(&mut self, &mut node: ast.Node) -> bool
+{
+    # Expect and parse the identifier.
+    if not self._expect_parse_ident() { return false; }
+
+    # Push into the passed node.
+    node = self.stack.pop();
+
+    # Return success.
+    true;
 }
 
 # Get the binary operator token precedence.

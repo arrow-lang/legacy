@@ -72,6 +72,7 @@ let TAG_BITNEG          : int = 62;             # BitNegExpr
 let TAG_TYPE_PARAM      : int = 63;             # TypeParam
 let TAG_CAST            : int = 64;             # CastExpr
 let TAG_TYPE_BOX        : int = 65;             # TypeBox
+let TAG_LOOP            : int = 66;             # Loop
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -192,6 +193,9 @@ type SelectExpr { mut branches: Nodes }
 
 # Selection branch.
 type SelectBranch { condition: Node, block: Node }
+
+# Loop
+type Loop { condition: Node, block: Node }
 
 # Function declaration.
 type FuncDecl {
@@ -314,6 +318,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_INDEX   { let tmp: IndexExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CAST    { let tmp: CastExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CALL    { let tmp: CallExpr; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_LOOP    { let tmp: Loop; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CALL_ARG{ let tmp: Argument; ((&tmp + 1) - &tmp); }
     else if tag == TAG_TYPE_PARAM{ let tmp: TypeParam; ((&tmp + 1) - &tmp); }
     else if tag == TAG_STATIC_SLOT {
@@ -462,6 +467,7 @@ def dump(&node: Node) {
         dump_table[TAG_STRUCT_MEM] = dump_struct_mem;
         dump_table[TAG_POSTFIX_EXPR] = dump_postfix_expr;
         dump_table[TAG_TYPE_PARAM] = dump_type_param;
+        dump_table[TAG_LOOP] = dump_loop;
         dump_initialized = true;
     }
 
@@ -851,6 +857,18 @@ def dump_select_expr(node: ^Node) {
 def dump_select_branch(node: ^Node) {
     let x: ^SelectBranch = unwrap(node^) as ^SelectBranch;
     printf("SelectBranch <?> \n");
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.condition) { dump(x.condition); }
+    dump(x.block);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_loop
+# -----------------------------------------------------------------------------
+def dump_loop(node: ^Node) {
+    let x: ^Loop = unwrap(node^) as ^Loop;
+    printf("Loop <?> \n");
 
     dump_indent = dump_indent + 1;
     if not isnull(x.condition) { dump(x.condition); }

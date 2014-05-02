@@ -11,7 +11,7 @@ import code;
 import generator_;
 import generator_util;
 import generator_extract;
-# import generator_def;
+import generator_def;
 import generator_decl;
 import generator_type;
 import builders;
@@ -36,9 +36,15 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     # Build the "type resolution" jump table.
     libc.memset(&g.type_resolvers[0] as ^void, 0, 100 * ptr_size);
     g.type_resolvers[ast.TAG_IDENT] = resolvers.ident;
+    g.type_resolvers[ast.TAG_INTEGER] = resolvers.integer;
+    g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
+    g.type_resolvers[ast.TAG_FLOAT] = resolvers.float;
 
     # Build the "builder" jump table.
     libc.memset(&g.builders[0] as ^void, 0, 100 * ptr_size);
+    g.builders[ast.TAG_INTEGER] = builders.integer;
+    g.builders[ast.TAG_BOOLEAN] = builders.boolean;
+    g.builders[ast.TAG_FLOAT] = builders.float;
 
     # Add basic type definitions.
     generator_util.declare_basic_types(g);
@@ -62,8 +68,8 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     if errors.count > 0 { return; }
 
     # # Next we generate defs for each "item".
-    # generator_def.generate(g);
-    # if errors.count > 0 { return; }
+    generator_def.generate(g);
+    if errors.count > 0 { return; }
 
     # Generate a main function.
     generator_util.declare_main(g);

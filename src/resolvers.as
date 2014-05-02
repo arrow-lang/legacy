@@ -53,6 +53,48 @@ def _type_of(g: ^mut generator_.Generator, item: ^code.Handle)
 # Resolvers
 # =============================================================================
 
+# Boolean [TAG_BOOLEAN]
+# -----------------------------------------------------------------------------
+def boolean(g: ^mut generator_.Generator, node: ^ast.Node,
+            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Yep; this is a boolean.
+    (g^).items.get_ptr("bool") as ^code.Handle;
+}
+
+# Integer [TAG_INTEGER]
+# -----------------------------------------------------------------------------
+def integer(g: ^mut generator_.Generator, node: ^ast.Node,
+            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    if not code.isnil(target) {
+        if (target._tag == code.TAG_INT_TYPE
+                or target._tag == code.TAG_FLOAT_TYPE) {
+            # Return the targeted type.
+            return target;
+        }
+    }
+
+    # Without context we default to `int`.
+    (g^).items.get_ptr("int") as ^code.Handle;
+}
+
+# Floating-point [TAG_FLOAT]
+# -----------------------------------------------------------------------------
+def float(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    if not code.isnil(target) {
+        if (target._tag == code.TAG_FLOAT_TYPE) {
+            # Return the targeted type.
+            return target;
+        }
+    }
+
+    # Without context we default to `float64`.
+    (g^).items.get_ptr("float64") as ^code.Handle;
+}
+
 # Identifier [TAG_IDENT]
 # -----------------------------------------------------------------------------
 def ident(g: ^mut generator_.Generator, node: ^ast.Node,

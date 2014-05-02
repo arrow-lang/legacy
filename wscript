@@ -137,6 +137,6 @@ def test(ctx):
     ws.test._test_parser(ctx)
     print(ws.test._sep("parse-fail", "-"))
     ws.test._test_parser_fail(ctx)
-    print(ws.test._sep("run", "-"))
-    ws.test._test_run(ctx)
+    # print(ws.test._sep("run", "-"))
+    # ws.test._test_run(ctx)
     ws.test._print_report()

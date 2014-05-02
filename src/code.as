@@ -3,6 +3,7 @@ foreign "C" import "llvm-c/Core.h";
 import string;
 import ast;
 import libc;
+import types;
 import list;
 import dict;
 

@@ -35,5 +35,7 @@ ModuleDecl <?> _
         Argument <?> x
           IntegerExpr <?> 32 (10)
     CallExpr <?>
-      Ident <?> nested
+      MemberExpr <?>
+        Ident <?> main
+        Ident <?> nested
       Arguments <?> 

@@ -239,7 +239,8 @@ type Parameter {
 type FunctionType {
     handle: ^LLVMOpaqueType,
     return_type: ^mut Handle,
-    mut parameters: list.List
+    mut parameters: list.List,
+    mut parameter_map: dict.Dictionary
 }
 
 let PARAMETER_SIZE: uint = ((0 as ^Parameter) + 1) - (0 as ^Parameter);
@@ -268,6 +269,17 @@ def make_function_type(
     func.handle = handle;
     func.return_type = return_type;
     func.parameters = parameters;
+    func.parameter_map = dict.make(64);
+
+    # Fill the named parameter map.
+    let mut idx: int = 0;
+    while idx as uint < parameters.size
+    {
+        let param_han: ^Handle = parameters.at_ptr(idx) as ^Handle;
+        let param: ^Parameter = param_han._object as ^Parameter;
+        func.parameter_map.set_uint(param.name.data() as str, idx as uint);
+        idx = idx + 1;
+    }
 
     # Wrap in a handle.
     make(TAG_FUNCTION_TYPE, func as ^void);
@@ -503,8 +515,9 @@ implement FunctionType { # HACK: Re-arrange when we can.
             i = i + 1;
         }
 
-        # Dispose of the parameter list.
+        # Dispose of the parameter list and map.
         self.parameters.dispose();
+        self.parameter_map.dispose();
     }
 
 }

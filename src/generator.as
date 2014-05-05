@@ -39,12 +39,15 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_INTEGER] = resolvers.integer;
     g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
     g.type_resolvers[ast.TAG_FLOAT] = resolvers.float;
+    g.type_resolvers[ast.TAG_CALL] = resolvers.call;
 
     # Build the "builder" jump table.
     libc.memset(&g.builders[0] as ^void, 0, 100 * ptr_size);
+    g.builders[ast.TAG_IDENT] = builders.ident;
     g.builders[ast.TAG_INTEGER] = builders.integer;
     g.builders[ast.TAG_BOOLEAN] = builders.boolean;
     g.builders[ast.TAG_FLOAT] = builders.float;
+    g.builders[ast.TAG_CALL] = builders.call;
 
     # Add basic type definitions.
     generator_util.declare_basic_types(g);

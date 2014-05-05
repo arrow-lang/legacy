@@ -251,3 +251,92 @@ def get_scoped_item_in(&mut g: generator_.Generator, s: str,
         code.make_nil();
     }
 }
+
+# Create a cast from a value to a type.
+# -----------------------------------------------------------------------------
+def cast(&mut g: generator_.Generator, handle: ^code.Handle,
+         type_: ^code.Handle) -> ^code.Handle
+{
+    # Get the value of the handle.
+    let src_val: ^code.Value = handle._object as ^code.Value;
+
+    # Get the type of the value handle.
+    let src_han: ^code.Handle = src_val.type_;
+
+    # Get the src/dst types.
+    let src: ^code.Type = src_han._object as ^code.Type;
+    let dst: ^code.Type = type_._object as ^code.Type;
+
+    # Are these the "same" type?
+    if src == dst {
+        # Wrap and return our val.
+        return code.make_value(type_, src_val.handle);
+    }
+
+    # Build the cast.
+    let val: ^llvm.LLVMOpaqueValue;
+    if src_han._tag == code.TAG_INT_TYPE and src_han._tag == type_._tag {
+        # Get the int_ty out.
+        let src_int: ^code.IntegerType = src as ^code.IntegerType;
+        let dst_int: ^code.IntegerType = dst as ^code.IntegerType;
+
+        if dst_int.bits > src_int.bits {
+            # Create a ZExt or SExt.
+            if src_int.signed {
+                val = llvm.LLVMBuildSExt(g.irb, src_val.handle, dst.handle,
+                                         "" as ^int8);
+            } else {
+                val = llvm.LLVMBuildZExt(g.irb, src_val.handle, dst.handle,
+                                         "" as ^int8);
+            }
+        } else {
+            # Create a Trunc
+            val = llvm.LLVMBuildTrunc(g.irb, src_val.handle, dst.handle,
+                                      "" as ^int8);
+        }
+    } else if src_han._tag == code.TAG_FLOAT_TYPE
+            and src_han._tag == type_._tag {
+        # Get float_ty out.
+        let src_f: ^code.FloatType = src as ^code.FloatType;
+        let dst_f: ^code.FloatType = dst as ^code.FloatType;
+
+        if dst_f.bits > src_f.bits {
+            # Create a Ext
+            val = llvm.LLVMBuildFPExt(g.irb, src_val.handle, dst.handle,
+                                      "" as ^int8);
+        } else {
+            # Create a Trunc
+            val = llvm.LLVMBuildFPTrunc(g.irb, src_val.handle, dst.handle,
+                                        "" as ^int8);
+        }
+    } else if src_han._tag == code.TAG_FLOAT_TYPE
+            and type_._tag == code.TAG_INT_TYPE {
+        # Get ty out.
+        let src_ty: ^code.FloatType = src as ^code.FloatType;
+        let dst_ty: ^code.IntegerType = dst as ^code.IntegerType;
+
+        if dst_ty.signed {
+            val = llvm.LLVMBuildFPToSI(g.irb, src_val.handle, dst.handle,
+                                       "" as ^int8);
+        } else {
+            val = llvm.LLVMBuildFPToUI(g.irb, src_val.handle, dst.handle,
+                                       "" as ^int8);
+        }
+    } else if src_han._tag == code.TAG_INT_TYPE
+            and type_._tag == code.TAG_FLOAT_TYPE {
+        # Get ty out.
+        let src_ty: ^code.IntegerType = src as ^code.IntegerType;
+        let dst_ty: ^code.FloatType = dst as ^code.FloatType;
+
+        if src_ty.signed {
+            val = llvm.LLVMBuildSIToFP(g.irb, src_val.handle, dst.handle,
+                                       "" as ^int8);
+        } else {
+            val = llvm.LLVMBuildUIToFP(g.irb, src_val.handle, dst.handle,
+                                       "" as ^int8);
+        }
+    }
+
+    # Wrap and return.
+    code.make_value(type_, val);
+}

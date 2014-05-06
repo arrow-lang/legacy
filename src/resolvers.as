@@ -5,6 +5,7 @@ import list;
 import errors;
 import generator_util;
 import generator_type;
+import resolver;
 
 # Internal
 # =============================================================================
@@ -119,4 +120,42 @@ def ident(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Resolve the item for its type.
     return _type_of(g, item);
+}
+
+# Call [TAG_CALL]
+# -----------------------------------------------------------------------------
+def call(g: ^mut generator_.Generator, node: ^ast.Node,
+         scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
+
+    # Resolve the type of the call expression.
+    let expr: ^code.Handle = resolver.resolve(g, &x.expression);
+    if code.isnil(expr) { return code.make_nil(); }
+
+    # Ensure that we are dealing strictly with a function type.
+    if expr._tag <> code.TAG_FUNCTION_TYPE {
+        # Get formal type name.
+        let mut name: string.String = code.typename(expr);
+
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "type '%s' is not a function" as ^int8,
+                       name.data());
+        errors.end();
+
+        # Dispose.
+        name.dispose();
+
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Get it as a function type.
+    let ty: ^code.FunctionType = expr._object as ^code.FunctionType;
+
+    # Return the already resolve return type.
+    ty.return_type;
 }

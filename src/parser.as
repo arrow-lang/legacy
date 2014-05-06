@@ -200,6 +200,33 @@ def parse_module(&mut self) -> bool
     true;
 }
 
+def parse_loop(&mut self) -> bool {
+
+    let node: ast.Node = ast.make(ast.TAG_LOOP);
+    let loopN: ^ast.Loop = node.unwrap() as ^ast.Loop;
+
+    # Pop the `loop` token.
+    self.pop_token();
+
+    # Expect and parse the `{` token.
+    if not self.expect(tokens.TOK_LBRACE) {
+        self.consume_until(tokens.TOK_RBRACE);
+        return false;
+    }
+
+    while self.peek_token(1) <> tokens.TOK_RBRACE {
+        self.parse_common_statement();
+    }
+
+    if not self.expect(tokens.TOK_RBRACE) { return false; }
+
+
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
 # Unsafe
 # -----------------------------------------------------------------------------
 # unsafe = "unsafe" "{" { statement } "}" ;
@@ -257,7 +284,7 @@ def parse_common_statement(&mut self) -> bool {
     let tok: int = self.peek_token(1);
     if tok == tokens.TOK_UNSAFE { return self.parse_unsafe(); }
     # if tok == tokens.TOK_MATCH  { return self.parse_match(); }
-    # if tok == tokens.TOK_LOOP   { return self.parse_loop(); }
+    if tok == tokens.TOK_LOOP   { return self.parse_loop(); }
     # if tok == tokens.TOK_WHILE  { return self.parse_while(); }
     # if tok == tokens.TOK_IMPORT { return self.parse_import(); }
     if tok == tokens.TOK_STRUCT { return self.parse_struct(); }

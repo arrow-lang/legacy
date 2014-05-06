@@ -208,23 +208,35 @@ def parse_loop(&mut self) -> bool {
     # Pop the `loop` token.
     self.pop_token();
 
-    # Expect and parse the `{` token.
-    if not self.expect(tokens.TOK_LBRACE) {
-        self.consume_until(tokens.TOK_RBRACE);
-        return false;
-    }
+    if not self.parse_block_expr() { return false; }
+    loopN.block = self.stack.pop();
 
-    while self.peek_token(1) <> tokens.TOK_RBRACE {
-        self.parse_common_statement();
-    }
-
-    if not self.expect(tokens.TOK_RBRACE) { return false; }
-
-
+    # Return our parsed node.
     self.stack.push(node);
 
     # Return success.
     true;
+}
+
+def parse_while(&mut self) -> bool {
+    let node: ast.Node = ast.make(ast.TAG_WHILE);
+    let loopN: ^ast.Loop = node.unwrap() as ^ast.Loop;
+
+    # Pop the `while` token.
+    self.pop_token();
+
+    if not self.parse_expr(false) { return false; }
+    loopN.condition = self.stack.pop();
+
+    if not self.parse_block_expr() { return false; }
+    loopN.block = self.stack.pop();
+
+    # Return our parsed node.
+    self.stack.push(node);
+
+
+    true;
+
 }
 
 # Unsafe

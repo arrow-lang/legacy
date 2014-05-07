@@ -200,43 +200,34 @@ def parse_module(&mut self) -> bool
     true;
 }
 
+# Loop
+# -----------------------------------------------------------------------------
+# loop = "loop" block ;
+# while = "while" expression block ;
+# -----------------------------------------------------------------------------
 def parse_loop(&mut self) -> bool {
-
     let node: ast.Node = ast.make(ast.TAG_LOOP);
     let loopN: ^ast.Loop = node.unwrap() as ^ast.Loop;
 
-    # Pop the `loop` token.
-    self.pop_token();
+    # Pop the `loop` or `while` token.
+    let tok: int = self.pop_token();
 
+    # Expect and parse the condition if we are a `while` loop.
+    if tok == tokens.TOK_WHILE
+    {
+        if not self.parse_expr(false) { return false; }
+        loopN.condition = self.stack.pop();
+    }
+
+    # Expect and parse the block.
     if not self.parse_block_expr() { return false; }
     loopN.block = self.stack.pop();
 
-    # Return our parsed node.
+    # Push our node on the stack.
     self.stack.push(node);
 
     # Return success.
     true;
-}
-
-def parse_while(&mut self) -> bool {
-    let node: ast.Node = ast.make(ast.TAG_WHILE);
-    let loopN: ^ast.Loop = node.unwrap() as ^ast.Loop;
-
-    # Pop the `while` token.
-    self.pop_token();
-
-    if not self.parse_expr(false) { return false; }
-    loopN.condition = self.stack.pop();
-
-    if not self.parse_block_expr() { return false; }
-    loopN.block = self.stack.pop();
-
-    # Return our parsed node.
-    self.stack.push(node);
-
-
-    true;
-
 }
 
 # Unsafe
@@ -297,7 +288,7 @@ def parse_common_statement(&mut self) -> bool {
     if tok == tokens.TOK_UNSAFE { return self.parse_unsafe(); }
     # if tok == tokens.TOK_MATCH  { return self.parse_match(); }
     if tok == tokens.TOK_LOOP   { return self.parse_loop(); }
-    # if tok == tokens.TOK_WHILE  { return self.parse_while(); }
+    if tok == tokens.TOK_WHILE  { return self.parse_loop(); }
     # if tok == tokens.TOK_IMPORT { return self.parse_import(); }
     if tok == tokens.TOK_STRUCT { return self.parse_struct(); }
     # if tok == tokens.TOK_ENUM   { return self.parse_enum(); }

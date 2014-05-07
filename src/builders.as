@@ -175,14 +175,14 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
         if code.isnil(typ) { return code.make_nil(); }
 
         # Build the argument expression node.
-        let han: ^code.Handle = builder.build(g, &a.expression, scope, target);
+        let han: ^code.Handle = builder.build(g, &a.expression, scope, typ);
         if code.isnil(han) { return code.make_nil(); }
 
         # Coerce this to a value.
         let val_han: ^code.Handle = generator_def.to_value(g^, han, true);
 
         # Cast the value to the target type.
-        let cast_han: ^code.Handle = generator_util.cast(g^, val_han, target);
+        let cast_han: ^code.Handle = generator_util.cast(g^, val_han, typ);
         let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
         # Emplace in the argument list.

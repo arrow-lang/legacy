@@ -40,6 +40,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
     g.type_resolvers[ast.TAG_FLOAT] = resolvers.float;
     g.type_resolvers[ast.TAG_CALL] = resolvers.call;
+    g.type_resolvers[ast.TAG_TUPLE_EXPR] = resolvers.tuple;
 
     # Build the "builder" jump table.
     libc.memset(&g.builders[0] as ^void, 0, 100 * ptr_size);

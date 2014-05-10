@@ -295,6 +295,8 @@ def parse_common_statement(&mut self) -> bool {
     # if tok == tokens.TOK_USE    { return self.parse_use(); }
     # if tok == tokens.TOK_IMPL   { return self.parse_impl(); }
     if tok == tokens.TOK_RETURN   { return self.parse_return(); }
+    if tok == tokens.TOK_BREAK    { return self.parse_break(); }
+    if tok == tokens.TOK_CONTINUE { return self.parse_continue(); }
 
     if tok == tokens.TOK_LET or tok == tokens.TOK_STATIC
     {
@@ -318,6 +320,46 @@ def parse_common_statement(&mut self) -> bool {
     # We could still be an expression; forward.
     if self.parse_expr(true) { self.expect(tokens.TOK_SEMICOLON); }
     else                     { false; }
+}
+
+# Break
+# -----------------------------------------------------------------------------
+def parse_break(&mut self) -> bool
+{
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_BREAK);
+
+    # Pop the `break` token.
+    self.pop_token();
+
+    # Expect a `;`.
+    if not self.expect(tokens.TOK_SEMICOLON) { return false; }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Continue
+# -----------------------------------------------------------------------------
+def parse_continue(&mut self) -> bool
+{
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_CONTINUE);
+
+    # Pop the `break` token.
+    self.pop_token();
+
+    # Expect a `;`.
+    if not self.expect(tokens.TOK_SEMICOLON) { return false; }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Return
@@ -1190,16 +1232,83 @@ def parse_paren_expr(&mut self) -> bool
         return true;
     }
 
-    # Parse an expression node.
-    if not self.parse_expr(false) { return false; }
-    let node: ast.Node = self.stack.pop();
-
-    # Check for a comma that would begin a tuple.
-    if self.peek_token(1) == tokens.TOK_COMMA
+    # Check for a { "identifier" `:` } sequence that indicates a tuple (and
+    # the initial member named).
+    let mut in_tuple: bool = false;
+    let mut node: ast.Node;
+    if      self.peek_token(1) == tokens.TOK_IDENTIFIER
+        and self.peek_token(2) == tokens.TOK_COLON
     {
-        # Consume the `,` token.
+        # Declare we are in a tuple (to continue parsing).
+        in_tuple = true;
+
+        # Allocate and create a tuple member node.
+        node = ast.make(ast.TAG_TUPLE_EXPR_MEM);
+        let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
+
+        # Parse an identifier.
+        if not self.parse_ident_expr() { return false; }
+        mem.id = self.stack.pop();
+
+        # Pop the `:` token.
         self.pop_token();
 
+        # Parse an expression node.
+        if not self.parse_expr(false) { return false; }
+        mem.expression = self.stack.pop();
+    }
+    # Check for a { ":" "identifier" } sequence that indicates a tuple (and
+    # the initial member named).
+    else if self.peek_token(1) == tokens.TOK_COLON
+        and self.peek_token(2) == tokens.TOK_IDENTIFIER
+    {
+        # Declare we are in a tuple (to continue parsing).
+        in_tuple = true;
+
+        # Allocate and create a tuple member node.
+        node = ast.make(ast.TAG_TUPLE_EXPR_MEM);
+        let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
+
+        # Pop the `:` token.
+        self.pop_token();
+
+        # Parse an identifier.
+        if not self.parse_ident_expr() { return false; }
+        mem.id = self.stack.pop();
+
+        # Push the identifier as the expression.
+        mem.expression = mem.id;
+    }
+    # Could be a tuple with an initial member unnamed or just a
+    # parenthetical expression.
+    else
+    {
+        # Parse an expression node.
+        if not self.parse_expr(false) { return false; }
+
+        # Check for a comma that would make this a tuple.
+        if self.peek_token(1) == tokens.TOK_COMMA
+        {
+            # Declare we are in a tuple (to continue parsing).
+            in_tuple = true;
+
+            # Allocate and create a tuple member node.
+            node = ast.make(ast.TAG_TUPLE_EXPR_MEM);
+            let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
+
+            # Switch the node with the member node.
+            mem.expression = self.stack.pop();
+        }
+        else
+        {
+            # Switch the node with the member node.
+            node = self.stack.pop();
+        }
+    }
+
+    # Continue parsing if we are a tuple.
+    if in_tuple
+    {
         # Allocate and create the node for the tuple.
         let tup_node: ast.Node = ast.make(ast.TAG_TUPLE_EXPR);
         let expr: ^ast.TupleExpr = tup_node.unwrap() as ^ast.TupleExpr;
@@ -1207,16 +1316,63 @@ def parse_paren_expr(&mut self) -> bool
         # Push the initial node.
         expr.nodes.push(node);
 
-        # Enumerate until we reach the `)` token.
-        while self.peek_token(1) <> tokens.TOK_RPAREN {
-            # Parse an expression node.
-            if not self.parse_expr(false) { return false; }
-            expr.nodes.push(self.stack.pop());
+        if self.peek_token(1) == tokens.TOK_COMMA
+        {
+            # Pop the `,` token and continue the tuple.
+            self.pop_token();
 
-            # Peek and consume the `,` token if present; else, consume
-            # tokens until we reach the `)`.
-            if self._expect_sequence_continue(tokens.TOK_RPAREN) { continue; }
-            return false;
+            # Enumerate until we reach the `)` token.
+            while self.peek_token(1) <> tokens.TOK_RPAREN {
+                # Allocate and create a tuple member node.
+                let mem_node: ast.Node = ast.make(ast.TAG_TUPLE_EXPR_MEM);
+                let mem: ^ast.TupleExprMem =
+                    mem_node.unwrap() as ^ast.TupleExprMem;
+
+                # Check for a { "identifier" `:` } sequence that indicates
+                # a named member.
+                if      self.peek_token(1) == tokens.TOK_IDENTIFIER
+                    and self.peek_token(2) == tokens.TOK_COLON
+                {
+                    # Parse an identifier.
+                    if not self.parse_ident_expr() { return false; }
+                    mem.id = self.stack.pop();
+
+                    # Pop the `:` token.
+                    self.pop_token();
+
+                    # Parse an expression node.
+                    if not self.parse_expr(false) { return false; }
+                    mem.expression = self.stack.pop();
+                }
+                # Check for a { `:` "identifier" } sequence that indicates
+                # a named member and expression (shorthand).
+                else if self.peek_token(1) == tokens.TOK_COLON
+                    and self.peek_token(2) == tokens.TOK_IDENTIFIER
+                {
+                    # Pop the `:` token.
+                    self.pop_token();
+
+                    # Parse an identifier.
+                    if not self.parse_ident_expr() { return false; }
+                    mem.id = self.stack.pop();
+                    mem.expression = mem.id;
+                }
+                else
+                {
+                    # Parse an expression node.
+                    if not self.parse_expr(false) { return false; }
+                    mem.expression = self.stack.pop();
+                }
+
+                # Push the node.
+                expr.nodes.push(mem_node);
+
+                # Peek and consume the `,` token if present; else, consume
+                # tokens until we reach the `)`.
+                if self._expect_sequence_continue(tokens.TOK_RPAREN) {
+                    continue; }
+                return false;
+            }
         }
 
         # Switch our node.

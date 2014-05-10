@@ -4,84 +4,174 @@ ModuleDecl <?> _
       Elements <?> 
     TupleExpr <?>
       Elements <?> 
-        IntegerExpr <?> 231 (10)
+        TupleExprMem <?>
+          IntegerExpr <?> 231 (10)
     TupleExpr <?>
       Elements <?> 
-        IntegerExpr <?> 231 (10)
-        FloatExpr <?> 21.21
+        TupleExprMem <?>
+          IntegerExpr <?> 231 (10)
+        TupleExprMem <?>
+          FloatExpr <?> 21.21
     TupleExpr <?>
       Elements <?> 
-        IntegerExpr <?> 32 (10)
-        BooleanExpr <?> false
-    TupleExpr <?>
-      Elements <?> 
-        IntegerExpr <?> 32 (10)
-        IntegerExpr <?> 42 (10)
-        IntegerExpr <?> 42 (10)
-        FloatExpr <?> 3232e-1
-    LocalSlotDecl <?> q
-      TupleExpr <?>
-        Elements <?> 
-          Ident <?> int
-          Ident <?> bool
-    LocalSlotDecl <?> w
-      TupleExpr <?>
-        Elements <?> 
-          Ident <?> int
-          Ident <?> int
-    LocalSlotDecl <?> e
-      TupleExpr <?>
-        Elements <?> 
-          Ident <?> int
-          Ident <?> str
-          Ident <?> float64
-    LocalSlotDecl <?> y
-      TupleExpr <?>
-        Elements <?> 
-          Ident <?> uint
-    AssignExpr <?>
-      Ident <?> q
-      TupleExpr <?>
-        Elements <?> 
+        TupleExprMem <?>
           IntegerExpr <?> 32 (10)
-          BooleanExpr <?> true
-    AssignExpr <?>
-      Ident <?> w
-      TupleExpr <?>
-        Elements <?> 
-          IntegerExpr <?> 432 (10)
+        TupleExprMem <?>
+          BooleanExpr <?> false
+    TupleExpr <?>
+      Elements <?> 
+        TupleExprMem <?>
           IntegerExpr <?> 32 (10)
-    AssignExpr <?>
-      Ident <?> y
+        TupleExprMem <?>
+          IntegerExpr <?> 42 (10)
+        TupleExprMem <?>
+          IntegerExpr <?> 42 (10)
+        TupleExprMem <?>
+          FloatExpr <?> 3232e-1
+    LocalSlotDecl <?> a
       TupleExpr <?>
         Elements <?> 
-          IntegerExpr <?> 135161 (10)
-    LocalSlotDecl <?> z
+          TupleExprMem <?>
+            Ident <?> int
+          TupleExprMem <?>
+            Ident <?> bool
+    LocalSlotDecl <?> b
       TupleExpr <?>
         Elements <?> 
-          Ident <?> int
-      TupleExpr <?>
-        Elements <?> 
-          IntegerExpr <?> 324 (10)
-    LocalSlotDecl <?> x
-      TupleExpr <?>
-        Elements <?> 
-          Ident <?> int
-          Ident <?> int
-      TupleExpr <?>
-        Elements <?> 
-          IntegerExpr <?> 324 (10)
-          IntegerExpr <?> 12 (10)
+          TupleExprMem <?>
+            Ident <?> int
+          TupleExprMem <?>
+            Ident <?> int
     LocalSlotDecl <?> c
       TupleExpr <?>
         Elements <?> 
-          Ident <?> int
-          Ident <?> int
-          Ident <?> int
-          Ident <?> int
+          TupleExprMem <?>
+            Ident <?> int
+          TupleExprMem <?>
+            Ident <?> str
+          TupleExprMem <?>
+            Ident <?> float64
+    LocalSlotDecl <?> d
       TupleExpr <?>
         Elements <?> 
-          IntegerExpr <?> 523 (10)
-          IntegerExpr <?> 23 (10)
-          IntegerExpr <?> 321 (10)
-          IntegerExpr <?> 12 (10)
+          TupleExprMem <?>
+            Ident <?> uint
+    LocalSlotDecl <?> e
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            Ident <?> int
+          TupleExprMem <?> b
+            Ident <?> str
+          TupleExprMem <?> c
+            Ident <?> float64
+    LocalSlotDecl <?> f
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            Ident <?> int
+          TupleExprMem <?> b
+            Ident <?> uint
+    LocalSlotDecl <?> g
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            Ident <?> bool
+    LocalSlotDecl <?> h
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            Ident <?> bool
+          TupleExprMem <?>
+            Ident <?> int
+    LocalSlotDecl <?> i
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?>
+            Ident <?> int
+          TupleExprMem <?> a
+            Ident <?> bool
+    AssignExpr <?>
+      Ident <?> a
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?>
+            IntegerExpr <?> 3214 (10)
+          TupleExprMem <?>
+            BooleanExpr <?> false
+    AssignExpr <?>
+      Ident <?> b
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?>
+            IntegerExpr <?> 62 (10)
+          TupleExprMem <?>
+            IntegerExpr <?> 26 (10)
+    AssignExpr <?>
+      Ident <?> d
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?>
+            IntegerExpr <?> 2872 (10)
+    AssignExpr <?>
+      Ident <?> e
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            Ident <?> a
+          TupleExprMem <?> b
+            Ident <?> b
+          TupleExprMem <?> c
+            FloatExpr <?> 21.21
+    AssignExpr <?>
+      Ident <?> f
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            IntegerExpr <?> 235 (10)
+          TupleExprMem <?> b
+            IntegerExpr <?> 235 (10)
+    AssignExpr <?>
+      Ident <?> g
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            BooleanExpr <?> false
+    AssignExpr <?>
+      Ident <?> g
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            Ident <?> a
+    AssignExpr <?>
+      Ident <?> h
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            BooleanExpr <?> false
+          TupleExprMem <?>
+            IntegerExpr <?> 51 (10)
+    AssignExpr <?>
+      Ident <?> h
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            Ident <?> a
+          TupleExprMem <?>
+            IntegerExpr <?> 51 (10)
+    AssignExpr <?>
+      Ident <?> i
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?>
+            IntegerExpr <?> 734 (10)
+          TupleExprMem <?> a
+            BooleanExpr <?> true
+    AssignExpr <?>
+      Ident <?> i
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?>
+            IntegerExpr <?> 231 (10)
+          TupleExprMem <?> a
+            Ident <?> a

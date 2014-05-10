@@ -179,7 +179,7 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
         if code.isnil(han) { return code.make_nil(); }
 
         # Coerce this to a value.
-        let val_han: ^code.Handle = generator_def.to_value(g^, han, true);
+        let val_han: ^code.Handle = generator_def.to_value(g^, han, false);
 
         # Cast the value to the target type.
         let cast_han: ^code.Handle = generator_util.cast(g^, val_han, typ);

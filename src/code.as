@@ -23,6 +23,7 @@ let TAG_PARAMETER: int = 9;
 let TAG_BOOL_TYPE: int = 10;
 let TAG_VOID_TYPE: int = 11;
 let TAG_LOCAL_SLOT: int = 12;
+let TAG_TUPLE_TYPE: int = 13;
 
 # Scope chain
 # -----------------------------------------------------------------------------
@@ -285,6 +286,28 @@ def make_function_type(
     make(TAG_FUNCTION_TYPE, func as ^void);
 }
 
+# Tuple type
+# -----------------------------------------------------------------------------
+
+type TupleType {
+    handle: ^LLVMOpaqueType,
+    mut elements: list.List
+}
+
+let TUPLE_TYPE_SIZE: uint = ((0 as ^TupleType) + 1) - (0 as ^TupleType);
+
+def make_tuple_type(
+        handle: ^LLVMOpaqueType,
+        elements: list.List) -> ^Handle {
+    # Build the tuple.
+    let func: ^TupleType = libc.malloc(TUPLE_TYPE_SIZE) as ^TupleType;
+    func.handle = handle;
+    func.elements = elements;
+
+    # Wrap in a handle.
+    make(TAG_TUPLE_TYPE, func as ^void);
+}
+
 # Gets if this handle is a type.
 # -----------------------------------------------------------------------------
 def is_type(handle: ^Handle) -> bool {
@@ -292,6 +315,7 @@ def is_type(handle: ^Handle) -> bool {
     handle._tag == TAG_BOOL_TYPE or
     handle._tag == TAG_FUNCTION_TYPE or
     handle._tag == TAG_INT_TYPE or
+    handle._tag == TAG_TUPLE_TYPE or
     handle._tag == TAG_FLOAT_TYPE;
 }
 

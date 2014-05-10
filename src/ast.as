@@ -58,12 +58,12 @@ let TAG_ASSIGN_INT_DIV  : int = 48;             # AssignIntDivideExpr
 let TAG_GLOBAL          : int = 49;             # Global
 let TAG_ARRAY_EXPR      : int = 50;             # ArrayExpr
 let TAG_TUPLE_EXPR      : int = 51;             # TupleExpr
-let TAG_RECORD_EXPR     : int = 52;             # RecordExpr
-let TAG_RECORD_EXPR_MEM : int = 53;             # RecordExprMem
-let TAG_SEQ_EXPR        : int = 54;             # SequenceExpr
+# let TAG_RECORD_EXPR     : int = 52;             # RecordExpr
+let TAG_TUPLE_EXPR_MEM  : int = 53;             # RecordExprMem
+# let TAG_SEQ_EXPR        : int = 54;             # SequenceExpr
 let TAG_STRUCT          : int = 55;             # Struct
 let TAG_STRUCT_MEM      : int = 56;             # StructMem
-let TAG_STRUCT_SMEM     : int = 57;             # StructSMem
+# let TAG_STRUCT_SMEM     : int = 57;             # StructSMem
 let TAG_POSTFIX_EXPR    : int = 58;             # PostfixExpr
 let TAG_BITAND          : int = 59;             # BitAndExpr
 let TAG_BITOR           : int = 60;             # BitOrExpr
@@ -73,6 +73,8 @@ let TAG_TYPE_PARAM      : int = 63;             # TypeParam
 let TAG_CAST            : int = 64;             # CastExpr
 let TAG_TYPE_BOX        : int = 65;             # TypeBox
 let TAG_LOOP            : int = 66;             # Loop
+let TAG_BREAK           : int = 67;             # Break
+let TAG_CONTINUE        : int = 68;             # Continue
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -181,6 +183,9 @@ type RecordExprMem { mut id: Node, expression: Node }
 
 # TupleExpr.
 type TupleExpr { mut nodes: Nodes }
+
+# TupleExprMem
+type TupleExprMem { mut id: Node, expression: Node }
 
 # Return expression.
 type ReturnExpr { expression: Node }
@@ -308,7 +313,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_UNSAFE  { let tmp: UnsafeBlock; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BLOCK   { let tmp: Block; ((&tmp + 1) - &tmp); }
     else if tag == TAG_ARRAY_EXPR { let tmp: ArrayExpr; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_SEQ_EXPR  { let tmp: SequenceExpr; ((&tmp + 1) - &tmp); }
+    # else if tag == TAG_SEQ_EXPR  { let tmp: SequenceExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_TUPLE_EXPR { let tmp: TupleExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODE    { let tmp: Node; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
@@ -345,14 +350,13 @@ def _sizeof(tag: int) -> uint {
     } else if tag == TAG_TYPE_EXPR {
         let tmp: TypeExpr;
         ((&tmp + 1) - &tmp);
-    } else if tag == TAG_GLOBAL {
+    } else if tag == TAG_GLOBAL
+           or tag == TAG_BREAK
+           or tag == TAG_CONTINUE {
         let tmp: Empty;
         ((&tmp + 1) - &tmp);
-    } else if tag == TAG_RECORD_EXPR {
-        let tmp: RecordExpr;
-        ((&tmp + 1) - &tmp);
-    } else if tag == TAG_RECORD_EXPR_MEM {
-        let tmp: RecordExprMem;
+    } else if tag == TAG_TUPLE_EXPR_MEM {
+        let tmp: TupleExprMem;
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_STRUCT {
         let tmp: Struct;
@@ -458,11 +462,13 @@ def dump(&node: Node) {
         dump_table[TAG_TYPE_EXPR] = dump_type_expr;
         dump_table[TAG_TYPE_BOX] = dump_type_box;
         dump_table[TAG_GLOBAL] = dump_global;
+        dump_table[TAG_BREAK] = dump_break;
+        dump_table[TAG_CONTINUE] = dump_continue;
         dump_table[TAG_ARRAY_EXPR] = dump_array_expr;
-        dump_table[TAG_SEQ_EXPR] = dump_seq_expr;
+        # dump_table[TAG_SEQ_EXPR] = dump_seq_expr;
         dump_table[TAG_TUPLE_EXPR] = dump_tuple_expr;
-        dump_table[TAG_RECORD_EXPR] = dump_record_expr;
-        dump_table[TAG_RECORD_EXPR_MEM] = dump_record_expr_mem;
+        # dump_table[TAG_RECORD_EXPR] = dump_record_expr;
+        dump_table[TAG_TUPLE_EXPR_MEM] = dump_tuple_expr_mem;
         dump_table[TAG_STRUCT] = dump_struct;
         dump_table[TAG_STRUCT_MEM] = dump_struct_mem;
         dump_table[TAG_POSTFIX_EXPR] = dump_postfix_expr;
@@ -695,24 +701,20 @@ def dump_array_expr(node: ^Node) {
     dump_indent = dump_indent - 1;
 }
 
-# dump_record_expr
+# dump_tuple_expr_mem
 # -----------------------------------------------------------------------------
-def dump_record_expr(node: ^Node) {
-    let x: ^RecordExpr = unwrap(node^) as ^RecordExpr;
-    printf("RecordExpr <?>\n");
-
-    dump_indent = dump_indent + 1;
-    dump_nodes("Members", x.nodes);
-    dump_indent = dump_indent - 1;
-}
-
-# dump_record_expr_mem
-# -----------------------------------------------------------------------------
-def dump_record_expr_mem(node: ^Node) {
-    let x: ^RecordExprMem = unwrap(node^) as ^RecordExprMem;
-    printf("RecordExprMem <?> ");
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    printf("%s\n", id.name.data());
+def dump_tuple_expr_mem(node: ^Node) {
+    let x: ^TupleExprMem = unwrap(node^) as ^TupleExprMem;
+    printf("TupleExprMem <?>");
+    if not isnull(x.id)
+    {
+        let id: ^Ident = unwrap(x.id) as ^Ident;
+        printf(" %s\n", id.name.data());
+    }
+    else
+    {
+        printf("\n");
+    }
 
     dump_indent = dump_indent + 1;
     dump(x.expression);
@@ -952,6 +954,18 @@ def dump_type_box(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_global(node: ^Node) {
     printf("Global <?> \n");
+}
+
+# dump_break
+# -----------------------------------------------------------------------------
+def dump_break(node: ^Node) {
+    printf("Break <?> \n");
+}
+
+# dump_continue
+# -----------------------------------------------------------------------------
+def dump_continue(node: ^Node) {
+    printf("Continue <?> \n");
 }
 
 # dump_import

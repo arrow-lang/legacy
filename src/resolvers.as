@@ -1,7 +1,10 @@
 import generator_;
 import code;
 import ast;
+import llvm;
 import list;
+import string;
+import types;
 import errors;
 import generator_util;
 import generator_type;
@@ -267,4 +270,52 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Return the already resolve return type.
     ty.return_type;
+}
+
+# Tuple [TAG_TUPLE_EXPR]
+# -----------------------------------------------------------------------------
+def tuple(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.TupleExpr = (node^).unwrap() as ^ast.TupleExpr;
+
+    # Iterate through each element of the tuple.
+    let mut i: int = 0;
+    let mut elements: list.List = list.make(types.PTR);
+    let mut eleme_type_handles: list.List = list.make(types.PTR);
+    while i as uint < x.nodes.size()
+    {
+        # Get the specific element.
+        let enode: ast.Node = x.nodes.get(i);
+        i = i + 1;
+        let e: ^ast.TupleExprMem = enode.unwrap() as ^ast.TupleExprMem;
+
+        # Resolve the type of this element expression.
+        let expr: ^code.Handle = resolver.resolve_st(
+            g, &e.expression, scope, target);
+        if code.isnil(expr) { return code.make_nil(); }
+        let typ: ^code.Type = expr._object as ^code.Type;
+
+        # Push the type and its handle.
+        elements.push_ptr(expr as ^void);
+        eleme_type_handles.push_ptr(typ.handle as ^void);
+    }
+
+    # Build the LLVM type handle.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMStructType(
+        eleme_type_handles.elements as ^^llvm.LLVMOpaqueType,
+        eleme_type_handles.size as uint32,
+        0);
+
+    # Create and store our type.
+    let han: ^code.Handle;
+    han = code.make_tuple_type(val, elements);
+
+    # Dispose of dynamic memory.
+    eleme_type_handles.dispose();
+
+    # Return the type handle.
+    han;
 }

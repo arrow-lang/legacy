@@ -6,17 +6,39 @@
 (32, 42, 42, 3232e-1,);
 
 # Declare various slots for automatic tuple types.
-let q: (int, bool);
-let w: (int, int,);
-let e: (int, str, float64,);
-let y: (uint,);
+let a: (int, bool);
+let b: (int, int,);
+let c: (int, str, float64,);
+let d: (uint,);
+let e: (a: int, b: str, c: float64);
+let f: (a: int, b: uint,);
+let g: (a: bool);
+let h: (a: bool, int);
+let i: (int, a: bool);
 
 # Assign some tuples into those slots.
-q = (32, true,);
-w = (432, 32);
-y = (135161,);
+a = (3214, false);
+b = (62, 26,);
+# c = (2351, "sdhs", 321.1672,);
+d = (2872,);
+# e = (a: 26526, b: "eysdgfh", c: 236.213);
+e = (:a, :b, c: 21.21);
+f = (a: 235, b: 235,);
+g = (a: false);
+g = (:a);
+h = (a: false, 51);
+h = (:a, 51);
+i = (734, a: true);
+i = (231, :a);
 
-# # Declare and initialize various slots for automatic tuple types.
-let z: (int,) = (324,);
-let x: (int, int,) = (324, 12);
-let c: (int, int, int, int) = (523, 23, 321, 12);
+
+# May be treated as a sequence
+# Structural type-equivalency
+use Point = (x: int, y: int);
+
+# Sequential access is forbidden
+# Nominal type-equivalency
+struct Point { x: int, y: int }
+
+let mut origin = Point(60, 20);
+let mut origin = Point(x: 10, y: 30);

@@ -114,6 +114,37 @@ def type_common(a_ctx: ^ast.Node, a: ^code.Handle,
     }
 }
 
+# Check if the two types are "compatible"
+# -----------------------------------------------------------------------------
+def type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
+    # Get the type handles.
+    let s_ty: ^code.Type = s._object as ^code.Type;
+    let d_ty: ^code.Type = d._object as ^code.Type;
+
+    # If these are the `same` then were okay.
+    if s_ty == d_ty { return true; }
+    else if s_ty.handle == d_ty.handle { return true; }
+    else if s._tag == code.TAG_INT_TYPE and d._tag == code.TAG_INT_TYPE {
+        return true;
+    }
+
+    # Report error.
+    let mut s_typename: string.String = code.typename(s);
+    let mut d_typename: string.String = code.typename(d);
+    errors.begin_error();
+    errors.fprintf(errors.stderr,
+                   "mismatched types: expected '%s' but found '%s'" as ^int8,
+                   d_typename.data(), s_typename.data());
+    errors.end();
+
+    # Dispose.
+    s_typename.dispose();
+    d_typename.dispose();
+
+    # Return false.
+    false;
+}
+
 # Resolve an `arithmetic` binary expression.
 # -----------------------------------------------------------------------------
 def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -247,6 +278,23 @@ def ident(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Resolve the item for its type.
     return _type_of(g, item);
+}
+
+# Assignment [TAG_ASSIGN]
+# -----------------------------------------------------------------------------
+def assign(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Ensure that the types are compatible.
+    let lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
+    let rhs: ^code.Handle = resolver.resolve_s(g, &x.rhs, scope);
+    if not type_compatible(lhs, rhs) { return code.make_nil(); }
+
+    # An assignment resolves to the same type as its target.
+    lhs;
 }
 
 # # Member [TAG_MEMBER]

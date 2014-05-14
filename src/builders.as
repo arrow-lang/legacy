@@ -525,3 +525,64 @@ def return_(g: ^mut generator_.Generator, node: ^ast.Node,
     # Nothing is forwarded from a `return`.
     code.make_nil();
 }
+
+# Assignment [TAG_ASSIGN]
+# -----------------------------------------------------------------------------
+def assign(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the "ploymorphic" node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Resolve each operand for its type.
+    let lhs_ty: ^code.Handle = resolver.resolve_st(g, &x.lhs, scope, target);
+    let rhs_ty: ^code.Handle = resolver.resolve_st(g, &x.rhs, scope, target);
+
+    # Build each operand.
+    let lhs: ^code.Handle = builder.build(g, &x.lhs, scope, lhs_ty);
+    let rhs: ^code.Handle = builder.build(g, &x.rhs, scope, rhs_ty);
+    if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
+
+    # Coerce the operand to its value.
+    let rhs_val_han: ^code.Handle = generator_def.to_value(g^, rhs, false);
+    if code.isnil(rhs_val_han) { return code.make_nil(); }
+
+    # Cast the operand to the target type.
+    let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, target);
+
+    # Cast to a value.
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Perform the assignment (based on what we have in the LHS).
+    if lhs._tag == code.TAG_STATIC_SLOT {
+        # Get the real object.
+        let slot: ^code.StaticSlot = lhs._object as ^code.StaticSlot;
+
+        # Ensure that we are mutable.
+        if not slot.context.mutable {
+            # Report error and return nil.
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "cannot assign to immutable static item" as ^int8);
+            errors.end();
+            return code.make_nil();
+        }
+
+        # Build the `STORE` operation.
+        llvm.LLVMBuildStore(g.irb, rhs_val.handle, slot.handle);
+    } else {
+        # Report error and return nil.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "left-hand side expression is not assignable" as ^int8);
+        errors.end();
+        return code.make_nil();
+    }
+
+    # Dispose.
+    code.dispose(rhs_val_han);
+    code.dispose(rhs_han);
+
+    # Return the RHS.
+    rhs;
+}

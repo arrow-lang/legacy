@@ -2,6 +2,7 @@
 import sys
 from os import path
 from subprocess import Popen, PIPE
+import io
 from glob import glob
 
 out = path.join(path.dirname(__file__), '../build')
@@ -121,6 +122,23 @@ def _test_run(ctx):
             status = True
             status = p2.returncode == 0
             status = status and _check_expected_stdout(fixture, stdout)
+
+            # Report our status.
+            _report(fixture, status)
+
+def _test_run_fail(ctx):
+    for fixture in sorted(glob("tests/run-fail/*.as")):
+        # Run the generator over our fixture.
+        with open(fixture) as stream:
+            # Execute and run the test case.
+            p = Popen([path.join(out, 'generator')],
+                      stdin=stream, stdout=PIPE, stderr=PIPE)
+            stdout, stderr = p.communicate()
+
+            # Check the output against the expected.
+            status = True
+            status = p.returncode == 255
+            status = status and _check_expected_stderr(fixture, stderr)
 
             # Report our status.
             _report(fixture, status)

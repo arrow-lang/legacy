@@ -10,7 +10,7 @@ def main() {
 def one() { }
 
 # A function that explicitly returns something.
-def some() -> int32 { return 4; }
+def some(): int32 { return 4; }
 
 # A function that implicitly returns something.
-def that() -> int32 { 9; }
+def that(): int32 { 9; }

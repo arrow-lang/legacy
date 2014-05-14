@@ -172,6 +172,15 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
 # Resolvers
 # =============================================================================
 
+# Pass
+# -----------------------------------------------------------------------------
+def pass(g: ^mut generator_.Generator, node: ^ast.Node,
+         scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Pass back what we got; check nothing.
+    target;
+}
+
 # Boolean [TAG_BOOLEAN]
 # -----------------------------------------------------------------------------
 def boolean(g: ^mut generator_.Generator, node: ^ast.Node,

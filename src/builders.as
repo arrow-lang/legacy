@@ -491,3 +491,37 @@ def integer_divide(g: ^mut generator_.Generator, node: ^ast.Node,
     # Return the result.
     han;
 }
+
+# Return [TAG_RETURN]
+# -----------------------------------------------------------------------------
+def return_(g: ^mut generator_.Generator, node: ^ast.Node,
+            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the "ploymorphic" node to its proper type.
+    let x: ^ast.ReturnExpr = (node^).unwrap() as ^ast.ReturnExpr;
+
+    # Generate a handle for the expression (if we have one.)
+    if not ast.isnull(x.expression) {
+        let expr: ^code.Handle = builder.build(
+            g, &x.expression, scope, target);
+        if code.isnil(expr) { return code.make_nil(); }
+
+        # Coerce the expression to a value.
+        let val_han: ^code.Handle = generator_def.to_value(g^, expr, false);
+        let val: ^code.Value = val_han._object as ^code.Value;
+
+        # Create the `RET` instruction.
+        llvm.LLVMBuildRet(g.irb, val.handle);
+
+        # Dispose.
+        code.dispose(expr);
+        code.dispose(val_han);
+    } else {
+        # Create the void `RET` instruction.
+        llvm.LLVMBuildRetVoid(g.irb);
+        void;  #HACK
+    }
+
+    # Nothing is forwarded from a `return`.
+    code.make_nil();
+}

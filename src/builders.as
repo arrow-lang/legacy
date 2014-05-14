@@ -537,6 +537,7 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
     # Resolve each operand for its type.
     let lhs_ty: ^code.Handle = resolver.resolve_st(g, &x.lhs, scope, target);
     let rhs_ty: ^code.Handle = resolver.resolve_st(g, &x.rhs, scope, target);
+    if code.isnil(lhs_ty) or code.isnil(rhs_ty) { return code.make_nil(); }
 
     # Build each operand.
     let lhs: ^code.Handle = builder.build(g, &x.lhs, scope, lhs_ty);

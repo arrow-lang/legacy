@@ -291,6 +291,7 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
     # Ensure that the types are compatible.
     let lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
     let rhs: ^code.Handle = resolver.resolve_s(g, &x.rhs, scope);
+    if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
     if not type_compatible(lhs, rhs) { return code.make_nil(); }
 
     # An assignment resolves to the same type as its target.

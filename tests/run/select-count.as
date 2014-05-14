@@ -1,6 +1,6 @@
 def main() {
-    let i5: int = 5;
-    let i7: int = 7;
+    let i5 = 5;
+    let i7 = 7;
 
     let mut count: int;
 

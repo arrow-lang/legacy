@@ -10,6 +10,7 @@ import generator_util;
 import generator_def;
 import builder;
 import resolver;
+import resolvers;
 
 # Builders
 # =============================================================================
@@ -234,4 +235,259 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
         # Wrap and return the value.
         code.make_value(type_.return_type, val);
     }
+}
+
+# Binary arithmetic
+# -----------------------------------------------------------------------------
+def arithmetic_b_operands(g: ^mut generator_.Generator, node: ^ast.Node,
+                          scope: ^code.Scope, target: ^code.Handle)
+    -> (^code.Handle, ^code.Handle)
+{
+    let res: (^code.Handle, ^code.Handle) = (code.make_nil(), code.make_nil());
+
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Resolve each operand for its type.
+    let lhs_ty: ^code.Handle = resolver.resolve_st(g, &x.lhs, scope, target);
+    let rhs_ty: ^code.Handle = resolver.resolve_st(g, &x.rhs, scope, target);
+
+    # Build each operand.
+    let lhs: ^code.Handle = builder.build(g, &x.lhs, scope, lhs_ty);
+    let rhs: ^code.Handle = builder.build(g, &x.rhs, scope, rhs_ty);
+    if code.isnil(lhs) or code.isnil(rhs) { return res; }
+
+    # Coerce the operands to values.
+    let lhs_val_han: ^code.Handle = generator_def.to_value(g^, lhs, false);
+    let rhs_val_han: ^code.Handle = generator_def.to_value(g^, rhs, false);
+    if code.isnil(lhs_val_han) or code.isnil(rhs_val_han) { return res; }
+
+    # Create a tuple result.
+    res = (lhs_val_han, rhs_val_han);
+    res;
+}
+
+# Relational [TAG_EQ, TAG_NE, TAG_LT, TAG_LE, TAG_GT, TAG_GE]
+# -----------------------------------------------------------------------------
+def relational(g: ^mut generator_.Generator, node: ^ast.Node,
+               scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Build each operand.
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = arithmetic_b_operands(
+        g, node, scope, code.make_nil());
+    if code.isnil(lhs_val_han) or code.isnil(rhs_val_han) {
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Resolve our type.
+    let type_: ^code.Handle = resolvers.type_common(
+        &x.lhs,
+        code.type_of(lhs_val_han),
+        &x.rhs,
+        code.type_of(rhs_val_han));
+    if code.isnil(type_) {
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Cast each operand to the target type.
+    let lhs_han: ^code.Handle = generator_util.cast(g^, lhs_val_han, type_);
+    let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, type_);
+
+    # Cast to values.
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Build the comparison instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    if type_._tag == code.TAG_INT_TYPE
+            or type_._tag == code.TAG_BOOL_TYPE {
+        # Get the comparison opcode to use.
+        let mut opc: int32 = -1;
+        if      node.tag == ast.TAG_EQ { opc = 32; }
+        else if node.tag == ast.TAG_NE { opc = 33; }
+        else if node.tag == ast.TAG_GT { opc = 34; }
+        else if node.tag == ast.TAG_GE { opc = 35; }
+        else if node.tag == ast.TAG_LT { opc = 36; }
+        else if node.tag == ast.TAG_LE { opc = 37; }
+
+        # Switch to signed if neccessary.
+        if node.tag <> ast.TAG_EQ and node.tag <> ast.TAG_NE {
+            let typ: ^code.IntegerType = type_._object as ^code.IntegerType;
+            if typ.signed {
+                opc = opc + 4;
+            }
+        }
+
+        # Build the `ICMP` instruction.
+        val = llvm.LLVMBuildICmp(
+            g.irb,
+            opc,
+            lhs_val.handle, rhs_val.handle, "" as ^int8);
+    } else if type_._tag == code.TAG_FLOAT_TYPE {
+        # Get the comparison opcode to use.
+        let mut opc: int32 = -1;
+        if      node.tag == ast.TAG_EQ { opc = 1; }
+        else if node.tag == ast.TAG_NE { opc = 6; }
+        else if node.tag == ast.TAG_GT { opc = 2; }
+        else if node.tag == ast.TAG_GE { opc = 3; }
+        else if node.tag == ast.TAG_LT { opc = 4; }
+        else if node.tag == ast.TAG_LE { opc = 5; }
+
+        # Build the `FCMP` instruction.
+        val = llvm.LLVMBuildFCmp(
+            g.irb,
+            opc,
+            lhs_val.handle, rhs_val.handle, "" as ^int8);
+    }
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(target, val);
+
+    # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Binary Arithmetic [TAG_ADD, TAG_SUBTRACT, TAG_MULTIPLY,
+#                    TAG_DIVIDE, TAG_MODULO]
+# -----------------------------------------------------------------------------
+def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
+                 scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Build each operand.
+    let lhs_val_han: ^code.Handle;
+    let rhs_val_han: ^code.Handle;
+    (lhs_val_han, rhs_val_han) = arithmetic_b_operands(
+        g, node, scope, code.make_nil());
+    if code.isnil(lhs_val_han) or code.isnil(rhs_val_han) {
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Cast each operand to the target type.
+    let lhs_han: ^code.Handle = generator_util.cast(g^, lhs_val_han, target);
+    let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, target);
+
+    # Cast to values.
+    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+    # Build the instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    if target._tag == code.TAG_INT_TYPE {
+        # Get the internal type.
+        let typ: ^code.IntegerType = target._object as ^code.IntegerType;
+
+        # Build the correct operation.
+        if node.tag == ast.TAG_ADD {
+            # Build the `ADD` instruction.
+            val = llvm.LLVMBuildAdd(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_SUBTRACT {
+            # Build the `SUB` instruction.
+            val = llvm.LLVMBuildSub(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_MULTIPLY {
+            # Build the `MUL` instruction.
+            val = llvm.LLVMBuildMul(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_DIVIDE or node.tag == ast.TAG_INTEGER_DIVIDE {
+            # Build the `DIV` instruction.
+            if typ.signed {
+                val = llvm.LLVMBuildSDiv(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            } else {
+                val = llvm.LLVMBuildUDiv(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            }
+        } else if node.tag == ast.TAG_MODULO {
+            # Build the `MOD` instruction.
+            if typ.signed {
+                val = llvm.LLVMBuildSRem(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            } else {
+                val = llvm.LLVMBuildURem(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            }
+        }
+    } else if target._tag == code.TAG_FLOAT_TYPE {
+        # Build the correct operation.
+        if node.tag == ast.TAG_ADD {
+            # Build the `ADD` instruction.
+            val = llvm.LLVMBuildFAdd(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_SUBTRACT {
+            # Build the `SUB` instruction.
+            val = llvm.LLVMBuildFSub(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_MULTIPLY {
+            # Build the `MUL` instruction.
+            val = llvm.LLVMBuildFMul(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_DIVIDE or node.tag == ast.TAG_INTEGER_DIVIDE {
+            # Build the `DIV` instruction.
+            val = llvm.LLVMBuildFDiv(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_MODULO {
+            # Build the `MOD` instruction.
+            val = llvm.LLVMBuildFRem(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        }
+    }
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(target, val);
+
+    # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
+    code.dispose(lhs_han);
+    code.dispose(rhs_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Integer Divide [TAG_INTEGER_DIVIDE]
+# -----------------------------------------------------------------------------
+def integer_divide(g: ^mut generator_.Generator, node: ^ast.Node,
+                   scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Perform a normal division.
+    let han: ^code.Handle;
+    han = arithmetic_b(g, node, scope, target);
+
+    # FIXME: Perform a `floor` on the result.
+
+    # Return the result.
+    han;
 }

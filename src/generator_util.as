@@ -58,11 +58,11 @@ def declare_basic_types(&mut g: generator_.Generator) {
 
     # Unsigned machine-dependent integer
     # FIXME: Find how big this really is.
-    declare_int_type(g,  "uint",  llvm.LLVMInt64Type(), false, 0);
+    declare_int_type(g,  "uint",  llvm.LLVMInt64Type(), false, 64);
 
     # Signed machine-dependent integer
     # FIXME: Find how big this really is.
-    declare_int_type(g,  "int",  llvm.LLVMInt64Type(), true, 0);
+    declare_int_type(g,  "int",  llvm.LLVMInt64Type(), true, 64);
 
     # TODO: UTF-32 Character
 

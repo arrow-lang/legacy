@@ -54,6 +54,121 @@ def _type_of(g: ^mut generator_.Generator, item: ^code.Handle)
     }
 }
 
+# Attempt to resolve a single compatible type from two passed
+# types. Respects integer and float promotion rules.
+# -----------------------------------------------------------------------------
+def type_common(a_ctx: ^ast.Node, a: ^code.Handle,
+                b_ctx: ^ast.Node, b: ^code.Handle) -> ^code.Handle {
+    # If the types are the same, bail.
+    let a_ty: ^code.Type = a._object as ^code.Type;
+    let b_ty: ^code.Type = b._object as ^code.Type;
+    if a == b { return a; }
+
+    # Figure out a common type.
+    if a._tag == code.TAG_INT_TYPE and b._tag == a._tag {
+        # Determine the integer with the greatest rank.
+        let a_ty: ^code.IntegerType = a._object as ^code.IntegerType;
+        let b_ty: ^code.IntegerType = b._object as ^code.IntegerType;
+
+        # If the sign is identical then compare the bit size.
+        if a_ty.signed == b_ty.signed {
+            if a_ty.bits > b_ty.bits {
+                a;
+            } else {
+                b;
+            }
+        } else if a_ctx.tag == ast.TAG_INTEGER {
+            b;
+        } else if b_ctx.tag == ast.TAG_INTEGER {
+            a;
+        } else if a_ty.signed and a_ty.bits > b_ty.bits {
+            a;
+        } else if b_ty.signed and b_ty.bits > a_ty.bits {
+            b;
+        } else {
+            # The integer types are not strictly compatible.
+            # Return nil.
+            code.make_nil();
+        }
+    } else if a._tag == code.TAG_FLOAT_TYPE and b._tag == a._tag {
+        # Determine the float with the greatest rank.
+        let a_ty: ^code.FloatType = a._object as ^code.FloatType;
+        let b_ty: ^code.FloatType = b._object as ^code.FloatType;
+
+        # Chose the float type with greater rank.
+        if a_ty.bits > b_ty.bits {
+            a;
+        } else {
+            b;
+        }
+    } else if a._tag == code.TAG_FLOAT_TYPE and b._tag == code.TAG_INT_TYPE {
+        # No matter what the float or int type is the float has greater rank.
+        a;
+    } else if b._tag == code.TAG_FLOAT_TYPE and a._tag == code.TAG_INT_TYPE {
+        # No matter what the float or int type is the float has greater rank.
+        b;
+    } else {
+        # No common type resolution.
+        # Return nil.
+        code.make_nil();
+    }
+}
+
+# Resolve an `arithmetic` binary expression.
+# -----------------------------------------------------------------------------
+def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
+                 scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Resolve the types of the operands.
+    let lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
+    let rhs: ^code.Handle = resolver.resolve_s(g, &x.rhs, scope);
+    if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
+
+    # Attempt to perform common type resolution between the two types.
+    let ty: ^code.Handle = type_common(&x.lhs, lhs, &x.rhs, rhs);
+    if code.isnil(ty) {
+        # Determine the operation.
+        let opname: str =
+            if node.tag == ast.TAG_ADD { "+"; }
+            else if node.tag == ast.TAG_SUBTRACT { "-"; }
+            else if node.tag == ast.TAG_MULTIPLY { "*"; }
+            else if node.tag == ast.TAG_DIVIDE { "/"; }
+            else if node.tag == ast.TAG_MODULO { "%"; }
+            else if node.tag == ast.TAG_INTEGER_DIVIDE { "//"; }
+            else if node.tag == ast.TAG_EQ { "=="; }
+            else if node.tag == ast.TAG_NE { "!="; }
+            else if node.tag == ast.TAG_LT { "<"; }
+            else if node.tag == ast.TAG_LE { "<="; }
+            else if node.tag == ast.TAG_GT { ">"; }
+            else if node.tag == ast.TAG_GE { ">="; }
+            else { "?"; };  # can't get here
+
+        # Get formal type names.
+        let mut lhs_name: string.String = code.typename(lhs);
+        let mut rhs_name: string.String = code.typename(rhs);
+
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "no binary operation '%s' can be applied to types '%s' and '%s'" as ^int8,
+                       opname, lhs_name.data(), rhs_name.data());
+        errors.end();
+
+        # Dispose.
+        lhs_name.dispose();
+        rhs_name.dispose();
+
+        # Return nil.
+        code.make_nil();
+    } else {
+        # Worked; return the type.
+        ty;
+    }
+}
+
 # Resolvers
 # =============================================================================
 
@@ -270,6 +385,37 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Return the already resolve return type.
     ty.return_type;
+}
+
+# Relational [TAG_EQ, TAG_NE, TAG_LT, TAG_LE, TAG_GT, TAG_GE]
+# -----------------------------------------------------------------------------
+def relational(g: ^mut generator_.Generator, node: ^ast.Node,
+               scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Resolve this as an arithmetic binary expression.
+    let han: ^code.Handle = arithmetic_b(g, node, scope, code.make_nil());
+    if code.isnil(han) { return code.make_nil(); }
+
+    # Then ignore the resultant type and send back a boolean.
+    (g^).items.get_ptr("bool") as ^code.Handle;
+}
+
+# Floating-point division [TAG_DIVIDE]
+# -----------------------------------------------------------------------------
+def divide(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Resolve this as an arithmetic binary expression.
+    let han: ^code.Handle = arithmetic_b(g, node, scope, target);
+    if code.isnil(han) { return code.make_nil(); }
+
+    if han._tag == code.TAG_FLOAT_TYPE {
+        # Return the floating-point type.
+        han;
+    } else {
+        # Ignore the resultant type and send back a float64.
+        (g^).items.get_ptr("float64") as ^code.Handle;
+    }
 }
 
 # Tuple [TAG_TUPLE_EXPR]

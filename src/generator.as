@@ -40,6 +40,18 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
     g.type_resolvers[ast.TAG_FLOAT] = resolvers.float;
     g.type_resolvers[ast.TAG_CALL] = resolvers.call;
+    g.type_resolvers[ast.TAG_ADD] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_SUBTRACT] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_MULTIPLY] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_DIVIDE] = resolvers.divide;
+    g.type_resolvers[ast.TAG_INTEGER_DIVIDE] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_MODULO] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_EQ] = resolvers.relational;
+    g.type_resolvers[ast.TAG_NE] = resolvers.relational;
+    g.type_resolvers[ast.TAG_LT] = resolvers.relational;
+    g.type_resolvers[ast.TAG_LE] = resolvers.relational;
+    g.type_resolvers[ast.TAG_GT] = resolvers.relational;
+    g.type_resolvers[ast.TAG_GE] = resolvers.relational;
     g.type_resolvers[ast.TAG_TUPLE_EXPR] = resolvers.tuple;
 
     # Build the "builder" jump table.
@@ -49,6 +61,18 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_BOOLEAN] = builders.boolean;
     g.builders[ast.TAG_FLOAT] = builders.float;
     g.builders[ast.TAG_CALL] = builders.call;
+    g.builders[ast.TAG_ADD] = builders.arithmetic_b;
+    g.builders[ast.TAG_SUBTRACT] = builders.arithmetic_b;
+    g.builders[ast.TAG_MULTIPLY] = builders.arithmetic_b;
+    g.builders[ast.TAG_DIVIDE] = builders.arithmetic_b;
+    g.builders[ast.TAG_MODULO] = builders.arithmetic_b;
+    g.builders[ast.TAG_INTEGER_DIVIDE] = builders.integer_divide;
+    g.builders[ast.TAG_EQ] = builders.relational;
+    g.builders[ast.TAG_NE] = builders.relational;
+    g.builders[ast.TAG_LT] = builders.relational;
+    g.builders[ast.TAG_LE] = builders.relational;
+    g.builders[ast.TAG_GT] = builders.relational;
+    g.builders[ast.TAG_GE] = builders.relational;
 
     # Add basic type definitions.
     generator_util.declare_basic_types(g);

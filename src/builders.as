@@ -18,7 +18,7 @@ import resolvers;
 # Identifier [TAG_IDENT]
 # -----------------------------------------------------------------------------
 def ident(g: ^mut generator_.Generator, node: ^ast.Node,
-          scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Retrieve the item with scope resolution rules.
     let id: ^ast.Ident = (node^).unwrap() as ^ast.Ident;
@@ -32,7 +32,7 @@ def ident(g: ^mut generator_.Generator, node: ^ast.Node,
 # Boolean [TAG_BOOLEAN]
 # -----------------------------------------------------------------------------
 def boolean(g: ^mut generator_.Generator, node: ^ast.Node,
-            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+            scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Unwrap the node to its proper type.
     let x: ^ast.BooleanExpr = (node^).unwrap() as ^ast.BooleanExpr;
@@ -48,7 +48,7 @@ def boolean(g: ^mut generator_.Generator, node: ^ast.Node,
 # Integer [TAG_INTEGER]
 # -----------------------------------------------------------------------------
 def integer(g: ^mut generator_.Generator, node: ^ast.Node,
-            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+            scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Unwrap the node to its proper type.
     let x: ^ast.IntegerExpr = (node^).unwrap() as ^ast.IntegerExpr;
@@ -75,7 +75,7 @@ def integer(g: ^mut generator_.Generator, node: ^ast.Node,
 # Floating-point [TAG_FLOAT]
 # -----------------------------------------------------------------------------
 def float(g: ^mut generator_.Generator, node: ^ast.Node,
-          scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Unwrap the node to its proper type.
     let x: ^ast.FloatExpr = (node^).unwrap() as ^ast.FloatExpr;
@@ -91,10 +91,78 @@ def float(g: ^mut generator_.Generator, node: ^ast.Node,
     code.make_value(target, val);
 }
 
+# Local Slot [TAG_LOCAL_SLOT]
+# -----------------------------------------------------------------------------
+def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
+               scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.LocalSlotDecl = (node^).unwrap() as ^ast.LocalSlotDecl;
+
+    # Get the name out of the node.
+    let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+
+    # Get and resolve the type node (if we have one).
+    let type_han: ^code.Handle = code.make_nil();
+    let type_: ^code.Type = 0 as ^code.Type;
+    if not ast.isnull(x.type_) {
+        type_han = resolver.resolve(g, &x.type_);
+        type_ = type_han._object as ^code.Type;
+    }
+
+    # Get and resolve the initializer (if we have one).
+    let init: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
+    if not ast.isnull(x.initializer) {
+        # Resolve the type of the initializer.
+        let typ: ^code.Handle;
+        typ = resolver.resolve_st(g, &x.initializer, scope, type_han);
+        if code.isnil(typ) { return code.make_nil(); }
+
+        # Check and set
+        if code.isnil(type_han) {
+            type_han = typ;
+            type_ = type_han._object as ^code.Type;
+        }
+
+        # Build the initializer
+        let han: ^code.Handle;
+        han = builder.build(g, &x.initializer, scope, typ);
+        if code.isnil(han) { return code.make_nil(); }
+
+        # Cast it to the target value.
+        let cast_han: ^code.Handle = generator_util.cast(g^, han, type_han);
+
+        # Coerce this to a value.
+        let val_han: ^code.Handle = generator_def.to_value(
+            g^, cast_han, false);
+        let val: ^code.Value = val_han._object as ^code.Value;
+        init = val.handle;
+    }
+
+    # Build a stack allocation.
+    let val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMBuildAlloca(g.irb, type_.handle, id.name.data());
+
+    # Build the store.
+    if init <> 0 as ^llvm.LLVMOpaqueValue {
+        llvm.LLVMBuildStore(g.irb, init, val);
+    }
+
+    # Wrap.
+    let han: ^code.Handle;
+    han = code.make_local_slot(type_han, x.mutable, val);
+
+    # Insert into the current local scope block.
+    (scope^).insert(id.name.data() as str, han);
+
+    # Return.
+    han;
+}
+
 # Call [TAG_CALL]
 # -----------------------------------------------------------------------------
 def call(g: ^mut generator_.Generator, node: ^ast.Node,
-         scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+         scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Unwrap the node to its proper type.
     let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
@@ -240,7 +308,7 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
 # Binary arithmetic
 # -----------------------------------------------------------------------------
 def arithmetic_b_operands(g: ^mut generator_.Generator, node: ^ast.Node,
-                          scope: ^code.Scope, target: ^code.Handle)
+                          scope: ^mut code.Scope, target: ^code.Handle)
     -> (^code.Handle, ^code.Handle)
 {
     let res: (^code.Handle, ^code.Handle) = (code.make_nil(), code.make_nil());
@@ -270,7 +338,7 @@ def arithmetic_b_operands(g: ^mut generator_.Generator, node: ^ast.Node,
 # Relational [TAG_EQ, TAG_NE, TAG_LT, TAG_LE, TAG_GT, TAG_GE]
 # -----------------------------------------------------------------------------
 def relational(g: ^mut generator_.Generator, node: ^ast.Node,
-               scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+               scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
@@ -361,11 +429,84 @@ def relational(g: ^mut generator_.Generator, node: ^ast.Node,
     han;
 }
 
+# Unary Arithmetic [TAG_PROMOTE, TAG_NUMERIC_NEGATE, TAG_LOGICAL_NEGATE,
+#                   TAG_BITNEG]
+# -----------------------------------------------------------------------------
+def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
+                 scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.UnaryExpr = (node^).unwrap() as ^ast.UnaryExpr;
+
+    # Resolve the operand for its type.
+    let operand_ty: ^code.Handle = resolver.resolve_st(
+        g, &x.operand, scope, target);
+
+    # Build each operand.
+    let operand_ty_han: ^code.Type = operand_ty._object as ^code.Type;
+    let operand: ^code.Handle = builder.build(
+        g, &x.operand, scope, operand_ty);
+    if code.isnil(operand) { return code.make_nil(); }
+
+    # Coerce the operands to values.
+    let operand_val_han: ^code.Handle = generator_def.to_value(
+        g^, operand, false);
+    if code.isnil(operand_val_han) { return code.make_nil(); }
+
+    # Cast to values.
+    let operand_val: ^code.Value = operand_val_han._object as ^code.Value;
+
+    # Build the instruction.
+    let val: ^llvm.LLVMOpaqueValue = operand_val.handle;
+    if target._tag == code.TAG_INT_TYPE {
+        # Build the correct operation.
+        if node.tag == ast.TAG_NUMERIC_NEGATE {
+            # Build the `RSUB 1` instruction.
+            val = llvm.LLVMBuildSub(
+                g.irb,
+                llvm.LLVMConstInt(operand_ty_han.handle, 1, false),
+                operand_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_BITNEG {
+            # Build the `NEG` instruction.
+            val = llvm.LLVMBuildNeg(
+                g.irb,
+                operand_val.handle, "" as ^int8);
+        }
+    } else if target._tag == code.TAG_FLOAT_TYPE {
+        # Build the correct operation.
+        if node.tag == ast.TAG_NUMERIC_NEGATE {
+            # Build the `RSUB 1` instruction.
+            val = llvm.LLVMBuildSub(
+                g.irb,
+                llvm.LLVMConstReal(operand_ty_han.handle, 1.0),
+                operand_val.handle, "" as ^int8);
+        }
+    } else if target._tag == code.TAG_BOOL_TYPE {
+        # Build the correct operation.
+        if node.tag == ast.TAG_BITNEG or node.tag == ast.TAG_LOGICAL_NEGATE {
+            # Build the `RSUB 1` instruction.
+            val = llvm.LLVMBuildNeg(
+                g.irb,
+                operand_val.handle, "" as ^int8);
+        }
+    }
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(target, val);
+
+    # Dispose.
+    code.dispose(operand_val_han);
+
+    # Return our wrapped result.
+    han;
+}
+
 # Binary Arithmetic [TAG_ADD, TAG_SUBTRACT, TAG_MULTIPLY,
 #                    TAG_DIVIDE, TAG_MODULO]
 # -----------------------------------------------------------------------------
 def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
-                 scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+                 scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
@@ -480,7 +621,7 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
 # Integer Divide [TAG_INTEGER_DIVIDE]
 # -----------------------------------------------------------------------------
 def integer_divide(g: ^mut generator_.Generator, node: ^ast.Node,
-                   scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+                   scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Perform a normal division.
     let han: ^code.Handle;
@@ -495,7 +636,7 @@ def integer_divide(g: ^mut generator_.Generator, node: ^ast.Node,
 # Return [TAG_RETURN]
 # -----------------------------------------------------------------------------
 def return_(g: ^mut generator_.Generator, node: ^ast.Node,
-            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+            scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Unwrap the "ploymorphic" node to its proper type.
     let x: ^ast.ReturnExpr = (node^).unwrap() as ^ast.ReturnExpr;
@@ -529,7 +670,7 @@ def return_(g: ^mut generator_.Generator, node: ^ast.Node,
 # Assignment [TAG_ASSIGN]
 # -----------------------------------------------------------------------------
 def assign(g: ^mut generator_.Generator, node: ^ast.Node,
-           scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+           scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Unwrap the "ploymorphic" node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
@@ -565,6 +706,22 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
             errors.begin_error();
             errors.fprintf(errors.stderr,
                            "cannot assign to immutable static item" as ^int8);
+            errors.end();
+            return code.make_nil();
+        }
+
+        # Build the `STORE` operation.
+        llvm.LLVMBuildStore(g.irb, rhs_val.handle, slot.handle);
+    } else if lhs._tag == code.TAG_LOCAL_SLOT {
+        # Get the real object.
+        let slot: ^code.LocalSlot = lhs._object as ^code.LocalSlot;
+
+        # Ensure that we are mutable.
+        if not slot.mutable {
+            # Report error and return nil.
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "re-assignment to immutable local slot" as ^int8);
             errors.end();
             return code.make_nil();
         }

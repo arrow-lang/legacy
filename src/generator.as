@@ -40,6 +40,10 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
     g.type_resolvers[ast.TAG_FLOAT] = resolvers.float;
     g.type_resolvers[ast.TAG_CALL] = resolvers.call;
+    g.type_resolvers[ast.TAG_PROMOTE] = resolvers.arithmetic_u;
+    g.type_resolvers[ast.TAG_NUMERIC_NEGATE] = resolvers.arithmetic_u;
+    g.type_resolvers[ast.TAG_LOGICAL_NEGATE] = resolvers.arithmetic_u;
+    g.type_resolvers[ast.TAG_BITNEG] = resolvers.arithmetic_u;
     g.type_resolvers[ast.TAG_ADD] = resolvers.arithmetic_b;
     g.type_resolvers[ast.TAG_SUBTRACT] = resolvers.arithmetic_b;
     g.type_resolvers[ast.TAG_MULTIPLY] = resolvers.arithmetic_b;
@@ -55,6 +59,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_TUPLE_EXPR] = resolvers.tuple;
     g.type_resolvers[ast.TAG_RETURN] = resolvers.pass;
     g.type_resolvers[ast.TAG_ASSIGN] = resolvers.assign;
+    g.type_resolvers[ast.TAG_LOCAL_SLOT] = resolvers.pass;
 
     # Build the "builder" jump table.
     libc.memset(&g.builders[0] as ^void, 0, 100 * ptr_size);
@@ -63,6 +68,10 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_BOOLEAN] = builders.boolean;
     g.builders[ast.TAG_FLOAT] = builders.float;
     g.builders[ast.TAG_CALL] = builders.call;
+    g.builders[ast.TAG_PROMOTE] = builders.arithmetic_u;
+    g.builders[ast.TAG_NUMERIC_NEGATE] = builders.arithmetic_u;
+    g.builders[ast.TAG_LOGICAL_NEGATE] = builders.arithmetic_u;
+    g.builders[ast.TAG_BITNEG] = builders.arithmetic_u;
     g.builders[ast.TAG_ADD] = builders.arithmetic_b;
     g.builders[ast.TAG_SUBTRACT] = builders.arithmetic_b;
     g.builders[ast.TAG_MULTIPLY] = builders.arithmetic_b;
@@ -77,6 +86,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_GE] = builders.relational;
     g.builders[ast.TAG_RETURN] = builders.return_;
     g.builders[ast.TAG_ASSIGN] = builders.assign;
+    g.builders[ast.TAG_LOCAL_SLOT] = builders.local_slot;
 
     # Add basic type definitions.
     generator_util.declare_basic_types(g);

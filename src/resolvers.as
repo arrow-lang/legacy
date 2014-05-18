@@ -145,6 +145,70 @@ def type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
     false;
 }
 
+# Resolve an `arithmetic` unary expression.
+# -----------------------------------------------------------------------------
+def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
+                 scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.UnaryExpr = (node^).unwrap() as ^ast.UnaryExpr;
+
+    # Resolve the type of the operand.
+    let operand: ^code.Handle = resolver.resolve_s(g, &x.operand, scope);
+    if code.isnil(operand) { return code.make_nil(); }
+
+    # Perform further resolution if needed.
+    if node.tag == ast.TAG_LOGICAL_NEGATE
+    {
+        # A logical "not" must be applied to a boolean and returns a boolean.
+        if operand._tag == code.TAG_BOOL_TYPE
+        {
+            return (g^).items.get_ptr("bool") as ^code.Handle;
+        }
+    }
+    else if     node.tag == ast.TAG_NUMERIC_NEGATE
+            or  node.tag == ast.TAG_PROMOTE
+    {
+        # A numeric "-" or "+" must be applied to a numeric type.
+        if      operand._tag == code.TAG_INT_TYPE
+            or  operand._tag == code.TAG_FLOAT_TYPE
+        {
+            # Return the type we act on.
+            return operand;
+        }
+    }
+    else if node.tag == ast.TAG_BITNEG
+    {
+        # A bitwise "!" can be applied to a boolean or integral type.
+         if      operand._tag == code.TAG_BOOL_TYPE
+             or  operand._tag == code.TAG_INT_TYPE
+         {
+             # Return the type we act on.
+             return operand;
+         }
+    }
+
+    # Report an error.
+    let name: str =
+        if      node.tag == ast.TAG_LOGICAL_NEGATE { "not"; }
+        else if node.tag == ast.TAG_NUMERIC_NEGATE { "-"; }
+        else if node.tag == ast.TAG_BITNEG { "!"; }
+        else if node.tag == ast.TAG_PROMOTE { "+"; }
+        else { "?"; };
+
+    let mut op_name: string.String = code.typename(operand);
+
+    errors.begin_error();
+    errors.fprintf(errors.stderr,
+                   "no unary operation '%s' can be applied to type '%s'" as ^int8,
+                   name, op_name.data());
+    errors.end();
+
+    op_name.dispose();
+
+    return code.make_nil();
+}
+
 # Resolve an `arithmetic` binary expression.
 # -----------------------------------------------------------------------------
 def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -405,7 +469,6 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # # Resolve the item for its type.
     # _type_of(g, item);
-
 
 # Call [TAG_CALL]
 # -----------------------------------------------------------------------------

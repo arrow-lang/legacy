@@ -386,18 +386,21 @@ implement StaticSlot {
 
 type LocalSlot {
     type_: ^Handle,
-    handle: ^LLVMOpaqueValue
+    handle: ^LLVMOpaqueValue,
+    mutable: bool
 }
 
 let LOCAL_SLOT_SIZE: uint = ((0 as ^LocalSlot) + 1) - (0 as ^LocalSlot);
 
 def make_local_slot(
         type_: ^Handle,
+        mutable: bool,
         handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the slot.
     let slot: ^LocalSlot = libc.malloc(LOCAL_SLOT_SIZE) as ^LocalSlot;
     slot.handle = handle;
     slot.type_ = type_;
+    slot.mutable = mutable;
 
     # Wrap in a handle.
     make(TAG_LOCAL_SLOT, slot as ^void);

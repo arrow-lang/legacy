@@ -150,7 +150,7 @@ def generate_function(&mut g: generator_.Generator, qname: str,
 
         # Insert into the local scope.
         x.scope.insert(prm.name.data() as str, code.make_local_slot(
-            prm.type_, val));
+            prm.type_, false, val));
 
         # Continue.
         i = i + 1;

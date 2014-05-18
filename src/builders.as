@@ -464,7 +464,7 @@ def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
             # Build the `RSUB 1` instruction.
             val = llvm.LLVMBuildSub(
                 g.irb,
-                llvm.LLVMConstInt(operand_ty_han.handle, 1, false),
+                llvm.LLVMConstInt(operand_ty_han.handle, 0, false),
                 operand_val.handle, "" as ^int8);
         } else if node.tag == ast.TAG_BITNEG {
             # Build the `NEG` instruction.
@@ -478,7 +478,7 @@ def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
             # Build the `RSUB 1` instruction.
             val = llvm.LLVMBuildSub(
                 g.irb,
-                llvm.LLVMConstReal(operand_ty_han.handle, 1.0),
+                llvm.LLVMConstReal(operand_ty_han.handle, 0.0),
                 operand_val.handle, "" as ^int8);
         }
     } else if target._tag == code.TAG_BOOL_TYPE {

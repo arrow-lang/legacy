@@ -589,3 +589,65 @@ def tuple(g: ^mut generator_.Generator, node: ^ast.Node,
     # Return the type handle.
     han;
 }
+
+# Conditional Expression [TAG_CONDITIONAL]
+# -----------------------------------------------------------------------------
+def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
+                scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.ConditionalExpr = (node^).unwrap() as ^ast.ConditionalExpr;
+
+    # Resolve the types of the operands.
+    let lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
+    let rhs: ^code.Handle = resolver.resolve_s(g, &x.rhs, scope);
+    if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
+
+    # Attempt to perform common type resolution between the two types.
+    let ty: ^code.Handle = type_common(&x.lhs, lhs, &x.rhs, rhs);
+    if code.isnil(ty) {
+        # Get formal type names.
+        let mut lhs_name: string.String = code.typename(lhs);
+        let mut rhs_name: string.String = code.typename(rhs);
+
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "no common type can be resolved between '%s' and '%s'" as ^int8,
+                       lhs_name.data(), rhs_name.data());
+        errors.end();
+
+        # Dispose.
+        lhs_name.dispose();
+        rhs_name.dispose();
+
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Resolve the type of the condition.
+    let cond: ^code.Handle = resolver.resolve_s(g, &x.condition, scope);
+    if code.isnil(cond) { return code.make_nil(); }
+
+    # Ensure that we have a boolean for the condition.
+    if cond._tag <> code.TAG_BOOL_TYPE {
+        # Get formal type name.
+        let mut ty_name: string.String = code.typename(cond);
+
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "mismatched types: expected 'bool' but found '%s'" as ^int8,
+                       ty_name.data());
+        errors.end();
+
+        # Dispose.
+        ty_name.dispose();
+
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Return the common type of the branches.
+    ty;
+}

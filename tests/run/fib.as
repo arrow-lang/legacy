@@ -1,6 +1,6 @@
-def fibonacci(n: int64, a1: int64 = 1, a2: int64 = 1) -> int64 {
+def fibonacci(n: int64, a1: int64 = 1, a2: int64 = 1): int64 {
     if n == 0 { a1; }
-    else { fibonacci(n - 1, a2, a1 + a2); }
+    else { fibonacci(n - 1, a2, a1 + a2); };
 }
 
 def main() {

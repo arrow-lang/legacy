@@ -10,9 +10,9 @@ def main() {
     } else if 2 == 2 {
         if 1 == 1 {
             assert(true);
-        } else { if 2 == 1 { assert(false); } else { assert(false); } }
+        } else { if 2 == 1 { assert(false); } else { assert(false); }; };
     };
     if 1 == 2 {
         assert(false);
-    } else { if 1 == 2 { assert(false); } else { assert(true); } }
+    } else { if 1 == 2 { assert(false); } else { assert(true); }; };
 }

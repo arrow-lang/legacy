@@ -843,3 +843,209 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
     # Return our wrapped result.
     han;
 }
+
+# Block
+# -----------------------------------------------------------------------------
+def block(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.Block = (node^).unwrap() as ^ast.Block;
+
+    # Build each node in the branch.
+    let mut j: int = 0;
+    let mut res: ^code.Handle = code.make_nil();
+    while j as uint < x.nodes.size() {
+        # Resolve this node.
+        let n: ast.Node = x.nodes.get(j);
+        j = j + 1;
+
+        # Resolve the type of the node.
+        let cur_count: uint = errors.count;
+        let typ: ^code.Handle = resolver.resolve_st(
+            g, &n, scope, target);
+        if cur_count < errors.count { continue; }
+
+        # Build the node.
+        let han: ^code.Handle = builder.build(g, &n, scope, typ);
+        if not code.isnil(han) {
+            if j as uint == x.nodes.size() {
+                let val_han: ^code.Handle = generator_def.to_value(
+                    g^, han, false);
+                res = val_han;
+            }
+        }
+    }
+
+    # Return the final result.
+    res;
+}
+
+# Selection [TAG_SELECT]
+# -----------------------------------------------------------------------------
+def select(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.SelectExpr = (node^).unwrap() as ^ast.SelectExpr;
+    let has_value: bool = target._tag <> code.TAG_VOID_TYPE;
+
+    # Get the type target for each node.
+    let type_target: ^code.Handle = target;
+    if type_target._tag == code.TAG_VOID_TYPE {
+        type_target = code.make_nil();
+    }
+
+    # Get the current basic block and resolve our current function handle.
+    let cur_block: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMGetInsertBlock(g.irb);
+    let cur_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMGetBasicBlockParent(
+        cur_block);
+
+    # Iterate through each branch in the select statement.
+    # Generate each if/elif block chain until we get to the last branch.
+    let mut i: int = 0;
+    let mut values: list.List = list.make(types.PTR);
+    let mut blocks: list.List = list.make(types.PTR);
+    let bool_ty: ^code.Handle = g.items.get_ptr("bool") as ^code.Handle;
+    while i as uint < x.branches.size() {
+        let brn: ast.Node = x.branches.get(i);
+        let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
+        let blk_node: ast.Node = br.block;
+        let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
+
+        # The last branch (else) is signaled by having no condition.
+        if ast.isnull(br.condition) { break; }
+
+        # Build the condition.
+        let cond_han: ^code.Handle;
+        cond_han = builder.build(g, &br.condition, scope, bool_ty);
+        if code.isnil(cond_han) { return code.make_nil(); }
+        let cond_val_han: ^code.Handle = generator_def.to_value(
+            g^, cond_han, false);
+        let cond_val: ^code.Value = cond_val_han._object as ^code.Value;
+        if code.isnil(cond_val_han) { return code.make_nil(); }
+
+        # Create and append the `then` block.
+        let then_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+            cur_fn, "" as ^int8);
+
+        # Create a `next` block.
+        let next_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+            cur_fn, "" as ^int8);
+
+        # Insert the `conditional branch` for this branch.
+        llvm.LLVMBuildCondBr(g.irb, cond_val.handle, then_b, next_b);
+
+        # Switch to the `then` block.
+        llvm.LLVMPositionBuilderAtEnd(g.irb, then_b);
+
+        # Build each node in the branch.
+        let blk_val_han: ^code.Handle = block(g, &blk_node, scope, type_target);
+
+        # If we are expecting a value ...
+        if has_value {
+            # Cast the block value to our target type.
+            let val_han: ^code.Handle = generator_def.to_value(
+                g^, blk_val_han, false);
+            let cast_han: ^code.Handle = generator_util.cast(
+                g^, val_han, type_target);
+            let val: ^code.Value = cast_han._object as ^code.Value;
+
+            # Update our value list.
+            values.push_ptr(val.handle as ^void);
+        }
+
+        # Update the branch list.
+        blocks.push_ptr(llvm.LLVMGetInsertBlock(g.irb) as ^void);
+
+        # Insert the `next` block after our current block.
+        llvm.LLVMMoveBasicBlockAfter(next_b, llvm.LLVMGetInsertBlock(g.irb));
+
+        # Replace the outer-block with our new "merge" block.
+        llvm.LLVMPositionBuilderAtEnd(g.irb, next_b);
+
+        # Increment branch iterator.
+        i = i + 1;
+    }
+
+    # Use the last elided block for our final "else" block.
+    let merge_b: ^llvm.LLVMOpaqueBasicBlock;
+    if i as uint < x.branches.size() {
+        let brn: ast.Node = x.branches.get(-1);
+        let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
+
+        # Build each node in the branch.
+        let blk_val_han: ^code.Handle = block(
+            g, &br.block, scope, type_target);
+
+        # If we are expecting a value ...
+        if has_value {
+            # Cast the block value to our target type.
+            let val_han: ^code.Handle = generator_def.to_value(
+                g^, blk_val_han, false);
+            let cast_han: ^code.Handle = generator_util.cast(
+                g^, val_han, type_target);
+            let val: ^code.Value = cast_han._object as ^code.Value;
+
+            # Update our value list.
+            values.push_ptr(val.handle as ^void);
+        }
+
+        # Update the branch list.
+        blocks.push_ptr(llvm.LLVMGetInsertBlock(g.irb) as ^void);
+
+        # Create the last "merge" block.
+        merge_b = llvm.LLVMAppendBasicBlock(cur_fn, "" as ^int8);
+    } else {
+        # There is no else block; use it as a merge block.
+        merge_b = llvm.LLVMGetLastBasicBlock(cur_fn);
+    }
+
+    # Iterate through the established branches and have them return to
+    # the "merge" block (if they are not otherwise terminated).
+    i = 0;
+    while i as uint < blocks.size {
+        let bb: ^llvm.LLVMOpaqueBasicBlock =
+            blocks.at_ptr(i) as ^llvm.LLVMOpaqueBasicBlock;
+        i = i + 1;
+
+        # Set the insertion point.
+        llvm.LLVMPositionBuilderAtEnd(g.irb, bb);
+
+        # Insert the non-conditional branch.
+        llvm.LLVMBuildBr(g.irb, merge_b);
+    }
+
+    # Re-establish our insertion point.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, merge_b);
+
+    if values.size > 0 {
+        # Insert the PHI node corresponding to the built values.
+        let type_han: ^code.Type = type_target._object as ^code.Type;
+        let val: ^llvm.LLVMOpaqueValue;
+        val = llvm.LLVMBuildPhi(g.irb, type_han.handle, "" as ^int8);
+        llvm.LLVMAddIncoming(
+            val,
+            values.elements as ^^llvm.LLVMOpaqueValue,
+            blocks.elements as ^^llvm.LLVMOpaqueBasicBlock,
+            values.size as uint32);
+
+        # Wrap and return the value.
+        let han: ^code.Handle;
+        han = code.make_value(type_target, val);
+
+        # Dispose.
+        blocks.dispose();
+        values.dispose();
+
+        # Wrap and return the PHI.
+        han;
+    } else {
+        # Dispose.
+        blocks.dispose();
+        values.dispose();
+
+        # Return nil.
+        code.make_nil();
+    }
+}

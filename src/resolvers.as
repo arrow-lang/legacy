@@ -613,7 +613,7 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
         # Report error.
         errors.begin_error();
         errors.fprintf(errors.stderr,
-                       "no common type can be resolved between '%s' and '%s'" as ^int8,
+                       "no common type can be resolved for '%s' and '%s'" as ^int8,
                        lhs_name.data(), rhs_name.data());
         errors.end();
 
@@ -650,4 +650,85 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Return the common type of the branches.
     ty;
+}
+
+# Selection [TAG_SELECT_EXPR]
+# -----------------------------------------------------------------------------
+def select(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.SelectExpr = (node^).unwrap() as ^ast.SelectExpr;
+
+    # Iterate through the branches in a selection expression.
+    let mut type_han: ^code.Handle = code.make_nil();
+    let mut has_value: bool = true;
+    let mut i: int = 0;
+    let mut prev_br: ast.Node = ast.null();
+    let bool_ty: ^code.Handle = g.items.get_ptr("bool") as ^code.Handle;
+    while i as uint < x.branches.size() {
+        let brn: ast.Node = x.branches.get(i);
+        let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
+        let blk_node: ast.Node = br.block;
+        let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
+
+        # Attempt to resolve the type of the condition and ensure it is of
+        # the boolean type (only if there is a condition).
+        if not ast.isnull(br.condition) {
+            let cond_ty: ^code.Handle = resolver.resolve_st(
+                g, &br.condition, scope, bool_ty);
+            if code.isnil(cond_ty) { return code.make_nil(); }
+        }
+
+        if has_value {
+            # Is this block not empty (does it not have any nodes)?
+            if blk.nodes.size() == 0 {
+                # Yep; this expression no longer has value.
+                has_value = false;
+                break;
+            }
+
+            # Resolve the type of the final node in the block.
+            let node: ast.Node = blk.nodes.get(-1);
+            let han: ^code.Handle = resolver.resolve_s(g, &node, scope);
+            if code.isnil(han) {
+                # This block does not resolve to a value; this causes
+                # the entire select expression to not resolve to a
+                # value.
+                has_value = false;
+                break;
+            }
+
+            if code.isnil(type_han) {
+                # This is the first block; set the type_han directly.
+                type_han = han;
+            } else {
+                # Need to resolve the common type between this and
+                # the existing handle.
+                let com_han: ^code.Handle = type_common(
+                    &prev_br, type_han, &brn, han);
+                if code.isnil(com_han) {
+                    # There was no common type found; silently treat
+                    # this as a statement now.
+                    has_value = false;
+                    break;
+                }
+
+                # Common type found; set as the new type han.
+                type_han = com_han;
+            }
+        }
+
+        # Move along to the next branch.
+        prev_br = brn;
+        i = i + 1;
+    }
+
+    if not has_value {
+        # Return the void type.
+        code.make_void_type(llvm.LLVMVoidType());
+    } else {
+        # Return the value type.
+        type_han;
+    }
 }

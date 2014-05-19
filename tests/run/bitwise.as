@@ -1,8 +1,8 @@
 def main() {
     let mut a: int = 1;
     let mut b: int = 2;
-    # a ^= b;
-    # b ^= a;
+    a = a ^ b;
+    b = b ^ a;
     a = a ^ b;
     assert(b == 1);
     assert(a == 2);

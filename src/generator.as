@@ -50,6 +50,9 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_DIVIDE] = resolvers.divide;
     g.type_resolvers[ast.TAG_INTEGER_DIVIDE] = resolvers.arithmetic_b;
     g.type_resolvers[ast.TAG_MODULO] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_BITAND] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_BITOR] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_BITXOR] = resolvers.arithmetic_b;
     g.type_resolvers[ast.TAG_EQ] = resolvers.relational;
     g.type_resolvers[ast.TAG_NE] = resolvers.relational;
     g.type_resolvers[ast.TAG_LT] = resolvers.relational;
@@ -77,6 +80,9 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_MULTIPLY] = builders.arithmetic_b;
     g.builders[ast.TAG_DIVIDE] = builders.arithmetic_b;
     g.builders[ast.TAG_MODULO] = builders.arithmetic_b;
+    g.builders[ast.TAG_BITAND] = builders.arithmetic_b;
+    g.builders[ast.TAG_BITOR] = builders.arithmetic_b;
+    g.builders[ast.TAG_BITXOR] = builders.arithmetic_b;
     g.builders[ast.TAG_INTEGER_DIVIDE] = builders.integer_divide;
     g.builders[ast.TAG_EQ] = builders.relational;
     g.builders[ast.TAG_NE] = builders.relational;

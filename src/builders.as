@@ -461,31 +461,29 @@ def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
     if target._tag == code.TAG_INT_TYPE {
         # Build the correct operation.
         if node.tag == ast.TAG_NUMERIC_NEGATE {
-            # Build the `RSUB 1` instruction.
-            val = llvm.LLVMBuildSub(
-                g.irb,
-                llvm.LLVMConstInt(operand_ty_han.handle, 0, false),
-                operand_val.handle, "" as ^int8);
-        } else if node.tag == ast.TAG_BITNEG {
             # Build the `NEG` instruction.
             val = llvm.LLVMBuildNeg(
+                g.irb,
+                operand_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_BITNEG {
+            # Build the `NOT` instruction.
+            val = llvm.LLVMBuildNot(
                 g.irb,
                 operand_val.handle, "" as ^int8);
         }
     } else if target._tag == code.TAG_FLOAT_TYPE {
         # Build the correct operation.
         if node.tag == ast.TAG_NUMERIC_NEGATE {
-            # Build the `RSUB 1` instruction.
-            val = llvm.LLVMBuildSub(
+            # Build the `NEG` instruction.
+            val = llvm.LLVMBuildNeg(
                 g.irb,
-                llvm.LLVMConstReal(operand_ty_han.handle, 0.0),
                 operand_val.handle, "" as ^int8);
         }
     } else if target._tag == code.TAG_BOOL_TYPE {
         # Build the correct operation.
         if node.tag == ast.TAG_BITNEG or node.tag == ast.TAG_LOGICAL_NEGATE {
-            # Build the `RSUB 1` instruction.
-            val = llvm.LLVMBuildNeg(
+            # Build the `NOT` instruction.
+            val = llvm.LLVMBuildNot(
                 g.irb,
                 operand_val.handle, "" as ^int8);
         }
@@ -573,6 +571,21 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
                     g.irb,
                     lhs_val.handle, rhs_val.handle, "" as ^int8);
             }
+        } else if node.tag == ast.TAG_BITAND {
+            # Build the `AND` instruction.
+            val = llvm.LLVMBuildAnd(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_BITOR {
+            # Build the `OR` instruction.
+            val = llvm.LLVMBuildOr(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_BITXOR {
+            # Build the `XOR` instruction.
+            val = llvm.LLVMBuildXor(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
         }
     } else if target._tag == code.TAG_FLOAT_TYPE {
         # Build the correct operation.

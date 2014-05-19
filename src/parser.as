@@ -1868,9 +1868,6 @@ def get_binop_tok_precedence(&self, tok: int) -> int {
     else if tok == tokens.TOK_FSLASH_EQ         { 030; }  # /=
     else if tok == tokens.TOK_FSLASH_FSLASH_EQ  { 030; }  # //=
     else if tok == tokens.TOK_PERCENT_EQ        { 030; }  # %=
-    else if tok == tokens.TOK_AMPERSAND         { 045; }  # &
-    else if tok == tokens.TOK_PIPE              { 045; }  # |
-    else if tok == tokens.TOK_HAT               { 045; }  # ^
     else if tok == tokens.TOK_AND               { 060; }  # and
     else if tok == tokens.TOK_OR                { 060; }  # or
     else if tok == tokens.TOK_EQ_EQ             { 090; }  # ==
@@ -1879,6 +1876,9 @@ def get_binop_tok_precedence(&self, tok: int) -> int {
     else if tok == tokens.TOK_LCARET_EQ         { 090; }  # <=
     else if tok == tokens.TOK_RCARET            { 090; }  # >
     else if tok == tokens.TOK_RCARET_EQ         { 090; }  # >=
+    else if tok == tokens.TOK_AMPERSAND         { 110; }  # &
+    else if tok == tokens.TOK_PIPE              { 110; }  # |
+    else if tok == tokens.TOK_HAT               { 110; }  # ^
     else if tok == tokens.TOK_PLUS              { 120; }  # +
     else if tok == tokens.TOK_MINUS             { 120; }  # -
     else if tok == tokens.TOK_STAR              { 150; }  # *

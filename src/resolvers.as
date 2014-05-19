@@ -239,6 +239,9 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
             else if node.tag == ast.TAG_LE { "<="; }
             else if node.tag == ast.TAG_GT { ">"; }
             else if node.tag == ast.TAG_GE { ">="; }
+            else if node.tag == ast.TAG_BITAND { "&"; }
+            else if node.tag == ast.TAG_BITOR { "|"; }
+            else if node.tag == ast.TAG_BITXOR { "^"; }
             else { "?"; };  # can't get here
 
         # Get formal type names.

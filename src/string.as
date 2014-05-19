@@ -58,7 +58,7 @@ implement String {
         let &mut l: list.List = self._data;
 
         # Ensure we have enough space.
-        let size: uint = libc.strlen(s as ^int8);
+        let size: uint = libc.strlen(s as ^int8) as uint;
         l.reserve(l.size + size + 1);
 
         # Copy in the string.
@@ -124,7 +124,7 @@ implement String {
         let dst: ^int8 = dst_data.elements;
 
         # Copy the data in there.
-        libc.strncpy(dst, src, n);
+        libc.strncpy(dst, src, n as int32);
 
         # Return our string.
         res;

@@ -34,7 +34,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.top_ns = string.make();
 
     # Build the "type resolution" jump table.
-    libc.memset(&g.type_resolvers[0] as ^void, 0, 100 * ptr_size);
+    libc.memset(&g.type_resolvers[0] as ^void, 0, (100 * ptr_size) as int32);
     g.type_resolvers[ast.TAG_IDENT] = resolvers.ident;
     g.type_resolvers[ast.TAG_INTEGER] = resolvers.integer;
     g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
@@ -62,7 +62,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_LOCAL_SLOT] = resolvers.pass;
 
     # Build the "builder" jump table.
-    libc.memset(&g.builders[0] as ^void, 0, 100 * ptr_size);
+    libc.memset(&g.builders[0] as ^void, 0, (100 * ptr_size) as int32);
     g.builders[ast.TAG_IDENT] = builders.ident;
     g.builders[ast.TAG_INTEGER] = builders.integer;
     g.builders[ast.TAG_BOOLEAN] = builders.boolean;

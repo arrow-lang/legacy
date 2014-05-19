@@ -379,7 +379,7 @@ def make(tag: int) -> Node {
     node.tag = tag;
 
     # Allocate a store on the arena.
-    node.data = libc.calloc(_sizeof(tag), 1);
+    node.data = libc.calloc(_sizeof(tag) as int64, 1);
 
     # Return the node.
     node;

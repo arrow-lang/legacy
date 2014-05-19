@@ -184,7 +184,7 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
     let mut argl: list.List = list.make(types.PTR);
     argl.reserve(type_.parameters.size);
     argl.size = type_.parameters.size;
-    libc.memset(argl.elements as ^void, 0, argl.size * argl.element_size);
+    libc.memset(argl.elements as ^void, 0, (argl.size * argl.element_size) as int32);
     let argv: ^mut ^llvm.LLVMOpaqueValue =
         argl.elements as ^^llvm.LLVMOpaqueValue;
 

@@ -81,7 +81,7 @@ implement List {
         # If this is a simple (no managed memory) list then just do a `memcpy`.
         if not types.is_disposable(self.tag) {
             libc.memcpy(new.elements as ^void, self.elements as ^void,
-                        self.size * self.element_size);
+                        (self.size * self.element_size) as int32);
             new.size = self.size;
             void;
         } else {
@@ -113,7 +113,8 @@ implement List {
 
         # Reallocate memory to the new requested capacity.
         self.elements = libc.realloc(
-            self.elements as ^void, capacity * self.element_size) as ^int8;
+            self.elements as ^void,
+            (capacity * self.element_size) as int32) as ^int8;
 
         # Update capacity.
         self.capacity = capacity;
@@ -131,7 +132,7 @@ implement List {
 
         # Move element into the container.
         libc.memcpy((self.elements + (self.size * self.element_size)) as ^void,
-                    el, self.element_size);
+                    el, self.element_size as int32);
 
         # Increment size to keep track of element insertion.
         self.size = self.size + 1;
@@ -294,7 +295,7 @@ implement List {
             # overwriting index.
             libc.memmove((self.elements + (_index * el_size)) as ^void,
                          (self.elements + ((_index + 1) * el_size)) as ^void,
-                         self.element_size * (self.size - (_index + 1)));
+                         (self.element_size * (self.size - (_index + 1))) as int32);
         }
 
         # Decrement the size to keep track of the element erasure.
@@ -326,7 +327,7 @@ implement List {
             # We need to make sure it isn't a str, handle those differently
             if self.tag <> types.STR {
                 eq = libc.memcmp((self.elements + (index * self.element_size)) as ^void,
-                                 el, self.element_size);
+                                 el, self.element_size as int32);
             } else {
                 # If string, compare value pointed to by value at index
                 let data: ^^int8 = (self.elements + (index * self.element_size)) as ^^int8;
@@ -370,7 +371,7 @@ implement List {
             # We need to make sure it isn't a str, handle those differently
             if self.tag <> types.STR {
                 eq = libc.memcmp((self.elements + (index * self.element_size)) as ^void,
-                                 el, self.element_size);
+                                 el, self.element_size as int32);
             } else {
                 # If string, compare value pointed to by value at index
                 let data: ^^int8 = (self.elements + (index * self.element_size)) as ^^int8;
@@ -415,7 +416,8 @@ implement List {
     # it wastes a lot of memory
     # It is fast, however, and easy.
     def clear(&mut self) {
-        libc.memset(self.elements as ^void, 0, self.size * self.element_size);
+        libc.memset(self.elements as ^void, 0,
+                    (self.size * self.element_size) as int32);
         self.size = 0;
     }
 
@@ -519,11 +521,11 @@ implement List {
         # Move everything past index one place to the right
         libc.memmove((self.elements + ((_index + 1) * self.element_size)) as ^void,
                      (self.elements + (_index * self.element_size)) as ^void,
-                     self.element_size * (self.size - (_index + 1)));
+                     (self.element_size * (self.size - (_index + 1))) as int32);
 
          # Move element into the container.
         libc.memcpy((self.elements + ((index as uint) * self.element_size)) as ^void,
-                    el, self.element_size);
+                    el, self.element_size as int32);
 
         self.size = self.size + 1;
     }
@@ -554,7 +556,7 @@ implement List {
         # Move everything past index one place to the right
         libc.memmove((self.elements + ((_index + 1) * self.element_size)) as ^void,
                      (self.elements + (_index * self.element_size)) as ^void,
-                     self.element_size * (self.size - (_index + 1)));
+                     (self.element_size * (self.size - (_index + 1))) as int32);
 
         # Allocate space in the container.
         let offset: uint = (index as uint) * self.element_size;

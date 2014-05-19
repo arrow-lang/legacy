@@ -110,7 +110,7 @@ implement Scope {
     # -------------------------------------------------------------------------
     def push(&mut self) {
         let m: ^mut dict.Dictionary = libc.malloc(
-            ((0 as ^dict.Dictionary) + 1) - (0 as ^dict.Dictionary))
+            (((0 as ^dict.Dictionary) + 1) - (0 as ^dict.Dictionary)) as int64)
             as ^dict.Dictionary;
         m^ = dict.make(2048);
         self.chain.push_ptr(m as ^void);
@@ -151,7 +151,7 @@ let FLOAT_TYPE_SIZE: uint = ((0 as ^FloatType) + 1) - (0 as ^FloatType);
 
 def make_type(handle: ^LLVMOpaqueType) -> ^Handle {
     # Build the module.
-    let ty: ^Type = libc.malloc(TYPE_SIZE) as ^Type;
+    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
     ty.handle = handle;
 
     # Wrap in a handle.
@@ -160,7 +160,7 @@ def make_type(handle: ^LLVMOpaqueType) -> ^Handle {
 
 def make_void_type(handle: ^LLVMOpaqueType) -> ^Handle {
     # Build the module.
-    let ty: ^Type = libc.malloc(TYPE_SIZE) as ^Type;
+    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
     ty.handle = handle;
 
     # Wrap in a handle.
@@ -169,7 +169,7 @@ def make_void_type(handle: ^LLVMOpaqueType) -> ^Handle {
 
 def make_float_type(handle: ^LLVMOpaqueType, bits: uint) -> ^Handle {
     # Build the module.
-    let ty: ^FloatType = libc.malloc(FLOAT_TYPE_SIZE) as ^FloatType;
+    let ty: ^FloatType = libc.malloc(FLOAT_TYPE_SIZE as int64) as ^FloatType;
     ty.handle = handle;
     ty.bits = bits;
 
@@ -179,7 +179,7 @@ def make_float_type(handle: ^LLVMOpaqueType, bits: uint) -> ^Handle {
 
 def make_bool_type(handle: ^LLVMOpaqueType) -> ^Handle {
     # Build the module.
-    let ty: ^Type = libc.malloc(TYPE_SIZE) as ^Type;
+    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
     ty.handle = handle;
 
     # Wrap in a handle.
@@ -189,7 +189,7 @@ def make_bool_type(handle: ^LLVMOpaqueType) -> ^Handle {
 def make_int_type(handle: ^LLVMOpaqueType, signed: bool,
                   bits: uint) -> ^Handle {
     # Build the module.
-    let ty: ^IntegerType = libc.malloc(INT_TYPE_SIZE) as ^IntegerType;
+    let ty: ^IntegerType = libc.malloc(INT_TYPE_SIZE as int64) as ^IntegerType;
     ty.handle = handle;
     ty.signed = signed;
     ty.bits = bits;
@@ -251,7 +251,7 @@ let FUNCTION_TYPE_SIZE: uint = ((0 as ^FunctionType) + 1) - (0 as ^FunctionType)
 def make_parameter(name: str, type_: ^Handle,
                    default: ^Handle) -> ^Handle {
     # Build the parameter.
-    let param: ^Parameter = libc.malloc(PARAMETER_SIZE) as ^Parameter;
+    let param: ^Parameter = libc.malloc(PARAMETER_SIZE as int64) as ^Parameter;
     param.name = string.make();
     param.name.extend(name);
     param.type_ = type_;
@@ -266,7 +266,7 @@ def make_function_type(
         return_type: ^Handle,
         parameters: list.List) -> ^Handle {
     # Build the function.
-    let func: ^FunctionType = libc.malloc(FUNCTION_TYPE_SIZE) as ^FunctionType;
+    let func: ^FunctionType = libc.malloc(FUNCTION_TYPE_SIZE as int64) as ^FunctionType;
     func.handle = handle;
     func.return_type = return_type;
     func.parameters = parameters;
@@ -300,7 +300,7 @@ def make_tuple_type(
         handle: ^LLVMOpaqueType,
         elements: list.List) -> ^Handle {
     # Build the tuple.
-    let func: ^TupleType = libc.malloc(TUPLE_TYPE_SIZE) as ^TupleType;
+    let func: ^TupleType = libc.malloc(TUPLE_TYPE_SIZE as int64) as ^TupleType;
     func.handle = handle;
     func.elements = elements;
 
@@ -361,7 +361,7 @@ def make_static_slot(
         type_: ^Handle,
         handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the slot.
-    let slot: ^StaticSlot = libc.malloc(STATIC_SLOT_SIZE) as ^StaticSlot;
+    let slot: ^StaticSlot = libc.malloc(STATIC_SLOT_SIZE as int64) as ^StaticSlot;
     slot.context = context;
     slot.name = string.make();
     slot.name.extend(name);
@@ -397,7 +397,7 @@ def make_local_slot(
         mutable: bool,
         handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the slot.
-    let slot: ^LocalSlot = libc.malloc(LOCAL_SLOT_SIZE) as ^LocalSlot;
+    let slot: ^LocalSlot = libc.malloc(LOCAL_SLOT_SIZE as int64) as ^LocalSlot;
     slot.handle = handle;
     slot.type_ = type_;
     slot.mutable = mutable;
@@ -422,7 +422,7 @@ def make_module(
         name: str,
         &mut namespace: list.List) -> ^Handle {
     # Build the module.
-    let mod: ^Module = libc.malloc(MODULE_SIZE) as ^Module;
+    let mod: ^Module = libc.malloc(MODULE_SIZE as int64) as ^Module;
     mod.name = string.make();
     mod.name.extend(name);
     mod.namespace = namespace.clone();
@@ -449,7 +449,7 @@ let VALUE_SIZE: uint = ((0 as ^Value) + 1) - (0 as ^Value);
 
 def make_value(type_: ^Handle, handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the module.
-    let val: ^Value = libc.malloc(VALUE_SIZE) as ^Value;
+    let val: ^Value = libc.malloc(VALUE_SIZE as int64) as ^Value;
     val.handle = handle;
     val.type_ = type_;
 
@@ -478,7 +478,7 @@ def make_function(
         type_: ^Handle,
         handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the function.
-    let func: ^Function = libc.malloc(FUNCTION_SIZE) as ^Function;
+    let func: ^Function = libc.malloc(FUNCTION_SIZE as int64) as ^Function;
     func.context = context;
     func.handle = handle;
     func.name = string.make();
@@ -598,7 +598,7 @@ def dispose(&self: ^Handle) {
 # Create a handle allocation
 # -----------------------------------------------------------------------------
 def make(tag: int, object: ^void) -> ^Handle {
-    let handle: ^Handle = libc.malloc(HANDLE_SIZE) as ^Handle;
+    let handle: ^Handle = libc.malloc(HANDLE_SIZE as int64) as ^Handle;
     handle._tag = tag;
     handle._object = object;
     handle;

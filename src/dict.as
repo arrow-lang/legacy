@@ -72,10 +72,10 @@ implement Bucket {
         } else {
             # Allocate space for the value in the bucket.
             let size: uint = types.sizeof(tag);
-            self.value = libc.malloc(size);
+            self.value = libc.malloc(size as int64);
 
             # Copy in the value.
-            libc.memcpy(self.value, value, size);
+            libc.memcpy(self.value, value, size as int32);
             0;
         }
     }
@@ -139,7 +139,7 @@ implement Bucket {
             # This is not the bucket; check the next one.
             if self.next == 0 as ^Bucket {
                 # The next bucket doesn't exist; lets make one.
-                self.next = libc.calloc(BUCKET_SIZE, 1) as ^Bucket;
+                self.next = libc.calloc(BUCKET_SIZE as int64, 1) as ^Bucket;
             }
 
             # Continue on the set the bucket.
@@ -517,7 +517,7 @@ def make(size: uint) -> Dictionary {
     let table: Dictionary;
     # FIXME: This is a fixed-size dictionary. Make it double in size
     #        when it hits 60% full or something.
-    table.buckets = libc.calloc(size, BUCKET_SIZE) as ^Bucket;
+    table.buckets = libc.calloc(size as int64, BUCKET_SIZE as int64) as ^Bucket;
     table.capacity = size;
     table.size = 0;
     table;

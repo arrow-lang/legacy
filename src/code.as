@@ -24,6 +24,9 @@ let TAG_BOOL_TYPE: int = 10;
 let TAG_VOID_TYPE: int = 11;
 let TAG_LOCAL_SLOT: int = 12;
 let TAG_TUPLE_TYPE: int = 13;
+let TAG_STRUCT: int = 14;
+let TAG_STRUCT_TYPE: int = 15;
+let TAG_MEMBER: int = 16;
 
 # Scope chain
 # -----------------------------------------------------------------------------
@@ -221,6 +224,9 @@ def typename(handle: ^Handle) -> string.String {
         name.extend("float");
         if      f_ty.bits == 32 { name.extend("32"); }
         else if f_ty.bits == 64 { name.extend("64"); }
+    } else if handle._tag == TAG_STRUCT_TYPE {
+        let s_ty: ^StructType = handle._object as ^StructType;
+        name.extend(s_ty.name.data() as str);
     }
 
     # Return the name.
@@ -238,6 +244,7 @@ type Parameter {
 }
 
 type FunctionType {
+    mut name: string.String,
     handle: ^LLVMOpaqueType,
     return_type: ^mut Handle,
     mut parameters: list.List,
@@ -262,12 +269,15 @@ def make_parameter(name: str, type_: ^Handle,
 }
 
 def make_function_type(
+        name: str,
         handle: ^LLVMOpaqueType,
         return_type: ^Handle,
         parameters: list.List) -> ^Handle {
     # Build the function.
     let func: ^FunctionType = libc.malloc(FUNCTION_TYPE_SIZE as int64) as ^FunctionType;
     func.handle = handle;
+    func.name = string.make();
+    func.name.extend(name);
     func.return_type = return_type;
     func.parameters = parameters;
     func.parameter_map = dict.make(64);
@@ -284,6 +294,50 @@ def make_function_type(
 
     # Wrap in a handle.
     make(TAG_FUNCTION_TYPE, func as ^void);
+}
+
+# Structure type
+# -----------------------------------------------------------------------------
+
+type Member {
+    mut name: string.String,
+    type_: ^mut Handle,
+    default: ^mut Handle
+}
+
+type StructType {
+    handle: ^LLVMOpaqueType,
+    mut name: string.String,
+    mut members: list.List,
+    mut member_map: dict.Dictionary
+}
+
+let MEMBER_SIZE: uint = ((0 as ^Member) + 1) - (0 as ^Member);
+
+let STRUCT_TYPE_SIZE: uint = ((0 as ^StructType) + 1) - (0 as ^StructType);
+
+def make_member(name: str, type_: ^Handle, default: ^Handle) -> ^Handle {
+    # Build the parameter.
+    let mem: ^Member = libc.malloc(MEMBER_SIZE as int64) as ^Member;
+    mem.name = string.make();
+    mem.name.extend(name);
+    mem.type_ = type_;
+    mem.default = default;
+
+    # Wrap in a handle.
+    make(TAG_MEMBER, mem as ^void);
+}
+
+def make_struct_type(name: str, handle: ^LLVMOpaqueType) -> ^Handle {
+    # Build the function.
+    let st: ^StructType = libc.malloc(STRUCT_TYPE_SIZE as int64) as ^StructType;
+    st.handle = handle;
+    st.name = string.make();
+    st.name.extend(name);
+    st.member_map = dict.make(64);
+
+    # Wrap in a handle.
+    make(TAG_STRUCT_TYPE, st as ^void);
 }
 
 # Tuple type
@@ -316,6 +370,7 @@ def is_type(handle: ^Handle) -> bool {
     handle._tag == TAG_FUNCTION_TYPE or
     handle._tag == TAG_INT_TYPE or
     handle._tag == TAG_TUPLE_TYPE or
+    handle._tag == TAG_STRUCT_TYPE or
     handle._tag == TAG_FLOAT_TYPE;
 }
 
@@ -334,6 +389,9 @@ def type_of(handle: ^Handle) -> ^Handle {
     } else if handle._tag == TAG_PARAMETER {
         let val: ^Parameter = handle._object as ^Parameter;
         val.type_;
+    } else if handle._tag == TAG_STRUCT {
+        let val: ^Struct = handle._object as ^Struct;
+        val.type_;
     } else {
         make_nil();
     }
@@ -348,6 +406,7 @@ type StaticSlot {
     context: ^ast.StaticSlotDecl,
     mut name: string.String,
     mut namespace: list.List,
+    mut qualified_name: string.String,
     type_: ^Handle,
     handle: ^LLVMOpaqueValue
 }
@@ -366,6 +425,9 @@ def make_static_slot(
     slot.name = string.make();
     slot.name.extend(name);
     slot.namespace = namespace.clone();
+    slot.qualified_name = string.join(".", slot.namespace);
+    slot.qualified_name.append(".");
+    slot.qualified_name.extend(name);
     slot.handle = handle;
     slot.type_ = type_;
 
@@ -406,6 +468,54 @@ def make_local_slot(
     make(TAG_LOCAL_SLOT, slot as ^void);
 }
 
+# Structure
+# -----------------------------------------------------------------------------
+
+type Struct {
+    context: ^ast.Struct,
+    mut name: string.String,
+    mut namespace: list.List,
+    mut qualified_name: string.String,
+    type_: ^Handle,
+    handle: ^LLVMOpaqueValue
+}
+
+let STRUCT_SIZE: uint = ((0 as ^Struct) + 1) - (0 as ^Struct);
+
+def make_struct(
+        context: ^ast.Struct,
+        name: str,
+        &mut namespace: list.List,
+        type_: ^Handle,
+        handle: ^LLVMOpaqueValue) -> ^Handle {
+    # Build the item.
+    let item: ^Struct = libc.malloc(STRUCT_SIZE as int64) as ^Struct;
+    item.context = context;
+    item.name = string.make();
+    item.name.extend(name);
+    item.namespace = namespace.clone();
+    item.qualified_name = string.join(".", item.namespace);
+    item.qualified_name.append(".");
+    item.qualified_name.extend(name);
+    item.handle = handle;
+    item.type_ = type_;
+
+    # Wrap in a handle.
+    make(TAG_STRUCT, item as ^void);
+}
+
+
+implement Struct {
+
+    # Dispose the item and its resources.
+    # -------------------------------------------------------------------------
+    def dispose(&mut self) {
+        self.name.dispose();
+        self.namespace.dispose();
+    }
+
+}
+
 # Module
 # -----------------------------------------------------------------------------
 # A module just keeps its name with it. Its purpose in the scope is
@@ -413,7 +523,8 @@ def make_local_slot(
 
 type Module {
     mut name: string.String,
-    mut namespace: list.List
+    mut namespace: list.List,
+    mut qualified_name: string.String
 }
 
 let MODULE_SIZE: uint = ((0 as ^Module) + 1) - (0 as ^Module);
@@ -426,6 +537,9 @@ def make_module(
     mod.name = string.make();
     mod.name.extend(name);
     mod.namespace = namespace.clone();
+    mod.qualified_name = string.join(".", mod.namespace);
+    mod.qualified_name.append(".");
+    mod.qualified_name.extend(name);
 
     # Wrap in a handle.
     make(TAG_MODULE, mod as ^void);
@@ -465,6 +579,7 @@ type Function {
     handle: ^LLVMOpaqueValue,
     mut namespace: list.List,
     mut name: string.String,
+    mut qualified_name: string.String,
     mut type_: ^mut Handle,
     mut scope: Scope
 }
@@ -484,6 +599,9 @@ def make_function(
     func.name = string.make();
     func.name.extend(name);
     func.namespace = namespace.clone();
+    func.qualified_name = string.join(".", func.namespace);
+    func.qualified_name.append(".");
+    func.qualified_name.extend(name);
     func.type_ = type_;
     func.scope = make_scope();
 
@@ -581,6 +699,9 @@ def dispose(&self: ^Handle) {
         (fn^).dispose();
     } else if self._tag == TAG_PARAMETER {
         let p: ^mut Parameter = (self._object as ^Parameter);
+        (p^).dispose();
+    } else if self._tag == TAG_STRUCT {
+        let p: ^mut Struct = (self._object as ^Struct);
         (p^).dispose();
     }
 

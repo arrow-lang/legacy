@@ -1,6 +1,6 @@
 def test_bool() {
     assert(true == true);
-    assert(false <> true);
+    assert(false != true);
     assert(not true == false);
 
     assert(not true < false);
@@ -27,7 +27,7 @@ def test_bool() {
 
 def test_int() {
     assert(12 == 12);
-    assert(12 <> 40);
+    assert(12 != 40);
     assert(not 12 == 40);
 
     assert(12 < 40);

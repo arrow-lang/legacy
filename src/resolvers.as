@@ -23,8 +23,9 @@ def _type_of(g: ^mut generator_.Generator, item: ^code.Handle)
         if item._tag == code.TAG_STATIC_SLOT
         {
             # This is a static slot; get its type.
+            let slot: ^code.StaticSlot = item._object as ^code.StaticSlot;
             generator_type.generate_static_slot(
-                g^, item._object as ^code.StaticSlot);
+                g^, slot.qualified_name.data() as str, slot);
         }
         else if item._tag == code.TAG_LOCAL_SLOT
         {
@@ -35,13 +36,22 @@ def _type_of(g: ^mut generator_.Generator, item: ^code.Handle)
         else if item._tag == code.TAG_FUNCTION
         {
             # This is a static slot; get its type.
+            let fn: ^code.Function = item._object as ^code.Function;
             generator_type.generate_function(
-                g^, item._object as ^code.Function);
+                g^, fn.qualified_name.data() as str,
+                item._object as ^code.Function);
         }
         else if item._tag == code.TAG_MODULE
         {
             # This is a module; deal with it.
             item;
+        }
+        else if item._tag == code.TAG_STRUCT
+        {
+            # This is a struct; get its type.
+            let st: ^code.Struct = item._object as ^code.Struct;
+            generator_type.generate_struct(
+                g^, st.qualified_name.data() as str, st);
         }
         else
         {
@@ -333,6 +343,8 @@ def ident(g: ^mut generator_.Generator, node: ^ast.Node,
     let item: ^code.Handle = generator_util.get_scoped_item_in(
         g^, id.name.data() as str, scope, g.ns);
 
+
+
     # Bail if we weren't able to resolve this identifier.
     if code.isnil(item) {
         errors.begin_error();
@@ -485,15 +497,29 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
     let expr: ^code.Handle = resolver.resolve(g, &x.expression);
     if code.isnil(expr) { return code.make_nil(); }
 
-    # Ensure that we are dealing strictly with a function type.
-    if expr._tag <> code.TAG_FUNCTION_TYPE {
+    # Check what we are dealing with.
+    if expr._tag == code.TAG_FUNCTION_TYPE
+    {
+        # Get it as a function type.
+        let ty: ^code.FunctionType = expr._object as ^code.FunctionType;
+
+        # Return the already resolved return type.
+        ty.return_type;
+    }
+    else if expr._tag == code.TAG_STRUCT_TYPE
+    {
+        # Return ourself as invoking a structure returns a new one of us.
+        expr;
+    }
+    else
+    {
         # Get formal type name.
         let mut name: string.String = code.typename(expr);
 
         # Report error.
         errors.begin_error();
         errors.fprintf(errors.stderr,
-                       "type '%s' is not a function" as ^int8,
+                       "type '%s' is not callable" as ^int8,
                        name.data());
         errors.end();
 
@@ -501,14 +527,8 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
         name.dispose();
 
         # Return nil.
-        return code.make_nil();
+        code.make_nil();
     }
-
-    # Get it as a function type.
-    let ty: ^code.FunctionType = expr._object as ^code.FunctionType;
-
-    # Return the already resolve return type.
-    ty.return_type;
 }
 
 # Relational [TAG_EQ, TAG_NE, TAG_LT, TAG_LE, TAG_GT, TAG_GE]

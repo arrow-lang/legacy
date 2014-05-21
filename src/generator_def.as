@@ -42,13 +42,13 @@ def generate(&mut g: generator_.Generator) {
             # Do nothing; these do not need definitions.
             continue;
         }
-        else
-        {
-            errors.begin_error();
-            errors.fprintf(errors.stderr, "not implemented: generator_def.generate(%d)" as ^int8, val._tag);
-            errors.end();
-            code.make_nil();
-        }
+        # else
+        # {
+        #     errors.begin_error();
+        #     errors.fprintf(errors.stderr, "not implemented: generator_def.generate(%d)" as ^int8, val._tag);
+        #     errors.end();
+        #     code.make_nil();
+        # }
     }
 }
 
@@ -223,130 +223,6 @@ def generate_function(&mut g: generator_.Generator, qname: str,
     # Reset to the old insert block.
     llvm.LLVMPositionBuilderAtEnd(g.irb, cur_block);
 }
-
-# def _gen_def_function(&mut self, qname: str, x: ^code.Function)
-#         -> ^code.Handle {
-
-#     # Has this function been generated?
-#     if llvm.LLVMCountBasicBlocks(x.handle) > 0 {
-#         # Yes; skip.
-#         return code.make_nil();
-#     }
-
-#     # Create a basic block for the function definition.
-#     let entry: ^llvm.LLVMOpaqueBasicBlock;
-#     entry = llvm.LLVMAppendBasicBlock(x.handle, "" as ^int8);
-
-#     # Remember the insert block.
-#     let cur_block: ^llvm.LLVMOpaqueBasicBlock;
-#     cur_block = llvm.LLVMGetInsertBlock(self.irb);
-
-#     # Set the insertion point.
-#     llvm.LLVMPositionBuilderAtEnd(self.irb, entry);
-
-#     # Pull out the type node.
-#     let type_: ^code.FunctionType = x.type_._object as ^code.FunctionType;
-
-#     # Allocate the parameter nodes into the local scope.
-#     let mut i: int = 0;
-#     while i as uint < type_.parameters.size {
-#         # Get the parameter node.
-#         let prm_han: ^code.Handle =
-#             type_.parameters.at_ptr(i) as ^code.Handle;
-#         let prm: ^code.Parameter = prm_han._object as ^code.Parameter;
-
-#         # Get the type handle.
-#         let prm_type: ^code.Type = prm.type_._object as ^code.Type;
-
-#         # Allocate this param.
-#         let val: ^llvm.LLVMOpaqueValue;
-#         val = llvm.LLVMBuildAlloca(self.irb, prm_type.handle, prm.name.data());
-
-#         # Get the parameter handle.
-#         let prm_val: ^llvm.LLVMOpaqueValue;
-#         prm_val = llvm.LLVMGetParam(x.handle, i as uint32);
-
-#         # Store the parameter in the allocation.
-#         llvm.LLVMBuildStore(self.irb, prm_val, val);
-
-#         # Insert into the local scope.
-#         x.scope.insert(prm.name.data() as str, code.make_local_slot(
-#             prm.type_, val));
-
-#         # Continue.
-#         i = i + 1;
-#     }
-
-#     # Pull out the nodes that correspond to this function.
-#     let nodes: ^ast.Nodes = self.nodes.get_ptr(qname) as ^ast.Nodes;
-
-#     # Create a namespace for the function definition.
-#     let mut ns: list.List = x.namespace.clone();
-#     ns.push_str(x.name.data() as str);
-
-#     # Get the ret type target
-#     let ret_type_target: ^code.Handle = type_.return_type;
-#     if ret_type_target._tag == code.TAG_VOID_TYPE {
-#         ret_type_target = code.make_nil();
-#     }
-
-#     # Iterate over the nodes in the function.
-#     let mut i: int = 0;
-#     let mut res: ^code.Handle = code.make_nil();
-#     while i as uint < (nodes^).size() {
-#         let node: ast.Node = (nodes^).get(i);
-#         i = i + 1;
-
-#         # Resolve the type of the node.
-#         let cur_count: uint = errors.count;
-#         let target: ^code.Handle = resolve_type_in(
-#             &self, &node, ret_type_target, &x.scope, &ns);
-#         if cur_count < errors.count { continue; }
-
-#         # Build the node.
-#         let han: ^code.Handle = build_in(
-#             &self, target, &x.scope, &node, &ns);
-
-#         # Set the last handle as our value.
-#         if i as uint >= (nodes^).size() {
-#             res = han;
-#         }
-#     }
-
-#     # Has the function been terminated?
-#     let last_block: ^llvm.LLVMOpaqueBasicBlock =
-#         llvm.LLVMGetLastBasicBlock(x.handle);
-#     let last_terminator: ^llvm.LLVMOpaqueValue =
-#         llvm.LLVMGetBasicBlockTerminator(last_block);
-#     if last_terminator == 0 as ^llvm.LLVMOpaqueValue {
-#         # Not terminated; we need to close the function.
-#         if code.isnil(res) {
-#             llvm.LLVMBuildRetVoid(self.irb);
-#         } else {
-#             if type_.return_type._tag == code.TAG_VOID_TYPE {
-#                 llvm.LLVMBuildRetVoid(self.irb);
-#             } else {
-#                 let val_han: ^code.Handle = self._to_value(res, false);
-#                 let typ: ^code.Handle = code.type_of(val_han) as ^code.Handle;
-#                 if typ._tag == code.TAG_VOID_TYPE {
-#                     llvm.LLVMBuildRetVoid(self.irb);
-#                 } else {
-#                     let val: ^code.Value = val_han._object as ^code.Value;
-#                     llvm.LLVMBuildRet(self.irb, val.handle);
-#                 }
-#             }
-#         }
-#     }
-
-#     # Dispose.
-#     ns.dispose();
-
-#     # Reset to the old insert block.
-#     llvm.LLVMPositionBuilderAtEnd(self.irb, cur_block);
-
-#     # FIXME: Function defs always resolve to the address of the function.
-#     code.make_nil();
-# }
 
 # Internal
 # =============================================================================

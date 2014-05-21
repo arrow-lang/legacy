@@ -148,7 +148,20 @@ def extract_static_slot(&mut g: generator_.Generator, x: ^ast.StaticSlotDecl)
 # -----------------------------------------------------------------------------
 def extract_struct(&mut g: generator_.Generator, x: ^ast.Struct)
 {
-    errors.begin_error();
-    errors.fprintf(errors.stderr, "not implemented: extract_struct" as ^int8);
-    errors.end();
+    # Build the qualified name for this item.
+    let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+    let mut qname: string.String = generator_util.qualify_name(
+        g, id.name.data() as str);
+
+    # Create a solid handle for the item (ignoring the type for now).
+    let han: ^code.Handle = code.make_struct(
+        x, id.name.data() as str, g.ns,
+        code.make_nil(),
+        0 as ^llvm.LLVMOpaqueValue);
+
+    # Set us as an `item`.
+    g.items.set_ptr(qname.data() as str, han as ^void);
+
+    # Dispose of dynamic memory.
+    qname.dispose();
 }

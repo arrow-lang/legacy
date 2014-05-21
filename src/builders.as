@@ -161,25 +161,11 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
 
 # Call [TAG_CALL]
 # -----------------------------------------------------------------------------
-def call(g: ^mut generator_.Generator, node: ^ast.Node,
-         scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
+                  scope: ^mut code.Scope,
+                  x: ^code.Function,
+                  type_: ^code.FunctionType) -> ^code.Handle
 {
-    # Unwrap the node to its proper type.
-    let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
-
-    # Build the called expression.
-    let expr: ^code.Handle = builder.build(g, &x.expression, scope, target);
-    if code.isnil(expr) { return code.make_nil(); }
-
-    # Pull out the function handle and its type.
-    let fn: ^llvm.LLVMOpaqueValue;
-    let type_: ^code.FunctionType;
-    if expr._tag == code.TAG_FUNCTION {
-        let fn_han: ^code.Function = expr._object as ^code.Function;
-        type_ = fn_han.type_._object as ^code.FunctionType;
-        fn = fn_han.handle;
-    }
-
     # First we create and zero a list to hold the entire argument list.
     let mut argl: list.List = list.make(types.PTR);
     argl.reserve(type_.parameters.size);
@@ -191,10 +177,10 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
     # Iterate through each argument, build, and push them into
     # their appropriate position in the argument list.
     let mut i: int = 0;
-    while i as uint < x.arguments.size()
+    while i as uint < node.arguments.size()
     {
         # Get the specific argument.
-        let anode: ast.Node = x.arguments.get(i);
+        let anode: ast.Node = node.arguments.get(i);
         i = i + 1;
         let a: ^ast.Argument = anode.unwrap() as ^ast.Argument;
 
@@ -291,7 +277,7 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
     # Build the `call` instruction.
     let val: ^llvm.LLVMOpaqueValue;
     val = llvm.LLVMBuildCall(
-        g.irb, fn, argv, argl.size as uint32, "" as ^int8);
+        g.irb, x.handle, argv, argl.size as uint32, "" as ^int8);
 
     # Dispose of dynamic memory.
     argl.dispose();
@@ -303,6 +289,167 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
         # Wrap and return the value.
         code.make_value(type_.return_type, val);
     }
+}
+
+def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
+                      scope: ^mut code.Scope,
+                      x: ^code.Struct,
+                      type_: ^code.StructType) -> ^code.Handle
+{
+    # We need to create a constant value of our structure type.
+
+    # First we create and zero a list to hold the entire argument list.
+    let mut argl: list.List = list.make(types.PTR);
+    argl.reserve(type_.members.size);
+    argl.size = type_.members.size;
+    libc.memset(argl.elements as ^void, 0, (argl.size * argl.element_size) as int32);
+    let argv: ^mut ^llvm.LLVMOpaqueValue =
+        argl.elements as ^^llvm.LLVMOpaqueValue;
+
+    # Iterate through each argument, build, and push them into
+    # their appropriate position in the argument list.
+    let mut i: int = 0;
+    while i as uint < node.arguments.size()
+    {
+        # Get the specific argument.
+        let anode: ast.Node = node.arguments.get(i);
+        i = i + 1;
+        let a: ^ast.Argument = anode.unwrap() as ^ast.Argument;
+
+        # Find the parameter index.
+        # NOTE: The parser handles making sure no positional arg
+        #   comes after a keyword arg.
+        let mut param_idx: uint = 0;
+        if ast.isnull(a.name)
+        {
+            # An unnamed argument just corresponds to the sequence.
+            param_idx = i as uint - 1;
+        }
+        else
+        {
+            # Get the name data for the id.
+            let id: ^ast.Ident = a.name.unwrap() as ^ast.Ident;
+
+            # Check for the existance of this argument.
+            if not type_.member_map.contains(id.name.data() as str)
+            {
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "unexpected keyword argument '%s'" as ^int8,
+                               id.name.data());
+                errors.end();
+                return code.make_nil();
+            }
+
+            # Check if we already have one of these.
+            if (argv + param_idx)^ <> 0 as ^llvm.LLVMOpaqueValue {
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "got multiple values for argument '%s'" as ^int8,
+                               id.name.data());
+                errors.end();
+                return code.make_nil();
+            }
+
+            # Pull the named argument index.
+            param_idx = type_.member_map.get_uint(id.name.data() as str);
+        }
+
+        # Resolve the type of the argument expression.
+        let typ: ^code.Handle = resolver.resolve_st(
+            g, &a.expression, scope,
+            code.type_of(type_.members.at_ptr(param_idx as int) as ^code.Handle));
+        if code.isnil(typ) { return code.make_nil(); }
+
+        # Build the argument expression node.
+        let han: ^code.Handle = builder.build(g, &a.expression, scope, typ);
+        if code.isnil(han) { return code.make_nil(); }
+
+        # Coerce this to a value.
+        let val_han: ^code.Handle = generator_def.to_value(g^, han, false);
+
+        # Cast the value to the target type.
+        let cast_han: ^code.Handle = generator_util.cast(g^, val_han, typ);
+        let cast_val: ^code.Value = cast_han._object as ^code.Value;
+
+        # Emplace in the argument list.
+        (argv + param_idx)^ = cast_val.handle;
+
+        # Dispose.
+        code.dispose(val_han);
+        code.dispose(cast_han);
+    }
+
+    # Check for missing arguments.
+    i = 0;
+    let mut error: bool = false;
+    while i as uint < argl.size {
+        let arg: ^llvm.LLVMOpaqueValue = (argv + i)^;
+        if arg == 0 as ^llvm.LLVMOpaqueValue
+        {
+            # Get formal name
+            let prm_han: ^code.Handle =
+                type_.members.at_ptr(i) as ^code.Handle;
+            let prm: ^code.Member =
+                prm_han._object as ^code.Member;
+
+            # Report
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "missing required parameter '%s'" as ^int8,
+                           prm.name.data());
+            errors.end();
+            error = true;
+        }
+
+        i = i + 1;
+    }
+    if error { return code.make_nil(); }
+
+    # Build the "call" instruction (and create the constant struct).
+    let val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMConstNamedStruct(type_.handle, argv, argl.size as uint32);
+
+    # let val: ^llvm.LLVMOpaqueValue;
+    # val = llvm.LLVMBuildCall(
+    #     g.irb, x.handle, argv, argl.size as uint32, "" as ^int8);
+
+    # Dispose of dynamic memory.
+    argl.dispose();
+
+    # Wrap and return the value.
+    code.make_value(x.type_, val);
+}
+
+def call(g: ^mut generator_.Generator, node: ^ast.Node,
+         scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
+
+    # Build the called expression.
+    let expr: ^code.Handle = builder.build(
+        g, &x.expression, scope, code.make_nil());
+    if code.isnil(expr) { return code.make_nil(); }
+
+    # Pull out the handle and its type.
+    if expr._tag == code.TAG_FUNCTION
+    {
+        let type_: ^code.FunctionType;
+        let fn_han: ^code.Function = expr._object as ^code.Function;
+        type_ = fn_han.type_._object as ^code.FunctionType;
+        return call_function(g, x, scope, fn_han, type_);
+    }
+    else if expr._tag == code.TAG_STRUCT
+    {
+        let type_: ^code.StructType;
+        let han: ^code.Struct = expr._object as ^code.Struct;
+        type_ = han.type_._object as ^code.StructType;
+        return call_default_ctor(g, x, scope, han, type_);
+    }
+
+    # No idea how to handle this (shouldn't be able to get here).
+    code.make_nil();
 }
 
 # Binary arithmetic

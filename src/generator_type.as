@@ -27,30 +27,32 @@ def generate(&mut g: generator_.Generator)
         # Does this item need its `type` resolved?
         if     val._tag == code.TAG_STATIC_SLOT
             or val._tag == code.TAG_FUNCTION
+            or val._tag == code.TAG_STRUCT
         {
-            generate_handle(g, val);
+            generate_handle(g, key, val);
         }
     }
 }
 
 # Generate the `type` for the passed code handle.
 # -----------------------------------------------------------------------------
-def generate_handle(&mut g: generator_.Generator, handle: ^code.Handle)
+def generate_handle(&mut g: generator_.Generator, qname: str,
+                    handle: ^code.Handle)
     -> ^code.Handle
 {
     # Resolve the type based on the tag of handle.
     if handle._tag == code.TAG_STATIC_SLOT
     {
-        generate_static_slot(g, handle._object as ^code.StaticSlot);
+        generate_static_slot(g, qname, handle._object as ^code.StaticSlot);
     }
     else if handle._tag == code.TAG_FUNCTION
     {
-        generate_function(g, handle._object as ^code.Function);
+        generate_function(g, qname, handle._object as ^code.Function);
     }
-    # else if handle._tag == code.TAG_STRUCT
-    # {
-    #     generate_struct(g, handle._object as ^code.Struct);
-    # }
+    else if handle._tag == code.TAG_STRUCT
+    {
+        generate_struct(g, qname, handle._object as ^code.Struct);
+    }
     # else if handle._tag == code.TAG_STRUCT_MEM
     # {
     #     generate_struct_mem(g, handle._object as ^code.StructMem);
@@ -66,7 +68,8 @@ def generate_handle(&mut g: generator_.Generator, handle: ^code.Handle)
 
 # Generate the type for the `static slot`.
 # -----------------------------------------------------------------------------
-def generate_static_slot(&mut g: generator_.Generator, x: ^code.StaticSlot)
+def generate_static_slot(&mut g: generator_.Generator,
+                         qname: str, x: ^code.StaticSlot)
     -> ^code.Handle
 {
     # Return our type if it is resolved.
@@ -110,7 +113,8 @@ def generate_static_slot(&mut g: generator_.Generator, x: ^code.StaticSlot)
 
 # Generate the type for the `function`.
 # -----------------------------------------------------------------------------
-def generate_function(&mut g: generator_.Generator, x: ^code.Function)
+def generate_function(&mut g: generator_.Generator,
+                      qname: str, x: ^code.Function)
     -> ^code.Handle
 {
     # Return our type if it is resolved.
@@ -192,11 +196,36 @@ def generate_function(&mut g: generator_.Generator, x: ^code.Function)
 
     # Create and store our type.
     let han: ^code.Handle;
-    han = code.make_function_type(val, ret_han, params);
+    han = code.make_function_type(qname, val, ret_han, params);
     x.type_ = han;
 
     # Dispose of dynamic memory.
     param_type_handles.dispose();
+
+    # Return the type handle.
+    han;
+}
+
+# Generate the type for the `struct`.
+# -----------------------------------------------------------------------------
+def generate_struct(&mut g: generator_.Generator, qname: str, x: ^code.Struct)
+    -> ^code.Handle
+{
+    # Return our type if it is resolved.
+    if not code.isnil(x.type_) { return x.type_; }
+
+    # Return nil if we have been poisioned from a previous failure.
+    if code.ispoison(x.type_) { return code.make_nil(); }
+
+    # Build the `opaque` type handle.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMStructCreateNamed(
+        llvm.LLVMGetGlobalContext(), qname as ^int8);
+
+    # Create and store our type.
+    let han: ^code.Handle;
+    han = code.make_struct_type(qname, val);
+    x.type_ = han;
 
     # Return the type handle.
     han;

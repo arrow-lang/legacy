@@ -196,7 +196,8 @@ def generate_function(&mut g: generator_.Generator,
 
     # Create and store our type.
     let han: ^code.Handle;
-    han = code.make_function_type(qname, val, ret_han, params);
+    han = code.make_function_type(
+        qname, x.namespace, x.name.data() as str, val, ret_han, params);
     x.type_ = han;
 
     # Dispose of dynamic memory.

@@ -95,7 +95,8 @@ def declare_assert(&mut g: generator_.Generator) {
 
     # Create a `solid` handle to the function type.
     let type_: ^code.Handle = code.make_function_type(
-        "", type_obj, code.make_void_type(llvm.LLVMVoidType()),
+        "", list.make(types.STR), "", type_obj,
+        code.make_void_type(llvm.LLVMVoidType()),
         params);
 
     # Build the LLVM function declaration.

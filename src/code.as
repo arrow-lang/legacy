@@ -252,6 +252,8 @@ type Parameter {
 
 type FunctionType {
     mut name: string.String,
+    mut unqualified_name: string.String,
+    mut namespace: list.List,
     handle: ^LLVMOpaqueType,
     return_type: ^mut Handle,
     mut parameters: list.List,
@@ -277,6 +279,8 @@ def make_parameter(name: str, type_: ^Handle,
 
 def make_function_type(
         name: str,
+        mut namespace: list.List,
+        mut unqualified_name: str,
         handle: ^LLVMOpaqueType,
         return_type: ^Handle,
         parameters: list.List) -> ^Handle {
@@ -284,7 +288,10 @@ def make_function_type(
     let func: ^FunctionType = libc.malloc(FUNCTION_TYPE_SIZE as int64) as ^FunctionType;
     func.handle = handle;
     func.name = string.make();
+    func.namespace = namespace.clone();
     func.name.extend(name);
+    func.unqualified_name = string.make();
+    func.unqualified_name.extend(unqualified_name);
     func.return_type = return_type;
     func.parameters = parameters;
     func.parameter_map = dict.make(64);

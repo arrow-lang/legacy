@@ -447,6 +447,30 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
 
             # Dispose.
             ns.dispose();
+        } else if lhs._tag == code.TAG_FUNCTION_TYPE {
+            let fn: ^code.FunctionType = lhs._object as ^code.FunctionType;
+
+            # Build the namespace.
+            let mut ns: list.List = fn.namespace.clone();
+            ns.push_str(fn.unqualified_name.data() as str);
+
+            # Attempt to resolve the member.
+            item = generator_util.get_scoped_item_in(
+                g^, rhs_id.name.data() as str, scope, ns);
+
+            # Do we have this item?
+            if item == 0 as ^code.Handle {
+                # No; report and bail.
+                 errors.begin_error();
+                 errors.fprintf(errors.stderr,
+                                "function '%s' has no member '%s'" as ^int8,
+                                fn.name.data(), rhs_id.name.data());
+                 errors.end();
+                 return code.make_nil();
+            }
+
+            # Dispose.
+            ns.dispose();
         } else if lhs._tag == code.TAG_STRUCT_TYPE {
             let struct_: ^code.StructType = lhs._object as ^code.StructType;
 

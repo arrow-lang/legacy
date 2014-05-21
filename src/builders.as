@@ -205,6 +205,21 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
             # Dispose.
             ns.dispose();
         }
+        else if lhs._tag == code.TAG_FUNCTION
+        {
+            let fn: ^code.Function = lhs._object as ^code.Function;
+
+            # Extend our namespace.
+            let mut ns: list.List = fn.namespace.clone();
+            ns.push_str(fn.name.data() as str);
+
+            # Attempt to resolve the member.
+            item = generator_util.get_scoped_item_in(
+                g^, rhs_id.name.data() as str, scope, ns);
+
+            # Dispose.
+            ns.dispose();
+        }
         else if    lhs._tag == code.TAG_VALUE
                 or lhs._tag == code.TAG_LOCAL_SLOT
         {

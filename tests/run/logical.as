@@ -28,7 +28,7 @@ def test_bool() {
 def test_int() {
     assert(12 == 12);
     assert(12 != 40);
-    assert(not 12 == 40);
+    assert(not (12 == 40));
 
     assert(12 < 40);
     assert(40 > 12);
@@ -38,7 +38,7 @@ def test_int() {
     assert(12 <= 32);
 
     assert(50 > 20 or 30 < 20);
-    assert(not 40 == 30 and 30 > 20);
+    assert(not (40 == 30) and 30 > 20);
 }
 
 def main() {

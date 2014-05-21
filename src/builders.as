@@ -1092,7 +1092,7 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
     let lhs: ^code.Handle = builder.build(g, &x.lhs, scope, target);
     if code.isnil(lhs) { return code.make_nil(); }
     let lhs_val_han: ^code.Handle = generator_def.to_value(
-        g^, lhs, code.VC_RVALUE, false);
+        g^, lhs, 0, false);
     if code.isnil(lhs_val_han) { return code.make_nil(); }
     let lhs_han: ^code.Handle = generator_util.cast(g^, lhs_val_han, target);
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1107,7 +1107,9 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
     let rhs: ^code.Handle = builder.build(g, &x.rhs, scope ,target);
     if code.isnil(rhs) { return code.make_nil(); }
     let rhs_val_han: ^code.Handle = generator_def.to_value(
-        g^, rhs, code.VC_RVALUE, false);
+        g^, rhs,
+        code.VC_RVALUE if lhs_val.category == code.VC_RVALUE else 0,
+        false);
     if code.isnil(rhs_val_han) { return code.make_nil(); }
     let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, target);
     let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
@@ -1120,14 +1122,18 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Create a `PHI` node.
     let type_han: ^code.Type = target._object as ^code.Type;
+    let type_val: ^llvm.LLVMOpaqueType = type_han.handle;
+    if rhs_val.category == code.VC_LVALUE {
+        type_val = llvm.LLVMTypeOf(rhs_val.handle);
+    }
     let val: ^llvm.LLVMOpaqueValue;
-    val = llvm.LLVMBuildPhi(g.irb, type_han.handle, "" as ^int8);
+    val = llvm.LLVMBuildPhi(g.irb, type_val, "" as ^int8);
     llvm.LLVMAddIncoming(val, &lhs_val.handle, &then_b, 1);
     llvm.LLVMAddIncoming(val, &rhs_val.handle, &else_b, 1);
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(target, code.VC_RVALUE, val);
+    han = code.make_value(target, rhs_val.category, val);
 
     # Dispose.
     code.dispose(lhs_val_han);

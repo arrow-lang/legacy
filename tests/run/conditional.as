@@ -1,4 +1,4 @@
-def question(condition: bool) -> int {
+def question(condition: bool): int {
     # Decide which value to return from this function.
     10 if condition else 20;
 }

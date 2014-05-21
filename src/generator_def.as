@@ -283,10 +283,10 @@ def to_value(&mut g: generator_.Generator,
     else if handle._tag == code.TAG_VALUE
     {
         let val: ^code.Value = handle._object as ^code.Value;
-        if category == val.category
+        if category == 0 or category == val.category
         {
             # Clone the value object.
-            code.make_value(val.type_, category, val.handle);
+            code.make_value(val.type_, val.category, val.handle);
         }
         else if category == code.VC_RVALUE
         {

@@ -1,9 +1,6 @@
+static a: int;
 def main() {
-    if true {
-        assert(1 == 1);
-    } else {
-        assert(4 == 4);
-    };
-
-    # assert(x == 1);
+    static a: bool = true;
+    assert(a);
+    assert(global.a == 0);
 }

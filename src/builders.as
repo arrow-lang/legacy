@@ -159,6 +159,57 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
     han;
 }
 
+# Member [TAG_MEMBER]
+# -----------------------------------------------------------------------------
+def member(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Get the name out of the rhs.
+    let rhs_id: ^ast.Ident = x.rhs.unwrap() as ^ast.Ident;
+
+    # Check if this is a special member resolution (`global.`)
+    let mut item: ^code.Handle;
+    if x.lhs.tag == ast.TAG_GLOBAL {
+        # Build the namespace.
+        let mut ns: list.List = list.make(types.STR);
+        ns.push_str(g.top_ns.data() as str);
+
+        # Attempt to resolve the member.
+        item = generator_util.get_scoped_item_in(
+            g^, rhs_id.name.data() as str, scope, ns);
+
+        # Dispose.
+        ns.dispose();
+    } else {
+        # Build the operand.
+        let lhs: ^code.Handle = builder.build(
+            g, &x.lhs, scope, code.make_nil());
+        if code.isnil(lhs) { return code.make_nil(); }
+
+        # Attempt to get an `item` out of the LHS.
+        if lhs._tag == code.TAG_MODULE {
+            let mod: ^code.Module = lhs._object as ^code.Module;
+
+            # Extend our namespace.
+            let mut ns: list.List = mod.namespace.clone();
+            ns.push_str(mod.name.data() as str);
+
+            # Attempt to resolve the member.
+            item = generator_util.get_scoped_item_in(
+                g^, rhs_id.name.data() as str, scope, ns);
+
+            # Dispose.
+            ns.dispose();
+        }
+    }
+
+    # Return our item.
+    item;
+}
+
 # Call [TAG_CALL]
 # -----------------------------------------------------------------------------
 def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
@@ -648,7 +699,7 @@ def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
 }
 
 # Binary Arithmetic [TAG_ADD, TAG_SUBTRACT, TAG_MULTIPLY,
-#                    TAG_DIVIDE, TAG_MODULO]
+#                    TAG_DIVIDE, TAG_MODULO, TAG_BITAND, TAG_BITOR, TAG_BITXOR]
 # -----------------------------------------------------------------------------
 def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
                  scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle

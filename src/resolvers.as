@@ -377,113 +377,86 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
     lhs;
 }
 
-# # Member [TAG_MEMBER]
-# # -----------------------------------------------------------------------------
-# def member(g: ^mut generator_.Generator, node: ^ast.Node,
-#            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
-# {
-#     # Unwrap the node to its proper type.
-#     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+# Member [TAG_MEMBER]
+# -----------------------------------------------------------------------------
+def member(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
-#     # Get the name out of the rhs.
-#     let rhs_id: ^ast.Ident = x.rhs.unwrap() as ^ast.Ident;
+    # Get the name out of the rhs.
+    let rhs_id: ^ast.Ident = x.rhs.unwrap() as ^ast.Ident;
 
-#     # Resolve the item reference in question.
-#     let mut item: ^code.Handle;
+    # Resolve the item reference in question.
+    let mut item: ^code.Handle;
 
-#     # Check if this is a global-qualified reference (`global.`).
-#     if x.lhs.tag == ast.TAG_GLOBAL
-#     {
-#         # Build the top-level namespace.
-#         let mut ns: list.List = list.make(types.STR);
-#         ns.push_str(g.top_ns.data() as str);
+    # Check if this is a global-qualified reference (`global.`).
+    if x.lhs.tag == ast.TAG_GLOBAL
+    {
+        # Build the top-level namespace.
+        let mut ns: list.List = list.make(types.STR);
+        ns.push_str(g.top_ns.data() as str);
 
-#         # Attempt to resolve the member.
-#         item = generator_util.get_scoped_item_in(
-#             g^, rhs_id.name.data() as str, scope, ns);
+        # Attempt to resolve the member.
+        item = generator_util.get_scoped_item_in(
+            g^, rhs_id.name.data() as str, scope, ns);
 
-#         # Dispose.
-#         ns.dispose();
+        # Dispose.
+        ns.dispose();
 
-#         # Ensure we have a valid item.
-#         if code.isnil(item)
-#         {
-#              errors.begin_error();
-#              errors.fprintf(errors.stderr,
-#                             "name '%s' is not defined" as ^int8,
-#                             rhs_id.name.data());
-#              errors.end();
-#              return code.make_nil();
-#         }
-#     }
-#     else
-#     {
-#         # This is a normal expression `.` id member expression.
-#     }
-# }
+        # Ensure we have a valid item.
+        if code.isnil(item)
+        {
+             errors.begin_error();
+             errors.fprintf(errors.stderr,
+                            "name '%s' is not defined" as ^int8,
+                            rhs_id.name.data());
+             errors.end();
+             return code.make_nil();
+        }
+    }
+    else
+    {
+        # Resolve the type of the lhs.
+        let lhs: ^code.Handle = resolver.resolve(g, &x.lhs);
+        if code.isnil(lhs) { return code.make_nil(); }
 
-    # # Check if this is a special member resolution (`global.`)
-    # let mut item: ^code.Handle;
-    # if x.lhs.tag == ast.TAG_GLOBAL {
-    #     # Build the namespace.
-    #     let mut ns: list.List = list.make(types.STR);
-    #     ns.push_str(g.top_ns.data() as str);
+        # Attempt to get an `item` out of the LHS.
+        if lhs._tag == code.TAG_MODULE {
+            let mod: ^code.Module = lhs._object as ^code.Module;
 
-    #     # Attempt to resolve the member.
-    #     item = (g^)._get_scoped_item_in(rhs_id.name.data() as str, scope, ns);
+            # Build the namespace.
+            let mut ns: list.List = mod.namespace.clone();
+            ns.push_str(mod.name.data() as str);
 
-    #     # Do we have this item?
-    #     if item == 0 as ^code.Handle {
-    #         # No; report and bail.
-    #          errors.begin_error();
-    #          errors.fprintf(errors.stderr,
-    #                         "name '%s' is not defined" as ^int8,
-    #                         rhs_id.name.data());
-    #          errors.end();
-    #          return code.make_nil();
-    #     }
+            # Attempt to resolve the member.
+            item = generator_util.get_scoped_item_in(
+                g^, rhs_id.name.data() as str, scope, ns);
 
-    #     # Dispose.
-    #     ns.dispose();
-    # } else {
-    #     # Resolve the type of the lhs.
-    #     let lhs: ^code.Handle = resolve_type(g, &x.lhs);
-    #     if code.isnil(lhs) { return code.make_nil(); }
+            # Do we have this item?
+            if item == 0 as ^code.Handle {
+                # No; report and bail.
+                 errors.begin_error();
+                 errors.fprintf(errors.stderr,
+                                "module '%s' has no member '%s'" as ^int8,
+                                mod.name.data(), rhs_id.name.data());
+                 errors.end();
+                 return code.make_nil();
+            }
 
-    #     # Attempt to get an `item` out of the LHS.
-    #     if lhs._tag == code.TAG_MODULE {
-    #         let mod: ^code.Module = lhs._object as ^code.Module;
+            # Dispose.
+            ns.dispose();
+        } else {
+            # Not sure how to resolve this.
+            # NOTE: Should be impossible to get here.
+            return code.make_nil();
+        }
+    }
 
-    #         # Build the namespace.
-    #         let mut ns: list.List = mod.namespace.clone();
-    #         ns.push_str(mod.name.data() as str);
-
-    #         # Attempt to resolve the member.
-    #         item = (g^)._get_scoped_item_in(
-    #             rhs_id.name.data() as str, scope, ns);
-
-    #         # Do we have this item?
-    #         if item == 0 as ^code.Handle {
-    #             # No; report and bail.
-    #              errors.begin_error();
-    #              errors.fprintf(errors.stderr,
-    #                             "module '%s' has no member '%s'" as ^int8,
-    #                             mod.name.data(), rhs_id.name.data());
-    #              errors.end();
-    #              return code.make_nil();
-    #         }
-
-    #         # Dispose.
-    #         ns.dispose();
-    #     } else {
-    #         # Not sure how to resolve this.
-    #         # NOTE: Should be impossible to get here.
-    #         return code.make_nil();
-    #     }
-    # }
-
-    # # Resolve the item for its type.
-    # _type_of(g, item);
+    # Resolve the item for its type.
+    _type_of(g, item);
+}
 
 # Call [TAG_CALL]
 # -----------------------------------------------------------------------------

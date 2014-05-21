@@ -1676,7 +1676,7 @@ def parse_struct(&mut self) -> bool {
         }
 
         # Now for a type!
-        if not self.parse_ident_expr() {
+        if not self.parse_type() {
             self.consume_until(tokens.TOK_RBRACE);
             return false;
         }

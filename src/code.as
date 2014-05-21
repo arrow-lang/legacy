@@ -28,6 +28,13 @@ let TAG_STRUCT: int = 14;
 let TAG_STRUCT_TYPE: int = 15;
 let TAG_MEMBER: int = 16;
 
+# Value categories
+# -----------------------------------------------------------------------------
+# Enumeration of the possible value catergories: l or rvalue
+
+let VC_LVALUE: int = 1;
+let VC_RVALUE: int = 2;
+
 # Scope chain
 # -----------------------------------------------------------------------------
 # This internally is a list of dictinoaries that are for managing
@@ -302,12 +309,15 @@ def make_function_type(
 type Member {
     mut name: string.String,
     type_: ^mut Handle,
+    index: uint,
     default: ^mut Handle
 }
 
 type StructType {
     handle: ^LLVMOpaqueType,
+    context: ^ast.Struct,
     mut name: string.String,
+    mut namespace: list.List,
     mut members: list.List,
     mut member_map: dict.Dictionary
 }
@@ -316,24 +326,30 @@ let MEMBER_SIZE: uint = ((0 as ^Member) + 1) - (0 as ^Member);
 
 let STRUCT_TYPE_SIZE: uint = ((0 as ^StructType) + 1) - (0 as ^StructType);
 
-def make_member(name: str, type_: ^Handle, default: ^Handle) -> ^Handle {
+def make_member(name: str, type_: ^Handle, index: uint, default: ^Handle) -> ^Handle {
     # Build the parameter.
     let mem: ^Member = libc.malloc(MEMBER_SIZE as int64) as ^Member;
     mem.name = string.make();
     mem.name.extend(name);
     mem.type_ = type_;
+    mem.index = index;
     mem.default = default;
 
     # Wrap in a handle.
     make(TAG_MEMBER, mem as ^void);
 }
 
-def make_struct_type(name: str, handle: ^LLVMOpaqueType) -> ^Handle {
+def make_struct_type(name: str,
+                     context: ^ast.Struct,
+                     namespace: list.List,
+                     handle: ^LLVMOpaqueType) -> ^Handle {
     # Build the function.
     let st: ^StructType = libc.malloc(STRUCT_TYPE_SIZE as int64) as ^StructType;
     st.handle = handle;
+    st.context = context;
     st.name = string.make();
     st.name.extend(name);
+    st.namespace = namespace.clone();
     st.member_map = dict.make(64);
 
     # Wrap in a handle.
@@ -557,15 +573,22 @@ implement Module {
 # -----------------------------------------------------------------------------
 # A value remembers its type and the llvm handle.
 
-type Value { type_: ^Handle, handle: ^LLVMOpaqueValue }
+type Value {
+    type_: ^Handle,
+    handle: ^LLVMOpaqueValue,
+    category: int
+}
 
 let VALUE_SIZE: uint = ((0 as ^Value) + 1) - (0 as ^Value);
 
-def make_value(type_: ^Handle, handle: ^LLVMOpaqueValue) -> ^Handle {
+def make_value(type_: ^Handle,
+               category: int,
+               handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the module.
     let val: ^Value = libc.malloc(VALUE_SIZE as int64) as ^Value;
     val.handle = handle;
     val.type_ = type_;
+    val.category = category;
 
     # Wrap in a handle.
     make(TAG_VALUE, val as ^void);

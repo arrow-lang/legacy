@@ -1,4 +1,5 @@
 import ast;
+import list;
 import code;
 import errors;
 import dict;
@@ -62,7 +63,7 @@ def generate_static_slot(&mut g: generator_.Generator, qname: str,
     init = llvm.LLVMGetInitializer(x.handle);
     if init <> 0 as ^llvm.LLVMOpaqueValue {
         # ... yes; wrap and return it.
-        return code.make_value(x.type_, init);
+        return code.make_value(x.type_, code.VC_RVALUE, init);
     }
 
     # If we have an initializer ...
@@ -83,7 +84,7 @@ def generate_static_slot(&mut g: generator_.Generator, qname: str,
         if code.isnil(han) { return code.make_nil(); }
 
         # Coerce this to a value.
-        val_han = to_value(g, han, true);
+        val_han = to_value(g, han, code.VC_RVALUE, true);
     }
     else
     {
@@ -94,7 +95,7 @@ def generate_static_slot(&mut g: generator_.Generator, qname: str,
         let val: ^llvm.LLVMOpaqueValue = llvm.LLVMConstNull(typ.handle);
 
         # Wrap in a value.
-        val_han = code.make_value(x.type_, val);
+        val_han = code.make_value(x.type_, code.VC_RVALUE, val);
     }
 
     # Set the initializer on the static slot.
@@ -205,7 +206,8 @@ def generate_function(&mut g: generator_.Generator, qname: str,
             if type_.return_type._tag == code.TAG_VOID_TYPE {
                 llvm.LLVMBuildRetVoid(g.irb);
             } else {
-                let val_han: ^code.Handle = to_value(g, res, false);
+                let val_han: ^code.Handle = to_value(
+                    g, res, code.VC_RVALUE, false);
                 let typ: ^code.Handle = code.type_of(val_han) as ^code.Handle;
                 if typ._tag == code.TAG_VOID_TYPE {
                     llvm.LLVMBuildRetVoid(g.irb);
@@ -230,41 +232,78 @@ def generate_function(&mut g: generator_.Generator, qname: str,
 # Coerce an arbitary handle to a value.
 # -----------------------------------------------------------------------------
 def to_value(&mut g: generator_.Generator,
-             handle: ^code.Handle, static_: bool) -> ^code.Handle
+             handle: ^code.Handle,
+             category: int,
+             static_: bool) -> ^code.Handle
 {
     if handle._tag == code.TAG_STATIC_SLOT
     {
         let slot: ^code.StaticSlot = handle._object as ^code.StaticSlot;
-        if static_
+        if category == code.VC_RVALUE
         {
-            # Pull out the initializer.
-            generate_static_slot(g, slot.name.data() as str, slot);
+            if static_
+            {
+                # Pull out the initializer.
+                generate_static_slot(g, slot.name.data() as str, slot);
+            }
+            else
+            {
+                # Load the static slot value.
+                let val: ^llvm.LLVMOpaqueValue;
+                val = llvm.LLVMBuildLoad(g.irb, slot.handle, "" as ^int8);
+
+                # Wrap it in a handle.
+                code.make_value(slot.type_, category, val);
+            }
         }
         else
         {
-            # Load the static slot value.
-            let val: ^llvm.LLVMOpaqueValue;
-            val = llvm.LLVMBuildLoad(g.irb, slot.handle, "" as ^int8);
-
-            # Wrap it in a handle.
-            code.make_value(slot.type_, val);
+            # Wrap and return the slot as an lvalue.
+            code.make_value(slot.type_, code.VC_LVALUE, slot.handle);
         }
     }
     else if handle._tag == code.TAG_LOCAL_SLOT
     {
-        # Load the local slot value.
         let slot: ^code.LocalSlot = handle._object as ^code.LocalSlot;
-        let val: ^llvm.LLVMOpaqueValue;
-        val = llvm.LLVMBuildLoad(g.irb, slot.handle, "" as ^int8);
+        if category == code.VC_RVALUE
+        {
+            # Load the local slot value.
+            let val: ^llvm.LLVMOpaqueValue;
+            val = llvm.LLVMBuildLoad(g.irb, slot.handle, "" as ^int8);
 
-        # Wrap it in a handle.
-        code.make_value(slot.type_, val);
+            # Wrap it in a handle.
+            code.make_value(slot.type_, code.VC_RVALUE, val);
+        }
+        else
+        {
+            # Wrap and return the slot as an lvalue.
+            code.make_value(slot.type_, code.VC_LVALUE, slot.handle);
+        }
     }
     else if handle._tag == code.TAG_VALUE
     {
-        # Clone the value object.
         let val: ^code.Value = handle._object as ^code.Value;
-        code.make_value(val.type_, val.handle);
+        if category == val.category
+        {
+            # Clone the value object.
+            code.make_value(val.type_, category, val.handle);
+        }
+        else if category == code.VC_RVALUE
+        {
+            # Perform a "LOAD" and get the r-value from the l-value.
+            let obj: ^llvm.LLVMOpaqueValue;
+            obj = llvm.LLVMBuildLoad(g.irb, val.handle, "" as ^int8);
+
+            # Wrap it in a handle.
+            code.make_value(val.type_, code.VC_RVALUE, obj);
+        }
+        else
+        {
+            errors.begin_error();
+            errors.fprintf(errors.stderr, "cannot coerce a r-value as a l-value" as ^int8);
+            errors.end();
+            code.make_nil();
+        }
     }
     else {
         # No idea how to handle this.

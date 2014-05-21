@@ -224,9 +224,78 @@ def generate_struct(&mut g: generator_.Generator, qname: str, x: ^code.Struct)
 
     # Create and store our type.
     let han: ^code.Handle;
-    han = code.make_struct_type(qname, val);
+    han = code.make_struct_type(qname, x.context, x.namespace, val);
     x.type_ = han;
 
     # Return the type handle.
     han;
+}
+
+# Generate the type for a member of the `struct`.
+# -----------------------------------------------------------------------------
+def generate_struct_member(&mut g: generator_.Generator,
+                           x: ^code.StructType, name: str)
+    -> ^code.Handle
+{
+    # Has this member been placed in the structure yet?
+    if x.member_map.contains(name) {
+        # Is this a poision from a previous failure?
+        let han: ^code.Handle = x.member_map.get(name) as ^code.Handle;
+        if code.ispoison(han) { return code.make_nil(); }
+
+        if not code.isnil(han) {
+            # Return the resolved type.
+            let mem: ^code.Member = han._object as ^code.Member;
+            return mem.type_;
+        }
+    }
+
+    # Does this member exist on the structure?
+    # FIXME: The AST should generate a dictionary for me to use here.
+    let mut i: int = 0;
+    let mnode: ast.Node;
+    let m: ^ast.StructMem = 0 as ^ast.StructMem;
+    while i as uint < x.context.nodes.size() {
+        mnode = x.context.nodes.get(i);
+        let mtmp: ^ast.StructMem = mnode.unwrap() as ^ast.StructMem;
+        i = i + 1;
+
+        # Check for the name.
+        let id: ^ast.Ident = mtmp.id.unwrap() as ^ast.Ident;
+        if id.name.eq_str(name) {
+            # Found one; get out.
+            m = mtmp;
+            break;
+        }
+    }
+
+    # Did we manage to find a member?
+    if m == 0 as ^ast.StructMem {
+        # Nope; report the error and bail.
+        x.member_map.set_ptr(name, code.make_poison() as ^void);
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "type '%s' has no member '%s'" as ^int8,
+                       x.name.data(), name);
+        errors.end();
+        return code.make_nil();
+    }
+
+    # Resolve the type of the structure member.
+    let type_handle: ^code.Handle = resolver.resolve_in_t(
+        &g, &m.type_, &x.namespace, code.make_nil());
+    if code.isnil(type_handle) {
+        x.member_map.set_ptr(name, code.make_poison() as ^void);
+        return code.make_nil();
+    }
+
+    # Emplace the solid type.
+    x.member_map.set_ptr(name, code.make_member(
+        name,
+        type_handle,
+        (i as uint - 1) as uint,
+        code.make_nil()) as ^void);
+
+    # Return the type.
+    type_handle;
 }

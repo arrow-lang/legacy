@@ -419,7 +419,7 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
     else
     {
         # Resolve the type of the lhs.
-        let lhs: ^code.Handle = resolver.resolve(g, &x.lhs);
+        let lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
         if code.isnil(lhs) { return code.make_nil(); }
 
         # Attempt to get an `item` out of the LHS.
@@ -447,9 +447,33 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
 
             # Dispose.
             ns.dispose();
+        } else if lhs._tag == code.TAG_STRUCT_TYPE {
+            let struct_: ^code.StructType = lhs._object as ^code.StructType;
+
+            # Resolve the type of this specific structure member.
+            item = generator_type.generate_struct_member(
+                g^, struct_, rhs_id.name.data() as str);
+
+            # Does this member exist in the structure?
+            if code.isnil(item) {
+                # No; bail (error already reported).
+                return code.make_nil();
+            }
         } else {
             # Not sure how to resolve this.
-            # NOTE: Should be impossible to get here.
+            let mut lhs_name: string.String = code.typename(lhs);
+
+            # Report error.
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "member operation cannot be applied to type '%s'" as ^int8,
+                           lhs_name.data());
+            errors.end();
+
+            # Dispose.
+            lhs_name.dispose();
+
+            # Return nil.
             return code.make_nil();
         }
     }

@@ -3,6 +3,7 @@ import llvm;
 import list;
 import ast;
 import resolver;
+import generator_type;
 import types;
 import errors;
 import code;
@@ -98,34 +99,40 @@ def generate_struct(&mut g: generator_.Generator, qname: str, x: ^code.Struct)
         let type_: ^code.StructType = x.type_._object as ^code.StructType;
 
         # Resolve the type for each member.
-        type_.members = list.make(types.PTR);
         let mut member_type_handles: list.List = list.make(types.PTR);
         let mut i: int = 0;
         while i as uint < x.context.nodes.size()
         {
             let mnode: ast.Node = x.context.nodes.get(i);
-            i = i + 1;
             let m: ^ast.StructMem = mnode.unwrap() as ^ast.StructMem;
+            let member_id: ^ast.Ident = m.id.unwrap() as ^ast.Ident;
+            i = i + 1;
 
-            # Resolve the type.
-            let type_handle: ^code.Handle = resolver.resolve_in_t(
-                &g, &m.type_, &x.namespace, code.make_nil());
-            if code.isnil(type_handle) {
-                # Failed to resolve type; mark us as poisioned.
-                x.type_ = code.make_poison();
-                return;
-            }
+            # Generate the type.
+            let type_handle: ^code.Handle =
+                generator_type.generate_struct_member(
+                    g, type_, member_id.name.data() as str);
+
+            # # Resolve the type.
+            # let type_handle: ^code.Handle = resolver.resolve_in_t(
+            #     &g, &m.type_, &x.namespace, code.make_nil());
+            # if code.isnil(type_handle) {
+            #     # Failed to resolve type; mark us as poisioned.
+            #     x.type_ = code.make_poison();
+            #     return;
+            # }
 
             # Emplace the type handle.
             let type_obj: ^code.Type = type_handle._object as ^code.Type;
             member_type_handles.push_ptr(type_obj.handle as ^void);
 
-            # Emplace a solid member.
-            let member_id: ^ast.Ident = m.id.unwrap() as ^ast.Ident;
-            type_.members.push_ptr(code.make_member(
-                member_id.name.data() as str,
-                type_handle,
-                code.make_nil()) as ^void);
+            # # Emplace a solid member.
+            # let member_id: ^ast.Ident = m.id.unwrap() as ^ast.Ident;
+            # type_.members.push_ptr(code.make_member(
+            #     member_id.name.data() as str,
+            #     type_handle,
+            #     (i as uint - 1) as uint,
+            #     code.make_nil()) as ^void);
         }
 
         # Set the body for this structure.
@@ -135,14 +142,20 @@ def generate_struct(&mut g: generator_.Generator, qname: str, x: ^code.Struct)
             member_type_handles.size as uint32,
             false);
 
-        # Fill the named member map.
-        let mut idx: int = 0;
-        while idx as uint < type_.members.size
-        {
-            let member_han: ^code.Handle = type_.members.at_ptr(idx) as ^code.Handle;
-            let member: ^code.Member = member_han._object as ^code.Member;
-            type_.member_map.set_uint(member.name.data() as str, idx as uint);
-            idx = idx + 1;
+        # Fill the member list.
+        type_.members = list.make(types.PTR);
+        type_.members.reserve(member_type_handles.size);
+        type_.members.size = member_type_handles.size;
+        let members: list.List = type_.members;
+        let dat: ^^void = members.elements as ^^void;
+        let mut iter: dict.Iterator = type_.member_map.iter();
+        while not iter.empty() {
+            let key: str;
+            let value: ^void;
+            (key, value) = iter.next();
+            let han: ^code.Handle = value as ^code.Handle;
+            let nod: ^code.Member = han._object as ^code.Member;
+            (dat + nod.index)^ = han as ^void;
         }
     }
 }

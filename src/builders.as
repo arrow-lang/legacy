@@ -42,7 +42,7 @@ def boolean(g: ^mut generator_.Generator, node: ^ast.Node,
     val = llvm.LLVMConstInt(llvm.LLVMInt1Type(), (1 if x.value else 0), false);
 
     # Wrap and return the value.
-    code.make_value(target, val);
+    code.make_value(target, code.VC_RVALUE, val);
 }
 
 # Integer [TAG_INTEGER]
@@ -69,7 +69,7 @@ def integer(g: ^mut generator_.Generator, node: ^ast.Node,
     }
 
     # Wrap and return the value.
-    code.make_value(target, val);
+    code.make_value(target, code.VC_RVALUE, val);
 }
 
 # Floating-point [TAG_FLOAT]
@@ -88,7 +88,7 @@ def float(g: ^mut generator_.Generator, node: ^ast.Node,
     val = llvm.LLVMConstRealOfString(typ.handle, x.text.data());
 
     # Wrap and return the value.
-    code.make_value(target, val);
+    code.make_value(target, code.VC_RVALUE, val);
 }
 
 # Local Slot [TAG_LOCAL_SLOT]
@@ -106,7 +106,7 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
     let type_han: ^code.Handle = code.make_nil();
     let type_: ^code.Type = 0 as ^code.Type;
     if not ast.isnull(x.type_) {
-        type_han = resolver.resolve(g, &x.type_);
+        type_han = resolver.resolve_s(g, &x.type_, scope);
         type_ = type_han._object as ^code.Type;
     }
 
@@ -134,7 +134,7 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Coerce this to a value.
         let val_han: ^code.Handle = generator_def.to_value(
-            g^, cast_han, false);
+            g^, cast_han, code.VC_RVALUE, false);
         let val: ^code.Value = val_han._object as ^code.Value;
         init = val.handle;
     }
@@ -190,7 +190,8 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
         if code.isnil(lhs) { return code.make_nil(); }
 
         # Attempt to get an `item` out of the LHS.
-        if lhs._tag == code.TAG_MODULE {
+        if lhs._tag == code.TAG_MODULE
+        {
             let mod: ^code.Module = lhs._object as ^code.Module;
 
             # Extend our namespace.
@@ -203,6 +204,37 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
 
             # Dispose.
             ns.dispose();
+        }
+        else if    lhs._tag == code.TAG_VALUE
+                or lhs._tag == code.TAG_LOCAL_SLOT
+        {
+            # Continue based on the type of the value.
+            let value: ^code.Value = lhs._object as ^code.Value;
+            let type_: ^code.Handle = value.type_;
+            if type_._tag == code.TAG_STRUCT_TYPE
+            {
+                # Get the structural type.
+                let struct_: ^code.StructType = type_._object as
+                    ^code.StructType;
+
+                # Get the index of the member.
+                let member_han: ^code.Handle = struct_.member_map.get_ptr(
+                    rhs_id.name.data() as str) as ^code.Handle;
+                let member: ^code.Member = member_han._object as ^code.Member;
+                let idx: uint = member.index;
+
+                # Build an accessor to the member.
+                let val: ^llvm.LLVMOpaqueValue =
+                    llvm.LLVMBuildStructGEP(
+                        g.irb, value.handle, idx as uint32, "" as ^int8);
+
+                # Wrap and return a lvalue.
+                let han: ^code.Handle;
+                han = code.make_value(member.type_, code.VC_LVALUE, val);
+
+                # Return our wrapped result.
+                return han;
+            }
         }
     }
 
@@ -285,7 +317,8 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         if code.isnil(han) { return code.make_nil(); }
 
         # Coerce this to a value.
-        let val_han: ^code.Handle = generator_def.to_value(g^, han, false);
+        let val_han: ^code.Handle = generator_def.to_value(
+            g^, han, code.VC_RVALUE, false);
 
         # Cast the value to the target type.
         let cast_han: ^code.Handle = generator_util.cast(g^, val_han, typ);
@@ -338,7 +371,7 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         code.make_nil();
     } else {
         # Wrap and return the value.
-        code.make_value(type_.return_type, val);
+        code.make_value(type_.return_type, code.VC_RVALUE, val);
     }
 }
 
@@ -403,7 +436,11 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             }
 
             # Pull the named argument index.
-            param_idx = type_.member_map.get_uint(id.name.data() as str);
+            let phan: ^code.Handle =
+                type_.member_map.get_ptr(id.name.data() as str) as
+                    ^code.Handle;
+            let pnode: ^code.Member = phan._object as ^code.Member;
+            param_idx = pnode.index;
         }
 
         # Resolve the type of the argument expression.
@@ -417,7 +454,8 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         if code.isnil(han) { return code.make_nil(); }
 
         # Coerce this to a value.
-        let val_han: ^code.Handle = generator_def.to_value(g^, han, false);
+        let val_han: ^code.Handle = generator_def.to_value(
+            g^, han, code.VC_RVALUE, false);
 
         # Cast the value to the target type.
         let cast_han: ^code.Handle = generator_util.cast(g^, val_han, typ);
@@ -457,19 +495,50 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
     }
     if error { return code.make_nil(); }
 
+    # We can only generate an initial "constant" structure for a
+    # purely constant literal.
+    # Collect indicies and values of non-constant members of the
+    # literal.
+    let mut nonconst_values: list.List = list.make(types.PTR);
+    let mut nonconst_indicies: list.List = list.make(types.INT);
+    i = 0;
+    while i as uint < argl.size {
+        let arg: ^llvm.LLVMOpaqueValue = (argv + i)^;
+        i = i + 1;
+
+        # Is this not some kind of "constant"?
+        if llvm.LLVMIsConstant(arg) == 0 {
+            # Yep; store and zero out the value.
+            nonconst_indicies.push_int(i - 1);
+            nonconst_values.push_ptr(arg as ^void);
+            (argv + (i - 1))^ = llvm.LLVMGetUndef(llvm.LLVMTypeOf(arg));
+        }
+    }
+
     # Build the "call" instruction (and create the constant struct).
-    let val: ^llvm.LLVMOpaqueValue;
+    let mut val: ^llvm.LLVMOpaqueValue;
     val = llvm.LLVMConstNamedStruct(type_.handle, argv, argl.size as uint32);
 
-    # let val: ^llvm.LLVMOpaqueValue;
-    # val = llvm.LLVMBuildCall(
-    #     g.irb, x.handle, argv, argl.size as uint32, "" as ^int8);
+    # Iterate through our non-constant values and push them in.
+    i = 0;
+    while i as uint < nonconst_indicies.size {
+        let arg: ^llvm.LLVMOpaqueValue = nonconst_values.at_ptr(i) as
+            ^llvm.LLVMOpaqueValue;
+        let idx: int = nonconst_indicies.at_int(i);
+        i = i + 1;
+
+        # Build the `insertvalue` instruction.
+        val = llvm.LLVMBuildInsertValue(
+            g.irb, val, arg, idx as uint32, "" as ^int8);
+    }
 
     # Dispose of dynamic memory.
+    nonconst_values.dispose();
+    nonconst_indicies.dispose();
     argl.dispose();
 
     # Wrap and return the value.
-    code.make_value(x.type_, val);
+    code.make_value(x.type_, code.VC_RVALUE, val);
 }
 
 def call(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -524,8 +593,10 @@ def arithmetic_b_operands(g: ^mut generator_.Generator, node: ^ast.Node,
     if code.isnil(lhs) or code.isnil(rhs) { return res; }
 
     # Coerce the operands to values.
-    let lhs_val_han: ^code.Handle = generator_def.to_value(g^, lhs, false);
-    let rhs_val_han: ^code.Handle = generator_def.to_value(g^, rhs, false);
+    let lhs_val_han: ^code.Handle = generator_def.to_value(
+        g^, lhs, code.VC_RVALUE, false);
+    let rhs_val_han: ^code.Handle = generator_def.to_value(
+        g^, rhs, code.VC_RVALUE, false);
     if code.isnil(lhs_val_han) or code.isnil(rhs_val_han) { return res; }
 
     # Create a tuple result.
@@ -615,7 +686,7 @@ def relational(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(target, val);
+    han = code.make_value(target, code.VC_RVALUE, val);
 
     # Dispose.
     code.dispose(lhs_val_han);
@@ -648,7 +719,7 @@ def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Coerce the operands to values.
     let operand_val_han: ^code.Handle = generator_def.to_value(
-        g^, operand, false);
+        g^, operand, code.VC_RVALUE, false);
     if code.isnil(operand_val_han) { return code.make_nil(); }
 
     # Cast to values.
@@ -689,7 +760,7 @@ def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(target, val);
+    han = code.make_value(target, code.VC_RVALUE, val);
 
     # Dispose.
     code.dispose(operand_val_han);
@@ -817,7 +888,7 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(target, val);
+    han = code.make_value(target, code.VC_RVALUE, val);
 
     # Dispose.
     code.dispose(lhs_val_han);
@@ -859,7 +930,8 @@ def return_(g: ^mut generator_.Generator, node: ^ast.Node,
         if code.isnil(expr) { return code.make_nil(); }
 
         # Coerce the expression to a value.
-        let val_han: ^code.Handle = generator_def.to_value(g^, expr, false);
+        let val_han: ^code.Handle = generator_def.to_value(
+            g^, expr, code.VC_RVALUE, false);
         let val: ^code.Value = val_han._object as ^code.Value;
 
         # Create the `RET` instruction.
@@ -897,7 +969,8 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
     if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
 
     # Coerce the operand to its value.
-    let rhs_val_han: ^code.Handle = generator_def.to_value(g^, rhs, false);
+    let rhs_val_han: ^code.Handle = generator_def.to_value(
+        g^, rhs, code.VC_RVALUE, false);
     if code.isnil(rhs_val_han) { return code.make_nil(); }
 
     # Cast the operand to the target type.
@@ -939,13 +1012,20 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Build the `STORE` operation.
         llvm.LLVMBuildStore(g.irb, rhs_val.handle, slot.handle);
-    } else {
-        # Report error and return nil.
-        errors.begin_error();
-        errors.fprintf(errors.stderr,
-                       "left-hand side expression is not assignable" as ^int8);
-        errors.end();
-        return code.make_nil();
+    } else if lhs._tag == code.TAG_VALUE {
+        # Get the value.
+        let value: ^code.Value = lhs._object as ^code.Value;
+        if value.category == code.VC_RVALUE {
+            # Report error and return nil.
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "left-hand side expression is not assignable" as ^int8);
+            errors.end();
+            return code.make_nil();
+        }
+
+        # Build the `STORE` operation.
+        llvm.LLVMBuildStore(g.irb, rhs_val.handle, value.handle);
     }
 
     # Dispose.
@@ -970,7 +1050,7 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
         g, &x.condition, scope, g.items.get_ptr("bool") as ^code.Handle);
     if code.isnil(cond_han) { return code.make_nil(); }
     let cond_val_han: ^code.Handle = generator_def.to_value(
-        (g^), cond_han, false);
+        (g^), cond_han, code.VC_RVALUE, false);
     let cond_val: ^code.Value = cond_val_han._object as ^code.Value;
     if code.isnil(cond_val_han) { return code.make_nil(); }
 
@@ -996,7 +1076,8 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
     # Build the `lhs` operand.
     let lhs: ^code.Handle = builder.build(g, &x.lhs, scope, target);
     if code.isnil(lhs) { return code.make_nil(); }
-    let lhs_val_han: ^code.Handle = generator_def.to_value(g^, lhs, false);
+    let lhs_val_han: ^code.Handle = generator_def.to_value(
+        g^, lhs, code.VC_RVALUE, false);
     if code.isnil(lhs_val_han) { return code.make_nil(); }
     let lhs_han: ^code.Handle = generator_util.cast(g^, lhs_val_han, target);
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1010,7 +1091,8 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
     # Build the `rhs` operand.
     let rhs: ^code.Handle = builder.build(g, &x.rhs, scope ,target);
     if code.isnil(rhs) { return code.make_nil(); }
-    let rhs_val_han: ^code.Handle = generator_def.to_value(g^, rhs, false);
+    let rhs_val_han: ^code.Handle = generator_def.to_value(
+        g^, rhs, code.VC_RVALUE, false);
     if code.isnil(rhs_val_han) { return code.make_nil(); }
     let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, target);
     let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
@@ -1030,7 +1112,7 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Wrap and return the value.
     let han: ^code.Handle;
-    han = code.make_value(target, val);
+    han = code.make_value(target, code.VC_RVALUE, val);
 
     # Dispose.
     code.dispose(lhs_val_han);
@@ -1069,7 +1151,7 @@ def block(g: ^mut generator_.Generator, node: ^ast.Node,
         if not code.isnil(han) {
             if j as uint == x.nodes.size() {
                 let val_han: ^code.Handle = generator_def.to_value(
-                    g^, han, false);
+                    g^, han, code.VC_RVALUE, false);
                 res = val_han;
             }
         }
@@ -1119,7 +1201,7 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
         cond_han = builder.build(g, &br.condition, scope, bool_ty);
         if code.isnil(cond_han) { return code.make_nil(); }
         let cond_val_han: ^code.Handle = generator_def.to_value(
-            g^, cond_han, false);
+            g^, cond_han, code.VC_RVALUE, false);
         let cond_val: ^code.Value = cond_val_han._object as ^code.Value;
         if code.isnil(cond_val_han) { return code.make_nil(); }
 
@@ -1144,7 +1226,7 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
         if has_value {
             # Cast the block value to our target type.
             let val_han: ^code.Handle = generator_def.to_value(
-                g^, blk_val_han, false);
+                g^, blk_val_han, code.VC_RVALUE, false);
             let cast_han: ^code.Handle = generator_util.cast(
                 g^, val_han, type_target);
             let val: ^code.Value = cast_han._object as ^code.Value;
@@ -1180,7 +1262,7 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
         if has_value {
             # Cast the block value to our target type.
             let val_han: ^code.Handle = generator_def.to_value(
-                g^, blk_val_han, false);
+                g^, blk_val_han, code.VC_RVALUE, false);
             let cast_han: ^code.Handle = generator_util.cast(
                 g^, val_han, type_target);
             let val: ^code.Value = cast_han._object as ^code.Value;
@@ -1230,7 +1312,7 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Wrap and return the value.
         let han: ^code.Handle;
-        han = code.make_value(type_target, val);
+        han = code.make_value(type_target, code.VC_RVALUE, val);
 
         # Dispose.
         blocks.dispose();

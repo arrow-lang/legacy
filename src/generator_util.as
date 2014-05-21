@@ -271,7 +271,7 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
     # Are these the "same" type?
     if src == dst {
         # Wrap and return our val.
-        return code.make_value(type_, src_val.handle);
+        return code.make_value(type_, src_val.category, src_val.handle);
     }
 
     # Build the cast.
@@ -339,5 +339,5 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
     }
 
     # Wrap and return.
-    code.make_value(type_, val);
+    code.make_value(type_, code.VC_RVALUE, val);
 }

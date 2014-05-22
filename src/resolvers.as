@@ -773,3 +773,24 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
         type_han;
     }
 }
+
+# Pointer Type [TAG_POINTER_TYPE]
+# -----------------------------------------------------------------------------
+def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
+                 scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.PointerType = (node^).unwrap() as ^ast.PointerType;
+
+    # Resolve the types of the pointee.
+    let pointee: ^code.Handle = resolver.resolve_s(g, &x.pointee, scope);
+    if code.isnil(pointee) { return code.make_nil(); }
+    let pointee_type: ^code.Type = pointee._object as ^code.Type;
+
+    # Create the llvm pointer to the pointee.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMPointerType(pointee_type.handle, 0);
+
+    # Return the new pointer type.
+    code.make_pointer_type(pointee, val);
+}

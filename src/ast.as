@@ -75,6 +75,7 @@ let TAG_TYPE_BOX        : int = 65;             # TypeBox
 let TAG_LOOP            : int = 66;             # Loop
 let TAG_BREAK           : int = 67;             # Break
 let TAG_CONTINUE        : int = 68;             # Continue
+let TAG_POINTER_TYPE    : int = 69;             # PointerType
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -144,6 +145,9 @@ type BooleanExpr { value: bool }
 
 # "Generic" binary expression type.
 type BinaryExpr { mut lhs: Node, mut rhs: Node }
+
+# Pointer type.
+type PointerType { mutable: bool, pointee: Node }
 
 # Cast expression.
 type CastExpr { operand: Node, type_: Node }
@@ -253,6 +257,9 @@ type Argument { expression: Node, mut name: Node }
 # Identifier.
 type Ident { mut name: string.String }
 
+# Pointer type.
+type PointerType { mutable: bool, mut pointee: Node }
+
 # Import
 # ids: ordered collection of the identifiers that make up the `x.y.z` name
 #      to import.
@@ -319,6 +326,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_POINTER_TYPE   { let tmp: PointerType; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IMPORT  { let tmp: Import; ((&tmp + 1) - &tmp); }
     else if tag == TAG_INDEX   { let tmp: IndexExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CAST    { let tmp: CastExpr; ((&tmp + 1) - &tmp); }
@@ -474,6 +482,7 @@ def dump(&node: Node) {
         dump_table[TAG_POSTFIX_EXPR] = dump_postfix_expr;
         dump_table[TAG_TYPE_PARAM] = dump_type_param;
         dump_table[TAG_LOOP] = dump_loop;
+        dump_table[TAG_POINTER_TYPE] = dump_pointer_type;
         dump_initialized = true;
     }
 
@@ -919,6 +928,19 @@ def dump_func_param(node: ^Node) {
     dump_indent = dump_indent + 1;
     if not isnull(x.type_) { dump(x.type_); }
     if not isnull(x.default) { dump(x.default); }
+    dump_indent = dump_indent - 1;
+}
+
+# dump_pointer_type
+# -----------------------------------------------------------------------------
+def dump_pointer_type(node: ^Node) {
+    let x: ^PointerType = unwrap(node^) as ^PointerType;
+    printf("PointerType <?>");
+    if x.mutable { printf(" mut"); }
+    printf("\n");
+
+    dump_indent = dump_indent + 1;
+    dump(x.pointee);
     dump_indent = dump_indent - 1;
 }
 

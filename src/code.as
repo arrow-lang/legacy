@@ -27,6 +27,7 @@ let TAG_TUPLE_TYPE: int = 13;
 let TAG_STRUCT: int = 14;
 let TAG_STRUCT_TYPE: int = 15;
 let TAG_MEMBER: int = 16;
+let TAG_POINTER_TYPE: int = 17;
 
 # Value categories
 # -----------------------------------------------------------------------------
@@ -234,10 +235,37 @@ def typename(handle: ^Handle) -> string.String {
     } else if handle._tag == TAG_STRUCT_TYPE {
         let s_ty: ^StructType = handle._object as ^StructType;
         name.extend(s_ty.name.data() as str);
+    } else if handle._tag == TAG_POINTER_TYPE {
+        let p_ty: ^PointerType = handle._object as ^PointerType;
+        name.append("*");
+        let mut ptr_name: string.String = typename(p_ty.pointee);
+        name.extend(ptr_name.data() as str);
+        ptr_name.dispose();
     }
 
     # Return the name.
     name;
+}
+
+# Pointer type
+# -----------------------------------------------------------------------------
+
+type PointerType {
+    handle: ^LLVMOpaqueType,
+    mutable: bool,
+    mut pointee: ^Handle
+}
+
+let POINTER_TYPE_SIZE: uint = ((0 as ^PointerType) + 1) - (0 as ^PointerType);
+
+def make_pointer_type(pointee: ^Handle, handle: ^llvm.LLVMOpaqueType) -> ^Handle {
+    # Build the parameter.
+    let han: ^PointerType = libc.malloc(POINTER_TYPE_SIZE as int64) as ^PointerType;
+    han.handle = handle;
+    han.pointee = pointee;
+
+    # Wrap in a handle.
+    make(TAG_POINTER_TYPE, han as ^void);
 }
 
 # Function type
@@ -394,6 +422,7 @@ def is_type(handle: ^Handle) -> bool {
     handle._tag == TAG_INT_TYPE or
     handle._tag == TAG_TUPLE_TYPE or
     handle._tag == TAG_STRUCT_TYPE or
+    handle._tag == TAG_POINTER_TYPE or
     handle._tag == TAG_FLOAT_TYPE;
 }
 

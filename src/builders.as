@@ -129,14 +129,14 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
         han = builder.build(g, &x.initializer, scope, typ);
         if code.isnil(han) { return code.make_nil(); }
 
-        # Cast it to the target value.
-        let cast_han: ^code.Handle = generator_util.cast(g^, han, type_han);
-
         # Coerce this to a value.
         let val_han: ^code.Handle = generator_def.to_value(
-            g^, cast_han, code.VC_RVALUE, false);
-        let val: ^code.Value = val_han._object as ^code.Value;
-        init = val.handle;
+            g^, han, code.VC_RVALUE, false);
+
+        # Cast it to the target value.
+        let cast_han: ^code.Handle = generator_util.cast(g^, val_han, type_han);
+        let cast_val: ^code.Value = cast_han._object as ^code.Value;
+        init = cast_val.handle;
     }
 
     # Build a stack allocation.

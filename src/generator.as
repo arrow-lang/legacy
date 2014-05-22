@@ -66,6 +66,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_CONDITIONAL] = resolvers.conditional;
     g.type_resolvers[ast.TAG_SELECT] = resolvers.select;
     g.type_resolvers[ast.TAG_MEMBER] = resolvers.member;
+    g.type_resolvers[ast.TAG_POINTER_TYPE] = resolvers.pointer_type;
 
     # Build the "builder" jump table.
     libc.memset(&g.builders[0] as ^void, 0, (100 * ptr_size) as int32);

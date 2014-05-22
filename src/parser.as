@@ -971,13 +971,44 @@ def parse_type(&mut self) -> bool
     if      tok == tokens.TOK_IDENTIFIER { self.parse_ident_expr(); }
     else if tok == tokens.TOK_LPAREN     { self.parse_paren_expr(); }
     else if tok == tokens.TOK_TYPE       { self.parse_type_expr(); }
+    else if tok == tokens.TOK_STAR
+    {
+        # This is a pointer-to the next type.
+        # Declare and allocate the node.
+        let mut node: ast.Node = ast.make(ast.TAG_POINTER_TYPE);
+        let expr: ^ast.PointerType = node.unwrap() as ^ast.PointerType;
+
+        # Pop the `*` token.
+        self.pop_token();
+
+        # Check for a `mut` token and make the pointee mutable.
+        if self.peek_token(1) == tokens.TOK_MUT
+        {
+            # Set us as mutable.
+            expr.mutable = true;
+
+            # Pop the `mut` token.
+            self.pop_token();
+        }
+
+        # Attempt to parse a type next.
+        if not self.parse_type() { return false; }
+        expr.pointee = self.stack.pop();
+
+        # Push our pointer node.
+        self.stack.push(node);
+
+        # Return success.
+        true;
+    }
     else
     {
         # Expected some kind of type expression node.
         self.consume_until(tokens.TOK_SEMICOLON);
         errors.begin_error();
         errors.fprintf(errors.stderr,
-                       "expected %s or %s but found %s" as ^int8,
+                       "expected %s, %s or %s but found %s" as ^int8,
+                       tokens.to_str(tokens.TOK_STAR),
                        tokens.to_str(tokens.TOK_IDENTIFIER),
                        tokens.to_str(tokens.TOK_LPAREN),
                        tokens.to_str(tok));

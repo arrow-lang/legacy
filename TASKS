@@ -1,0 +1,33 @@
+# [x] bitwise
+# [x] selection statement
+# [x] selection expression
+# [x] conditional expression
+# [ ] repeated evaluation (loop, while)
+# [ ] break
+# [ ] continue
+# [x] structures
+# [x] member expressions
+# [ ] pointers
+# [ ] by-reference parameters
+# [ ] mutable parameters
+# -----------------------------------------------------------------------------
+# [ ] simple enumerations
+# [ ] string
+# [ ] character
+# [ ] import
+# -----------------------------------------------------------------------------
+# [ ] traits
+# -----------------------------------------------------------------------------
+# [ ] generics
+# -----------------------------------------------------------------------------
+# [ ] shorthand name reference for function calls (prefixed ":")
+# [ ] type expressions should allow for paths
+# [ ] type expressions should allow for `type(..)`
+# [ ] type expressions should require returning a typename
+# [ ] structure member resolution should be in the namespace of the structure
+# [ ] mutally recursive function parameter type resolution
+# [ ] rethink conditional expression parsing so that `x if c else y = 30` works without parens
+# [ ] refactor selection statements so that they do not require ";" afterwords
+
+def main() {
+}

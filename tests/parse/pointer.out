@@ -1,0 +1,68 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    LocalSlotDecl <?> x
+      PointerType <?>
+        Ident <?> int
+    LocalSlotDecl <?> x
+      PointerType <?>
+        PointerType <?>
+          PointerType <?>
+            Ident <?> int
+    LocalSlotDecl <?> mut x
+      PointerType <?>
+        Ident <?> int
+    LocalSlotDecl <?> x
+      PointerType <?> mut
+        Ident <?> int
+    LocalSlotDecl <?> mut x
+      PointerType <?> mut
+        Ident <?> int
+    LocalSlotDecl <?> x
+      PointerType <?> mut
+        PointerType <?>
+          Ident <?> int
+    LocalSlotDecl <?> x
+      PointerType <?> mut
+        PointerType <?> mut
+          Ident <?> int
+    LocalSlotDecl <?> x
+      PointerType <?> mut
+        PointerType <?> mut
+          PointerType <?>
+            Ident <?> int
+    LocalSlotDecl <?> x
+      PointerType <?> mut
+        PointerType <?> mut
+          PointerType <?> mut
+            Ident <?> int
+    LocalSlotDecl <?> y
+      IntegerExpr <?> 73 (10)
+    LocalSlotDecl <?> x
+      AddressOfExpr <?>
+        Ident <?> y
+    LocalSlotDecl <?> a
+      IntegerExpr <?> 73 (10)
+    LocalSlotDecl <?> x
+      AddressOfExpr <?> mut
+        Ident <?> a
+    LocalSlotDecl <?> x
+      PointerType <?> mut
+        Ident <?> int
+      AddressOfExpr <?>
+        Ident <?> a
+    LocalSlotDecl <?> x
+      Ident <?> int
+    LocalSlotDecl <?> y
+      PointerType <?>
+        Ident <?> int
+      AddressOfExpr <?>
+        Ident <?> x
+    LocalSlotDecl <?> z
+      Ident <?> int
+      DerefExpr <?>
+        Ident <?> y
+    LocalSlotDecl <?> w
+      Ident <?> int
+      DerefExpr <?>
+        AddressOfExpr <?>
+          Ident <?> y

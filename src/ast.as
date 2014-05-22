@@ -76,6 +76,8 @@ let TAG_LOOP            : int = 66;             # Loop
 let TAG_BREAK           : int = 67;             # Break
 let TAG_CONTINUE        : int = 68;             # Continue
 let TAG_POINTER_TYPE    : int = 69;             # PointerType
+let TAG_ADDRESS_OF      : int = 70;             # AddressOfExpr
+let TAG_DEREF           : int = 71;             # DerefExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -160,6 +162,9 @@ type ConditionalExpr { lhs: Node, rhs: Node, condition: Node }
 
 # "Generic" unary expression type.
 type UnaryExpr { operand: Node }
+
+# Address of expression
+type AddressOfExpr { operand: Node, mutable: bool }
 
 # Module declaration that contains a sequence of nodes.
 type ModuleDecl { mut id: Node, mut nodes: Nodes }
@@ -312,11 +317,13 @@ def _sizeof(tag: int) -> uint {
     } else if tag == TAG_PROMOTE
            or tag == TAG_NUMERIC_NEGATE
            or tag == TAG_BITNEG
+           or tag == TAG_DEREF
            or tag == TAG_LOGICAL_NEGATE {
         let tmp: UnaryExpr;
         ((&tmp + 1) - &tmp);
     }
     else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_ADDRESS_OF  { let tmp: AddressOfExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_UNSAFE  { let tmp: UnsafeBlock; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BLOCK   { let tmp: Block; ((&tmp + 1) - &tmp); }
     else if tag == TAG_ARRAY_EXPR { let tmp: ArrayExpr; ((&tmp + 1) - &tmp); }
@@ -431,6 +438,8 @@ def dump(&node: Node) {
         dump_table[TAG_BITNEG] = dump_unary_expr;
         dump_table[TAG_NUMERIC_NEGATE] = dump_unary_expr;
         dump_table[TAG_LOGICAL_NEGATE] = dump_unary_expr;
+        dump_table[TAG_DEREF] = dump_unary_expr;
+        dump_table[TAG_ADDRESS_OF] = dump_address_of;
         dump_table[TAG_LOGICAL_AND] = dump_binop_expr;
         dump_table[TAG_LOGICAL_OR] = dump_binop_expr;
         dump_table[TAG_EQ] = dump_binop_expr;
@@ -646,7 +655,22 @@ def dump_unary_expr(node: ^Node) {
         printf("LogicalNegateExpr <?>\n");
     } else if node.tag == TAG_BITNEG {
         printf("BitNegExpr <?>\n");
+    } else if node.tag == TAG_DEREF {
+        printf("DerefExpr <?>\n");
     }
+    dump_indent = dump_indent + 1;
+    dump(x.operand);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_address_of
+# -----------------------------------------------------------------------------
+def dump_address_of(node: ^Node) {
+    let x: ^AddressOfExpr = unwrap(node^) as ^AddressOfExpr;
+    printf("AddressOfExpr <?>");
+    if x.mutable { printf(" mut"); }
+    printf("\n");
+
     dump_indent = dump_indent + 1;
     dump(x.operand);
     dump_indent = dump_indent - 1;

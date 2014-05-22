@@ -747,8 +747,16 @@ def parse_unary_expr(&mut self) -> bool {
         and tok <> tokens.TOK_MINUS
         and tok <> tokens.TOK_NOT
         and tok <> tokens.TOK_BANG
+        and tok <> tokens.TOK_STAR
+        and tok <> tokens.TOK_AMPERSAND
     {
         return self.parse_postfix_expr();
+    }
+
+    # Is this an address-of expression then carry on a bit differently.
+    if tok == tokens.TOK_AMPERSAND
+    {
+        return self.parse_address_of_expr();
     }
 
     # This -is- a unary expression; carry on.
@@ -765,12 +773,44 @@ def parse_unary_expr(&mut self) -> bool {
         else if tok == tokens.TOK_MINUS { ast.TAG_NUMERIC_NEGATE; }
         else if tok == tokens.TOK_NOT   { ast.TAG_LOGICAL_NEGATE; }
         else if tok == tokens.TOK_BANG  { ast.TAG_BITNEG; }
+        else if tok == tokens.TOK_STAR  { ast.TAG_DEREF; }
         else { 0; };  # Shouldn't happen.
 
     # Allocate and create the node.
     let node: ast.Node = ast.make(tag);
     let expr: ^ast.UnaryExpr = node.unwrap() as ^ast.UnaryExpr;
     expr.operand = operand;
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Address-of expression
+# -----------------------------------------------------------------------------
+def parse_address_of_expr(&mut self) -> bool {
+    # Pop the `&` token.
+    self.pop_token();
+
+    # Allocate and create the node.
+    let node: ast.Node = ast.make(ast.TAG_ADDRESS_OF);
+    let expr: ^ast.AddressOfExpr = node.unwrap() as ^ast.AddressOfExpr;
+
+    # Is there a 'mut' next to indicate a mutable address-of?
+    if self.peek_token(1) == tokens.TOK_MUT
+    {
+        # Set us as mutable.
+        expr.mutable = true;
+
+        # Pop the `mut` token.
+        self.pop_token();
+    }
+
+    # Parse the operand of this expression.
+    if not self.parse_unary_expr() { return false; }
+    expr.operand = self.stack.pop();
 
     # Push our node on the stack.
     self.stack.push(node);

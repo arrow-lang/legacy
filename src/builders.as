@@ -1350,3 +1350,75 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
         code.make_nil();
     }
 }
+
+# Address Of [TAG_ADDRESS_OF]
+# -----------------------------------------------------------------------------
+def address_of(g: ^mut generator_.Generator, node: ^ast.Node,
+               scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.AddressOfExpr = (node^).unwrap() as ^ast.AddressOfExpr;
+
+    # Resolve the operand for its type.
+    let operand_ty: ^code.Handle = resolver.resolve_s(g, &x.operand, scope);
+
+    # Build each operand.
+    let operand_ty_han: ^code.Type = operand_ty._object as ^code.Type;
+    let operand: ^code.Handle = builder.build(
+        g, &x.operand, scope, operand_ty);
+    if code.isnil(operand) { return code.make_nil(); }
+
+    # Coerce the operands to values.
+    let operand_val_han: ^code.Handle = generator_def.to_value(
+        g^, operand, code.VC_LVALUE, false);
+    if code.isnil(operand_val_han) { return code.make_nil(); }
+
+    # Cast to values.
+    let operand_val: ^code.Value = operand_val_han._object as ^code.Value;
+
+    # Wrap and return the value (the direct address).
+    let han: ^code.Handle;
+    han = code.make_value(target, code.VC_RVALUE, operand_val.handle);
+
+    # Dispose.
+    code.dispose(operand_val_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Dereference [TAG_DEREF]
+# -----------------------------------------------------------------------------
+def dereference(g: ^mut generator_.Generator, node: ^ast.Node,
+                scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.UnaryExpr = (node^).unwrap() as ^ast.UnaryExpr;
+
+    # Resolve the operand for its type.
+    let operand_ty: ^code.Handle = resolver.resolve_s(g, &x.operand, scope);
+
+    # Build each operand.
+    let operand_ty_han: ^code.Type = operand_ty._object as ^code.Type;
+    let operand: ^code.Handle = builder.build(
+        g, &x.operand, scope, operand_ty);
+    if code.isnil(operand) { return code.make_nil(); }
+
+    # Coerce the operands to values.
+    let operand_val_han: ^code.Handle = generator_def.to_value(
+        g^, operand, code.VC_RVALUE, false);
+    if code.isnil(operand_val_han) { return code.make_nil(); }
+
+    # Cast to values.
+    let operand_val: ^code.Value = operand_val_han._object as ^code.Value;
+
+    # Wrap and return the value (the direct address).
+    let han: ^code.Handle;
+    han = code.make_value(target, code.VC_LVALUE, operand_val.handle);
+
+    # Dispose.
+    code.dispose(operand_val_han);
+
+    # Return our wrapped result.
+    han;
+}

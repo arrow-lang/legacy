@@ -258,10 +258,11 @@ type PointerType {
 
 let POINTER_TYPE_SIZE: uint = ((0 as ^PointerType) + 1) - (0 as ^PointerType);
 
-def make_pointer_type(pointee: ^Handle, handle: ^llvm.LLVMOpaqueType) -> ^Handle {
+def make_pointer_type(pointee: ^Handle, mutable: bool, handle: ^llvm.LLVMOpaqueType) -> ^Handle {
     # Build the parameter.
     let han: ^PointerType = libc.malloc(POINTER_TYPE_SIZE as int64) as ^PointerType;
     han.handle = handle;
+    han.mutable = mutable;
     han.pointee = pointee;
 
     # Wrap in a handle.

@@ -254,6 +254,22 @@ def get_scoped_item_in(&mut g: generator_.Generator, s: str,
     }
 }
 
+# Check if two types are the same.
+# -----------------------------------------------------------------------------
+def is_same_type(a: ^code.Handle, b: ^code.Handle) -> bool
+{
+    if a._tag == code.TAG_POINTER_TYPE and a._tag == b._tag
+    {
+        # These are both pointers; move to the pointee types.
+        let a_type: ^code.PointerType = a._object as ^code.PointerType;
+        let b_type: ^code.PointerType = b._object as ^code.PointerType;
+        return is_same_type(a_type.pointee, b_type.pointee);
+    }
+
+    # Perform an address check.
+    return a._object == b._object;
+}
+
 # Create a cast from a value to a type.
 # -----------------------------------------------------------------------------
 def cast(&mut g: generator_.Generator, handle: ^code.Handle,
@@ -270,7 +286,7 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
     let dst: ^code.Type = type_._object as ^code.Type;
 
     # Are these the "same" type?
-    if src == dst {
+    if is_same_type(src_han, type_) {
         # Wrap and return our val.
         return code.make_value(type_, src_val.category, src_val.handle);
     }

@@ -792,5 +792,61 @@ def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
     val = llvm.LLVMPointerType(pointee_type.handle, 0);
 
     # Return the new pointer type.
-    code.make_pointer_type(pointee, val);
+    code.make_pointer_type(pointee, x.mutable, val);
+}
+
+# Address Of Expression [TAG_ADDRESS_OF]
+# -----------------------------------------------------------------------------
+def address_of(g: ^mut generator_.Generator, node: ^ast.Node,
+               scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.AddressOfExpr = (node^).unwrap() as ^ast.AddressOfExpr;
+
+    # Resolve the types of the operand.
+    let pointee: ^code.Handle = resolver.resolve_s(g, &x.operand, scope);
+    if code.isnil(pointee) { return code.make_nil(); }
+    let pointee_type: ^code.Type = pointee._object as ^code.Type;
+
+    # Create the llvm pointer to the pointee.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMPointerType(pointee_type.handle, 0);
+
+    # Return the new pointer type.
+    code.make_pointer_type(pointee, x.mutable, val);
+}
+
+# Dereference Expression [TAG_DEREF]
+# -----------------------------------------------------------------------------
+def dereference(g: ^mut generator_.Generator, node: ^ast.Node,
+                scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.UnaryExpr = (node^).unwrap() as ^ast.UnaryExpr;
+
+    # Resolve the types of the operand.
+    let operand: ^code.Handle = resolver.resolve_s(g, &x.operand, scope);
+    if code.isnil(operand) { return code.make_nil(); }
+
+    # Ensure we are dealing with a pointer.
+    if operand._tag <> code.TAG_POINTER_TYPE
+    {
+        # Report error.
+        let mut typename: string.String = code.typename(operand);
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "type `%s` cannot be dereferenced" as ^int8,
+                       typename.data());
+        errors.end();
+
+        # Dispose.
+        typename.dispose();
+
+        # Bail.
+        return code.make_nil();
+    }
+
+    # Return the pointee type.
+    let operand_type: ^code.PointerType = operand._object as ^code.PointerType;
+    return operand_type.pointee;
 }

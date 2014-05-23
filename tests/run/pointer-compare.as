@@ -4,8 +4,9 @@ def main() {
     let a: *int = &x;
     let z: *int = y;
     let w: **int = &z;
+    let e: **int = &a;
 
     assert(y == z);
     assert(y == a);
-    assert(z != w);
+    assert(e != w);
 }

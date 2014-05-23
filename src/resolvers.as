@@ -72,7 +72,7 @@ def type_common(a_ctx: ^ast.Node, a: ^code.Handle,
     # If the types are the same, bail.
     let a_ty: ^code.Type = a._object as ^code.Type;
     let b_ty: ^code.Type = b._object as ^code.Type;
-    if a == b { return a; }
+    if generator_util.is_same_type(a, b) { return a; }
 
     # Figure out a common type.
     if a._tag == code.TAG_INT_TYPE and b._tag == a._tag {
@@ -849,4 +849,24 @@ def dereference(g: ^mut generator_.Generator, node: ^ast.Node,
     # Return the pointee type.
     let operand_type: ^code.PointerType = operand._object as ^code.PointerType;
     return operand_type.pointee;
+}
+
+# Cast Expression [TAG_CAST]
+# -----------------------------------------------------------------------------
+def cast(g: ^mut generator_.Generator, node: ^ast.Node,
+         scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # TODO: At the moment an "explicit" cast such as this has no rules
+    #       and unilaterly attempts to cast anything to anything. It will
+    #       grow rules eventually.
+
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Resolve the destination type.
+    let dest: ^code.Handle = resolver.resolve_s(g, &x.rhs, scope);
+    if code.isnil(dest) { return code.make_nil(); }
+
+    # Return the destination type.
+    dest;
 }

@@ -12,7 +12,7 @@
 # [x]   type
 # [x]   address of
 # [x]   dereference
-# [ ]   relational
+# [x]   relational
 # [ ]   arithmetic
 # [ ]   difference
 # [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
@@ -33,6 +33,11 @@
 # [ ] string
 # [ ] character
 # [ ] import
+# [ ] tuples
+# [ ]   expressions
+# [ ]   types
+# [ ]   destructure
+# [ ] patterns
 # -----------------------------------------------------------------------------
 # [ ] traits
 # -----------------------------------------------------------------------------

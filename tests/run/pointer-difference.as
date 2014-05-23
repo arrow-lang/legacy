@@ -6,5 +6,5 @@ def main() {
     assert(length == 10);
     let o: Point;
     length = ((&o + 1) - &o);
-    assert(s >= 8);
+    assert(length >= 8);
 }

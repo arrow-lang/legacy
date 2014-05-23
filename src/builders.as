@@ -656,19 +656,20 @@ def relational(g: ^mut generator_.Generator, node: ^ast.Node,
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
     let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
 
+    # Get the common comparison opcode to use.
+    let mut opc: int32 = -1;
+    if      node.tag == ast.TAG_EQ { opc = 32; }
+    else if node.tag == ast.TAG_NE { opc = 33; }
+    else if node.tag == ast.TAG_GT { opc = 34; }
+    else if node.tag == ast.TAG_GE { opc = 35; }
+    else if node.tag == ast.TAG_LT { opc = 36; }
+    else if node.tag == ast.TAG_LE { opc = 37; }
+
     # Build the comparison instruction.
     let val: ^llvm.LLVMOpaqueValue;
     if type_._tag == code.TAG_INT_TYPE
-            or type_._tag == code.TAG_BOOL_TYPE {
-        # Get the comparison opcode to use.
-        let mut opc: int32 = -1;
-        if      node.tag == ast.TAG_EQ { opc = 32; }
-        else if node.tag == ast.TAG_NE { opc = 33; }
-        else if node.tag == ast.TAG_GT { opc = 34; }
-        else if node.tag == ast.TAG_GE { opc = 35; }
-        else if node.tag == ast.TAG_LT { opc = 36; }
-        else if node.tag == ast.TAG_LE { opc = 37; }
-
+            or type_._tag == code.TAG_BOOL_TYPE
+    {
         # Switch to signed if neccessary.
         if node.tag <> ast.TAG_EQ and node.tag <> ast.TAG_NE {
             let typ: ^code.IntegerType = type_._object as ^code.IntegerType;
@@ -682,9 +683,10 @@ def relational(g: ^mut generator_.Generator, node: ^ast.Node,
             g.irb,
             opc,
             lhs_val.handle, rhs_val.handle, "" as ^int8);
-    } else if type_._tag == code.TAG_FLOAT_TYPE {
-        # Get the comparison opcode to use.
-        let mut opc: int32 = -1;
+    }
+    else if type_._tag == code.TAG_FLOAT_TYPE
+    {
+        # Get the floating-point comparison opcode to use.
         if      node.tag == ast.TAG_EQ { opc = 1; }
         else if node.tag == ast.TAG_NE { opc = 6; }
         else if node.tag == ast.TAG_GT { opc = 2; }
@@ -697,6 +699,27 @@ def relational(g: ^mut generator_.Generator, node: ^ast.Node,
             g.irb,
             opc,
             lhs_val.handle, rhs_val.handle, "" as ^int8);
+    }
+    else if type_._tag == code.TAG_POINTER_TYPE
+    {
+        # Retrieve our integral pointer type.
+        let uintptr: ^code.Handle = g.items.get_ptr("uint") as ^code.Handle;
+        let uintptr_ty: ^code.Type = uintptr._object as ^code.Type;
+
+        # Convert both the left- and right-hand side expressions
+        # to integral expressions.
+        let lhs_int_val: ^llvm.LLVMOpaqueValue;
+        let rhs_int_val: ^llvm.LLVMOpaqueValue;
+        lhs_int_val = llvm.LLVMBuildPtrToInt(
+            g.irb, lhs_val.handle, uintptr_ty.handle, "" as ^int8);
+        rhs_int_val = llvm.LLVMBuildPtrToInt(
+            g.irb, rhs_val.handle, uintptr_ty.handle, "" as ^int8);
+
+        # Build the `ICMP` instruction.
+        val = llvm.LLVMBuildICmp(
+            g.irb,
+            opc,
+            lhs_int_val, rhs_int_val, "" as ^int8);
     }
 
     # Wrap and return the value.
@@ -1418,6 +1441,47 @@ def dereference(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Dispose.
     code.dispose(operand_val_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Cast [TAG_CAST]
+# -----------------------------------------------------------------------------
+def cast(g: ^mut generator_.Generator, node: ^ast.Node,
+         scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Resolve the operand for its type.
+    let operand_ty: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
+
+    # Build each operand.
+    let operand_ty_han: ^code.Type = operand_ty._object as ^code.Type;
+    let operand: ^code.Handle = builder.build(
+        g, &x.lhs, scope, operand_ty);
+    if code.isnil(operand) { return code.make_nil(); }
+
+    # Coerce the operands to values.
+    let operand_val_han: ^code.Handle = generator_def.to_value(
+        g^, operand, code.VC_RVALUE, false);
+    if code.isnil(operand_val_han) { return code.make_nil(); }
+
+    # Perform the cast.
+    let cast_han: ^code.Handle = generator_util.cast(
+        g^, operand_val_han, target);
+
+    # Get the value.
+    let operand_val: ^code.Value = cast_han._object as ^code.Value;
+
+    # Wrap and return the value (the direct address).
+    let han: ^code.Handle;
+    han = code.make_value(target, code.VC_RVALUE, operand_val.handle);
+
+    # Dispose.
+    code.dispose(operand_val_han);
+    code.dispose(cast_han);
 
     # Return our wrapped result.
     han;

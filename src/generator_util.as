@@ -353,6 +353,25 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
             val = llvm.LLVMBuildUIToFP(g.irb, src_val.handle, dst.handle,
                                        "" as ^int8);
         }
+    } else if src_han._tag == code.TAG_POINTER_TYPE
+          and type_._tag == src_han._tag {
+        # We need to convert one pointer type to the other.
+        # This is pretty easy (its just a bitcast).
+        val = llvm.LLVMBuildPointerCast(
+            g.irb, src_val.handle, dst.handle, "" as ^int8);
+    } else if src_han._tag == code.TAG_POINTER_TYPE
+          and type_._tag == code.TAG_INT_TYPE
+    {
+        # We need to convert this pointer to an integral type.
+        val = llvm.LLVMBuildPtrToInt(
+            g.irb, src_val.handle, dst.handle, "" as ^int8);
+    }
+    else if src_han._tag == code.TAG_INT_TYPE
+          and type_._tag == code.TAG_POINTER_TYPE
+    {
+        # We need to convert this integer to an pointer type.
+        val = llvm.LLVMBuildIntToPtr(
+            g.irb, src_val.handle, dst.handle, "" as ^int8);
     }
 
     # Wrap and return.

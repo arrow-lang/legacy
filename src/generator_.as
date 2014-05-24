@@ -56,7 +56,7 @@ implement Generator {
         llvm.LLVMDisposeBuilder(self.irb);
 
         # Dispose of the target machine.
-        # llvm.LLVMDisposeTargetMachine(self.target_machine);
+        llvm.LLVMDisposeTargetMachine(self.target_machine);
 
         # Dispose of our "items" dictionary.
         # FIXME: Dispose of each "item".

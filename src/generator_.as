@@ -20,6 +20,9 @@ type Generator {
     # process by managing what block we're on, etc.
     irb: ^mut llvm.LLVMOpaqueBuilder,
 
+    # A LLVM target machine.
+    target_machine: ^mut llvm.LLVMOpaqueTargetMachine,
+
     # A dictionary of "items" that have been declared. These can be
     # `types`, `functions`, or `modules`.
     mut items: dict.Dictionary,
@@ -51,6 +54,9 @@ implement Generator {
 
         # Dispose of the instruction builder.
         llvm.LLVMDisposeBuilder(self.irb);
+
+        # Dispose of the target machine.
+        llvm.LLVMDisposeTargetMachine(self.target_machine);
 
         # Dispose of our "items" dictionary.
         # FIXME: Dispose of each "item".

@@ -23,6 +23,36 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     # Construct a LLVM module to hold the geneated IR.
     g.mod = llvm.LLVMModuleCreateWithName(name as ^int8);
 
+    # Discern the triple for our target machine.
+    # TODO: This should be a configuration option.
+    # FIXME: At the very least this should be output with a verbose flag
+    #        for debugging.
+    let triple: ^int8 = llvm.LLVMGetDefaultTargetTriple();
+    # let error_: ^int8;
+    # let target_ref: ^llvm.LLVMTarget;
+    # if llvm.LLVMGetTargetFromTriple(triple, &target_ref, &error_) == 0 {
+    #     # Failed to get a valid target.
+    #     errors.count = 1;
+    #     return;
+    # }
+
+    # Construct a target machine.
+    # TODO: Pull together a list of features
+    # printf("?\n");
+    # g.target_machine = llvm.LLVMCreateTargetMachine(
+    #     target_ref, triple, "" as ^int8, "" as ^int8,
+    #     2,  #  llvm.LLVMCodeGenLevelDefault,
+    #     0,  #  llvm.LLVMRelocDefault,
+    #     0); #  llvm.LLVMCodeModelDefault);
+
+    # Set the target triple.
+    llvm.LLVMSetTarget(g.mod, triple);
+    # llvm.LLVMSetDataLayout(g.mod, triple);
+
+    # Dispose of the used triple.
+    llvm.LLVMDisposeMessage(triple);
+    # llvm.LLVMDisposeMessage(target_ref as ^int8);
+
     # Construct an instruction builder.
     g.irb = llvm.LLVMCreateBuilder();
 

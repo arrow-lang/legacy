@@ -270,6 +270,21 @@ def is_same_type(a: ^code.Handle, b: ^code.Handle) -> bool
     return a._object == b._object;
 }
 
+# Build a "sizeof" expression for a specific type handle.
+# -----------------------------------------------------------------------------
+def sizeof(&mut g: generator_.Generator, han: ^code.Handle) -> ^code.Handle
+{
+    # Get the type handle.
+    let type_: ^code.Type = han._object as ^code.Type;
+
+    # Build the `sizeof` instruction.
+    let val: ^llvm.LLVMOpaqueValue = llvm.LLVMSizeOf(type_.handle);
+
+    # Wrap and return it.
+    code.make_value(g.items.get_ptr("uint") as ^code.Handle,
+                    code.VC_RVALUE, val);
+}
+
 # Create a cast from a value to a type.
 # -----------------------------------------------------------------------------
 def cast(&mut g: generator_.Generator, handle: ^code.Handle,

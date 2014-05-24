@@ -20,6 +20,12 @@ import resolvers;
 # Begin the generation process seeded by the passed AST node.
 # =============================================================================
 def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
+    # Ensure the x86 target is initialized.
+    # NOTE: We should first ask configuration what our target is
+    #   and attempt to initialize the right target.
+    llvm.LLVMInitializeX86Target();
+    llvm.LLVMInitializeX86TargetInfo();
+
     # Construct a LLVM module to hold the geneated IR.
     g.mod = llvm.LLVMModuleCreateWithName(name as ^int8);
 
@@ -28,30 +34,34 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     # FIXME: At the very least this should be output with a verbose flag
     #        for debugging.
     let triple: ^int8 = llvm.LLVMGetDefaultTargetTriple();
-    # let error_: ^int8;
-    # let target_ref: ^llvm.LLVMTarget;
-    # if llvm.LLVMGetTargetFromTriple(triple, &target_ref, &error_) == 0 {
-    #     # Failed to get a valid target.
-    #     errors.count = 1;
-    #     return;
-    # }
+    let error_: ^int8;
+    let target_ref: ^llvm.LLVMTarget;
+    if llvm.LLVMGetTargetFromTriple(triple, &target_ref, &error_) <> 0 {
+        # Failed to get a valid target.
+        errors.count = 1;
+        return;
+    }
 
     # Construct a target machine.
     # TODO: Pull together a list of features
-    # printf("?\n");
-    # g.target_machine = llvm.LLVMCreateTargetMachine(
-    #     target_ref, triple, "" as ^int8, "" as ^int8,
-    #     2,  #  llvm.LLVMCodeGenLevelDefault,
-    #     0,  #  llvm.LLVMRelocDefault,
-    #     0); #  llvm.LLVMCodeModelDefault);
+    g.target_machine = llvm.LLVMCreateTargetMachine(
+        target_ref, triple, "" as ^int8, "" as ^int8,
+        2,  #  llvm.LLVMCodeGenLevelDefault,
+        0,  #  llvm.LLVMRelocDefault,
+        0); #  llvm.LLVMCodeModelDefault);
 
     # Set the target triple.
     llvm.LLVMSetTarget(g.mod, triple);
-    # llvm.LLVMSetDataLayout(g.mod, triple);
+
+    # Get and set the data layout.
+    let target_data: ^llvm.LLVMOpaqueTargetData =
+        llvm.LLVMGetTargetMachineData(g.target_machine);
+    let data_layout: ^int8 = llvm.LLVMCopyStringRepOfTargetData(target_data);
+    llvm.LLVMSetDataLayout(g.mod, data_layout);
 
     # Dispose of the used triple.
     llvm.LLVMDisposeMessage(triple);
-    # llvm.LLVMDisposeMessage(target_ref as ^int8);
+    llvm.LLVMDisposeMessage(data_layout);
 
     # Construct an instruction builder.
     g.irb = llvm.LLVMCreateBuilder();

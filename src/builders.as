@@ -860,15 +860,13 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
             # Get the size (in bytes) of the underlying type.
             let lhs_ty: ^code.PointerType = lhs_ty_han._object as
                 ^code.PointerType;
-            let lhs_pointee_ty_han: ^code.Handle = lhs_ty.pointee;
-            let lhs_pointee_ty: ^code.Type = lhs_pointee_ty_han._object as
-                ^code.Type;
-            let bytes: uint = lhs_pointee_ty.bits / 8;
+            let size_han: ^code.Handle =
+                generator_util.sizeof(g^, lhs_ty.pointee);
+            let size_val: ^code.Value = size_han._object as ^code.Value;
 
             # Perform an integral division to find the -number- of elements.
             val = llvm.LLVMBuildExactSDiv(
-                g.irb, val, llvm.LLVMConstInt(target_ty.handle, bytes, false),
-                "" as ^int8);
+                g.irb, val, size_val.handle, "" as ^int8);
             void;
         }
         else

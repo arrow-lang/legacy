@@ -10,9 +10,6 @@ import generator_util;
 import generator_type;
 import resolver;
 
-# Internal
-# =============================================================================
-
 # Resolve a type from an item.
 # -----------------------------------------------------------------------------
 def _type_of(g: ^mut generator_.Generator, item: ^code.Handle)
@@ -232,6 +229,31 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
     let rhs: ^code.Handle = resolver.resolve_s(g, &x.rhs, scope);
     if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
 
+    # If we are dealing with addition or subtraction ...
+    if node.tag == ast.TAG_ADD or node.tag == ast.TAG_SUBTRACT {
+        # ... and we have a pointer type and an integral type ...
+        if      lhs._tag == code.TAG_POINTER_TYPE
+            and rhs._tag == code.TAG_INT_TYPE
+        {
+            # ... unilaterally resolve to the pointer type.
+            return lhs;
+        }
+        if      lhs._tag == code.TAG_INT_TYPE
+            and rhs._tag == code.TAG_POINTER_TYPE
+        {
+            # ... unilaterally resolve to the pointer type.
+            return rhs;
+        }
+        if lhs._tag == code.TAG_POINTER_TYPE and rhs._tag == lhs._tag
+        {
+            if node.tag == ast.TAG_SUBTRACT
+            {
+                # The difference of two pointers.
+                return g.items.get_ptr("uint") as ^code.Handle;
+            }
+        }
+    }
+
     # Attempt to perform common type resolution between the two types.
     let ty: ^code.Handle = type_common(&x.lhs, lhs, &x.rhs, rhs);
     if code.isnil(ty) {
@@ -276,9 +298,6 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
         ty;
     }
 }
-
-# Resolvers
-# =============================================================================
 
 # Pass
 # -----------------------------------------------------------------------------

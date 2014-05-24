@@ -143,7 +143,10 @@ implement Scope {
 # -----------------------------------------------------------------------------
 # A basic type just remembers what its llvm handle is.
 
-type Type { handle: ^LLVMOpaqueType }
+type Type {
+    handle: ^LLVMOpaqueType,
+    bits: uint
+}
 
 type IntegerType {
     handle: ^LLVMOpaqueType,
@@ -192,6 +195,7 @@ def make_bool_type(handle: ^LLVMOpaqueType) -> ^Handle {
     # Build the module.
     let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
     ty.handle = handle;
+    ty.bits = 0;  # FIXME: Get the size of this type using sizeof.
 
     # Wrap in a handle.
     make(TAG_BOOL_TYPE, ty as ^void);
@@ -252,6 +256,7 @@ def typename(handle: ^Handle) -> string.String {
 
 type PointerType {
     handle: ^LLVMOpaqueType,
+    bits: uint,
     mutable: bool,
     mut pointee: ^Handle
 }
@@ -264,6 +269,7 @@ def make_pointer_type(pointee: ^Handle, mutable: bool, handle: ^llvm.LLVMOpaqueT
     han.handle = handle;
     han.mutable = mutable;
     han.pointee = pointee;
+    han.bits = 0;  # FIXME: Get the actual size of this type with sizeof
 
     # Wrap in a handle.
     make(TAG_POINTER_TYPE, han as ^void);
@@ -280,10 +286,11 @@ type Parameter {
 }
 
 type FunctionType {
+    handle: ^LLVMOpaqueType,
+    bits: uint,
     mut name: string.String,
     mut unqualified_name: string.String,
     mut namespace: list.List,
-    handle: ^LLVMOpaqueType,
     return_type: ^mut Handle,
     mut parameters: list.List,
     mut parameter_map: dict.Dictionary
@@ -324,6 +331,7 @@ def make_function_type(
     func.return_type = return_type;
     func.parameters = parameters;
     func.parameter_map = dict.make(64);
+    func.bits = 0;  # FIXME: Get the size of this type with sizeof
 
     # Fill the named parameter map.
     let mut idx: int = 0;
@@ -351,6 +359,7 @@ type Member {
 
 type StructType {
     handle: ^LLVMOpaqueType,
+    bits: uint,
     context: ^ast.Struct,
     mut name: string.String,
     mut namespace: list.List,
@@ -387,6 +396,7 @@ def make_struct_type(name: str,
     st.name.extend(name);
     st.namespace = namespace.clone();
     st.member_map = dict.make(64);
+    st.bits = 0;  # FIXME: Get the size of this type with sizeof.
 
     # Wrap in a handle.
     make(TAG_STRUCT_TYPE, st as ^void);
@@ -397,6 +407,7 @@ def make_struct_type(name: str,
 
 type TupleType {
     handle: ^LLVMOpaqueType,
+    bits: uint,
     mut elements: list.List
 }
 
@@ -409,6 +420,7 @@ def make_tuple_type(
     let func: ^TupleType = libc.malloc(TUPLE_TYPE_SIZE as int64) as ^TupleType;
     func.handle = handle;
     func.elements = elements;
+    func.bits = 0;  # FIXME: Get the size of this type with sizeof.
 
     # Wrap in a handle.
     make(TAG_TUPLE_TYPE, func as ^void);

@@ -8,12 +8,12 @@
 # }
 
 def main() {
-    # let m = a;
-    # let a: *int;
-    let mut x = 50;
-    let m = &mut x;
-    *m = 20;
-    assert(x == 20);
+
+    let m = 10;
+    let pm = &m;
+    let pm2 = pm + 1;
+    let pm3 = (pm2 + 1) + 1;
+
 }
 
 # struct Name {

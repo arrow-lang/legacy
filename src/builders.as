@@ -826,75 +826,137 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
         return code.make_nil();
     }
 
-    # Cast each operand to the target type.
-    let lhs_han: ^code.Handle = generator_util.cast(g^, lhs_val_han, target);
-    let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, target);
-
-    # Cast to values.
-    let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
-    let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
-
     # Build the instruction.
     let val: ^llvm.LLVMOpaqueValue;
-    if target._tag == code.TAG_INT_TYPE {
-        # Get the internal type.
-        let typ: ^code.IntegerType = target._object as ^code.IntegerType;
+    if target._tag == code.TAG_INT_TYPE
+    {
+        # Pull out the types of the operands.
+        let lhs_ty_han: ^code.Handle = code.type_of(lhs_val_han);
+        let rhs_ty_han: ^code.Handle = code.type_of(rhs_val_han);
 
-        # Build the correct operation.
-        if node.tag == ast.TAG_ADD {
-            # Build the `ADD` instruction.
-            val = llvm.LLVMBuildAdd(
-                g.irb,
-                lhs_val.handle, rhs_val.handle, "" as ^int8);
-        } else if node.tag == ast.TAG_SUBTRACT {
-            # Build the `SUB` instruction.
-            val = llvm.LLVMBuildSub(
-                g.irb,
-                lhs_val.handle, rhs_val.handle, "" as ^int8);
-        } else if node.tag == ast.TAG_MULTIPLY {
-            # Build the `MUL` instruction.
-            val = llvm.LLVMBuildMul(
-                g.irb,
-                lhs_val.handle, rhs_val.handle, "" as ^int8);
-        } else if node.tag == ast.TAG_DIVIDE or node.tag == ast.TAG_INTEGER_DIVIDE {
-            # Build the `DIV` instruction.
-            if typ.signed {
-                val = llvm.LLVMBuildSDiv(
-                    g.irb,
-                    lhs_val.handle, rhs_val.handle, "" as ^int8);
-            } else {
-                val = llvm.LLVMBuildUDiv(
-                    g.irb,
-                    lhs_val.handle, rhs_val.handle, "" as ^int8);
-            }
-        } else if node.tag == ast.TAG_MODULO {
-            # Build the `MOD` instruction.
-            if typ.signed {
-                val = llvm.LLVMBuildSRem(
-                    g.irb,
-                    lhs_val.handle, rhs_val.handle, "" as ^int8);
-            } else {
-                val = llvm.LLVMBuildURem(
-                    g.irb,
-                    lhs_val.handle, rhs_val.handle, "" as ^int8);
-            }
-        } else if node.tag == ast.TAG_BITAND {
-            # Build the `AND` instruction.
-            val = llvm.LLVMBuildAnd(
-                g.irb,
-                lhs_val.handle, rhs_val.handle, "" as ^int8);
-        } else if node.tag == ast.TAG_BITOR {
-            # Build the `OR` instruction.
-            val = llvm.LLVMBuildOr(
-                g.irb,
-                lhs_val.handle, rhs_val.handle, "" as ^int8);
-        } else if node.tag == ast.TAG_BITXOR {
-            # Build the `XOR` instruction.
-            val = llvm.LLVMBuildXor(
-                g.irb,
-                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        # If both the LHS and RHS are pointers we are finding the
+        # difference.
+        if      rhs_ty_han._tag == code.TAG_POINTER_TYPE
+            and lhs_ty_han._tag == code.TAG_POINTER_TYPE
+        {
+            # Cast to values.
+            let lhs_val: ^code.Value = lhs_val_han._object as ^code.Value;
+            let rhs_val: ^code.Value = rhs_val_han._object as ^code.Value;
+
+            # Get the target type handle.
+            let target_ty: ^code.Type = target._object as ^code.Type;
+
+            # Convert both to integers.
+            let lhs: ^llvm.LLVMOpaqueValue;
+            let rhs: ^llvm.LLVMOpaqueValue;
+            lhs = llvm.LLVMBuildPtrToInt(
+                g.irb, lhs_val.handle, target_ty.handle, "" as ^int8);
+            rhs = llvm.LLVMBuildPtrToInt(
+                g.irb, rhs_val.handle, target_ty.handle, "" as ^int8);
+
+            # Find the length.
+            val = llvm.LLVMBuildSub(g.irb, lhs, rhs, "" as ^int8);
+
+            # Get the size (in bytes) of the underlying type.
+            let lhs_ty: ^code.PointerType = lhs_ty_han._object as
+                ^code.PointerType;
+            let lhs_pointee_ty_han: ^code.Handle = lhs_ty.pointee;
+            let lhs_pointee_ty: ^code.Type = lhs_pointee_ty_han._object as
+                ^code.Type;
+            let bytes: uint = lhs_pointee_ty.bits / 8;
+
+            # Perform an integral division to find the -number- of elements.
+            val = llvm.LLVMBuildExactSDiv(
+                g.irb, val, llvm.LLVMConstInt(target_ty.handle, bytes, false),
+                "" as ^int8);
+            void;
         }
-    } else if target._tag == code.TAG_FLOAT_TYPE {
+        else
+        {
+            # Cast each operand to the target type.
+            let lhs_han: ^code.Handle = generator_util.cast(
+                g^, lhs_val_han, target);
+            let rhs_han: ^code.Handle = generator_util.cast(
+                g^, rhs_val_han, target);
+
+            # Cast to values.
+            let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+            let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+            # Get the internal type.
+            let typ: ^code.IntegerType = target._object as ^code.IntegerType;
+
+            # Build the correct operation.
+            if node.tag == ast.TAG_ADD {
+                # Build the `ADD` instruction.
+                val = llvm.LLVMBuildAdd(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            } else if node.tag == ast.TAG_SUBTRACT {
+                # Build the `SUB` instruction.
+                val = llvm.LLVMBuildSub(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            } else if node.tag == ast.TAG_MULTIPLY {
+                # Build the `MUL` instruction.
+                val = llvm.LLVMBuildMul(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            } else if node.tag == ast.TAG_DIVIDE
+                   or node.tag == ast.TAG_INTEGER_DIVIDE {
+                # Build the `DIV` instruction.
+                if typ.signed {
+                    val = llvm.LLVMBuildSDiv(
+                        g.irb,
+                        lhs_val.handle, rhs_val.handle, "" as ^int8);
+                } else {
+                    val = llvm.LLVMBuildUDiv(
+                        g.irb,
+                        lhs_val.handle, rhs_val.handle, "" as ^int8);
+                }
+            } else if node.tag == ast.TAG_MODULO {
+                # Build the `MOD` instruction.
+                if typ.signed {
+                    val = llvm.LLVMBuildSRem(
+                        g.irb,
+                        lhs_val.handle, rhs_val.handle, "" as ^int8);
+                } else {
+                    val = llvm.LLVMBuildURem(
+                        g.irb,
+                        lhs_val.handle, rhs_val.handle, "" as ^int8);
+                }
+            } else if node.tag == ast.TAG_BITAND {
+                # Build the `AND` instruction.
+                val = llvm.LLVMBuildAnd(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            } else if node.tag == ast.TAG_BITOR {
+                # Build the `OR` instruction.
+                val = llvm.LLVMBuildOr(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            } else if node.tag == ast.TAG_BITXOR {
+                # Build the `XOR` instruction.
+                val = llvm.LLVMBuildXor(
+                    g.irb,
+                    lhs_val.handle, rhs_val.handle, "" as ^int8);
+            }
+
+            # Dispose.
+            code.dispose(lhs_han);
+            code.dispose(rhs_han);
+        }
+    }
+    else if target._tag == code.TAG_FLOAT_TYPE
+    {
+        # Cast each operand to the target type.
+        let lhs_han: ^code.Handle = generator_util.cast(g^, lhs_val_han, target);
+        let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, target);
+
+        # Cast to values.
+        let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
         # Build the correct operation.
         if node.tag == ast.TAG_ADD {
             # Build the `ADD` instruction.
@@ -922,6 +984,69 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
                 g.irb,
                 lhs_val.handle, rhs_val.handle, "" as ^int8);
         }
+
+        # Dispose.
+        code.dispose(lhs_han);
+        code.dispose(rhs_han);
+    }
+    else if target._tag == code.TAG_POINTER_TYPE
+    {
+        # Cast to values.
+        let lhs_val: ^code.Value = lhs_val_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_val_han._object as ^code.Value;
+
+        # Pull out the types of the operands.
+        let lhs_ty_han: ^code.Handle = code.type_of(lhs_val_han);
+        let rhs_ty_han: ^code.Handle = code.type_of(rhs_val_han);
+
+        # A binary expression with a target of a pointer type could
+        # be a addition or subtraction with an integral type (
+        # moving the pointer) or it could be two pointer types (difference
+        # to find the size).
+        if node.tag == ast.TAG_ADD
+        {
+            if lhs_ty_han._tag == code.TAG_POINTER_TYPE
+            {
+                # Build the pointer offset access.
+                val = llvm.LLVMBuildGEP(
+                    g.irb, lhs_val.handle, &rhs_val.handle, 1,
+                    "" as ^int8);
+            }
+            else if rhs_ty_han._tag == code.TAG_POINTER_TYPE
+            {
+                # Build the pointer offset access.
+                val = llvm.LLVMBuildGEP(
+                    g.irb, rhs_val.handle, &lhs_val.handle, 1,
+                    "" as ^int8);
+            }
+        }
+        else if node.tag == ast.TAG_SUBTRACT
+        {
+            if      lhs_ty_han._tag == code.TAG_POINTER_TYPE
+                and rhs_ty_han._tag == code.TAG_INT_TYPE
+            {
+                # Negate the integer.
+                let rhs: ^llvm.LLVMOpaqueValue;
+                rhs = llvm.LLVMBuildNeg(g.irb, rhs_val.handle, "" as ^int8);
+
+                # Build the pointer offset access.
+                val = llvm.LLVMBuildGEP(
+                    g.irb, lhs_val.handle, &rhs, 1,
+                    "" as ^int8);
+            }
+            else if rhs_ty_han._tag == code.TAG_POINTER_TYPE
+                and lhs_ty_han._tag == code.TAG_INT_TYPE
+            {
+                # Negate the integer.
+                let lhs: ^llvm.LLVMOpaqueValue;
+                lhs = llvm.LLVMBuildNeg(g.irb, lhs_val.handle, "" as ^int8);
+
+                # Build the pointer offset access.
+                val = llvm.LLVMBuildGEP(
+                    g.irb, rhs_val.handle, &lhs, 1,
+                    "" as ^int8);
+            }
+        }
     }
 
     # Wrap and return the value.
@@ -931,8 +1056,6 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
     # Dispose.
     code.dispose(lhs_val_han);
     code.dispose(rhs_val_han);
-    code.dispose(lhs_han);
-    code.dispose(rhs_han);
 
     # Return our wrapped result.
     han;

@@ -13,8 +13,8 @@
 # [x]   address of
 # [x]   dereference
 # [x]   relational
-# [ ]   arithmetic
-# [ ]   difference
+# [x]   arithmetic
+# [x]   difference
 # [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
 # [ ] by-reference parameters
 # [ ] mutable parameters
@@ -23,7 +23,7 @@
 # [ ]   type
 # [ ]   index
 # -----------------------------------------------------------------------------
-# [ ] casts
+# [x] casts
 # [ ] external functions
 # [ ]   parsing
 # [ ]   create declarations
@@ -42,6 +42,10 @@
 # [ ] traits
 # -----------------------------------------------------------------------------
 # [ ] generics
+# -----------------------------------------------------------------------------
+# [ ] data layout
+# [ ] target triple
+# [ ] add a "sizeof" method to generator_util that takes a code.Handle (where it is a Type)
 # -----------------------------------------------------------------------------
 # [ ] shorthand name reference for function calls (prefixed ":")
 # [ ] type expressions should allow for paths

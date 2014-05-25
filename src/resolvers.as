@@ -889,3 +889,24 @@ def cast(g: ^mut generator_.Generator, node: ^ast.Node,
     # Return the destination type.
     dest;
 }
+
+# Loop [TAG_LOOP]
+# -----------------------------------------------------------------------------
+def loop_(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.Loop = (node^).unwrap() as ^ast.Loop;
+
+    # Attempt to resolve the type of the condition and ensure it is of
+    # the boolean type (only if there is a condition).
+    let bool_ty: ^code.Handle = g.items.get_ptr("bool") as ^code.Handle;
+    if not ast.isnull(x.condition) {
+        let cond_ty: ^code.Handle = resolver.resolve_st(
+            g, &x.condition, scope, bool_ty);
+        if code.isnil(cond_ty) { return code.make_nil(); }
+    }
+
+    # Loops resolve to nothing.
+    code.make_void_type(llvm.LLVMVoidType());
+}

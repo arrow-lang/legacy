@@ -1454,11 +1454,16 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
             blocks.at_ptr(i) as ^llvm.LLVMOpaqueBasicBlock;
         i = i + 1;
 
-        # Set the insertion point.
-        llvm.LLVMPositionBuilderAtEnd(g.irb, bb);
+        # Has this been terminated?
+        if not generator_util.is_terminated(bb)
+        {
+            # No; add the branch.
+            # Set the insertion point.
+            llvm.LLVMPositionBuilderAtEnd(g.irb, bb);
 
-        # Insert the non-conditional branch.
-        llvm.LLVMBuildBr(g.irb, merge_b);
+            # Insert the non-conditional branch.
+            llvm.LLVMBuildBr(g.irb, merge_b);
+        }
     }
 
     # Re-establish our insertion point.
@@ -1606,4 +1611,145 @@ def cast(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Return our wrapped result.
     han;
+}
+
+# Loop [TAG_LOOP]
+# -----------------------------------------------------------------------------
+def loop_(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.Loop = (node^).unwrap() as ^ast.Loop;
+
+    # Get the current basic block and resolve our current function handle.
+    let cur_block: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMGetInsertBlock(g.irb);
+    let cur_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMGetBasicBlockParent(
+        cur_block);
+
+    # Create and append the `condition` block.
+    let cond_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+
+    # Create and append the `merge` block.
+    let merge_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+
+    # Insert the `branch` for this block.
+    llvm.LLVMBuildBr(g.irb, cond_b);
+
+    # Switch to the `condition` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, cond_b);
+
+    # Do we have a condition to generate ...
+    let loop_b: ^llvm.LLVMOpaqueBasicBlock;
+    if not ast.isnull(x.condition)
+    {
+        # Create and append the `loop` block.
+        loop_b = llvm.LLVMAppendBasicBlock(cur_fn, "" as ^int8);
+
+        # Yes; build the condition.
+        let bool_ty: ^code.Handle = g.items.get_ptr("bool") as ^code.Handle;
+        let cond_han: ^code.Handle;
+        cond_han = builder.build(g, &x.condition, scope, bool_ty);
+        if code.isnil(cond_han) { return code.make_nil(); }
+        let cond_val_han: ^code.Handle = generator_def.to_value(
+            g^, cond_han, code.VC_RVALUE, false);
+        let cond_val: ^code.Value = cond_val_han._object as ^code.Value;
+        if code.isnil(cond_val_han) { return code.make_nil(); }
+
+        # Insert the `conditional branch` for this branch.
+        llvm.LLVMBuildCondBr(g.irb, cond_val.handle, loop_b, merge_b);
+        void;  # HACK
+    }
+    else
+    {
+        # Nope; the loop block is the condition block.
+        loop_b = cond_b;
+        void;  # HACK
+    }
+
+    # Switch to the `loop` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, loop_b);
+
+    # Push our "loop" onto the loop stack.
+    let loop_: generator_.Loop;
+    loop_.break_ = merge_b;
+    loop_.continue_ = cond_b;
+    g.loops.push(&loop_ as ^void);
+
+    # Build each node in the branch.
+    block(g, &x.block, scope, code.make_nil());
+
+    # Pop our "loop" from the loop stack.
+    g.loops.erase(-1);
+
+    # Update our block reference.
+    loop_b = llvm.LLVMGetInsertBlock(g.irb);
+
+    # If our loop has not been terminated we need to terminate
+    # with a branch back to the condition block.
+    if not generator_util.is_terminated(loop_b) {
+        llvm.LLVMBuildBr(g.irb, cond_b);
+    }
+
+    # Move the `merge` block after our current loop block.
+    llvm.LLVMMoveBasicBlockAfter(merge_b, loop_b);
+
+    # Switch to the `merge` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, merge_b);
+
+    # Return nil (void).
+    code.make_nil();
+}
+
+# Break [TAG_BREAK]
+# -----------------------------------------------------------------------------
+def break_(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Are we in a loop?
+    if g.loops.size == 0
+    {
+        # No; error and bail.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "'break' statement not in loop statement" as ^int8);
+        errors.end();
+        return code.make_nil();
+    }
+
+    # Get the top-most loop.
+    let loop_: ^generator_.Loop = g.loops.at(-1) as ^generator_.Loop;
+
+    # Build a `branch` to the condition block of the top-most loop.
+    llvm.LLVMBuildBr(g.irb, loop_.break_);
+
+    # Return nil (void).
+    code.make_nil();
+}
+
+# Continue [TAG_CONTINUE]
+# -----------------------------------------------------------------------------
+def continue_(g: ^mut generator_.Generator, node: ^ast.Node,
+              scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Are we in a loop?
+    if g.loops.size == 0
+    {
+        # No; error and bail.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "'continue' statement not in loop statement" as ^int8);
+        errors.end();
+        return code.make_nil();
+    }
+
+    # Get the top-most loop.
+    let loop_: ^generator_.Loop = g.loops.at(-1) as ^generator_.Loop;
+
+    # Build a `branch` to the merge block of the top-most loop.
+    llvm.LLVMBuildBr(g.irb, loop_.continue_);
+
+    # Return nil (void).
+    code.make_nil();
 }

@@ -2,9 +2,9 @@
 # [x] selection statement
 # [x] selection expression
 # [x] conditional expression
-# [ ] repeated evaluation (loop, while)
-# [ ] break
-# [ ] continue
+# [x] repeated evaluation (loop, while)
+# [x] break
+# [x] continue
 # [x] structures
 # [x] member expressions
 # [.] pointers
@@ -43,9 +43,9 @@
 # -----------------------------------------------------------------------------
 # [ ] generics
 # -----------------------------------------------------------------------------
-# [ ] data layout
-# [ ] target triple
-# [ ] add a "sizeof" method to generator_util that takes a code.Handle (where it is a Type)
+# [x] data layout
+# [x] target triple
+# [x] add a "sizeof" method to generator_util that takes a code.Handle (where it is a Type)
 # -----------------------------------------------------------------------------
 # [ ] shorthand name reference for function calls (prefixed ":")
 # [ ] type expressions should allow for paths

@@ -392,3 +392,12 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
     # Wrap and return.
     code.make_value(type_, code.VC_RVALUE, val);
 }
+
+# Check if a Llvm basic block has been "terminated"
+# -----------------------------------------------------------------------------
+def is_terminated(block: ^llvm.LLVMOpaqueBasicBlock) -> bool
+{
+    let terminator: ^llvm.LLVMOpaqueValue =
+        llvm.LLVMGetBasicBlockTerminator(block);
+    return terminator <> 0 as ^llvm.LLVMOpaqueValue;
+}

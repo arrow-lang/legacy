@@ -9,6 +9,13 @@ import list;
 import types;
 import code;
 
+# A loop struct that contains continue and break jump points.
+# -----------------------------------------------------------------------------
+type Loop { continue_: ^llvm.LLVMOpaqueBasicBlock,
+            break_: ^llvm.LLVMOpaqueBasicBlock }
+
+let LOOP_SIZE: uint = ((0 as ^Loop) + 1) - (0 as ^Loop);
+
 # A code generator that is capable of going from an arbitrary node in the
 # AST into a llvm module.
 # =============================================================================
@@ -41,7 +48,10 @@ type Generator {
     mut type_resolvers: (def (^mut Generator, ^ast.Node, ^mut code.Scope, ^code.Handle) -> ^code.Handle)[100],
 
     # Jump table for the builder.
-    mut builders: (def (^mut Generator, ^ast.Node, ^mut code.Scope, ^code.Handle) -> ^code.Handle)[100]
+    mut builders: (def (^mut Generator, ^ast.Node, ^mut code.Scope, ^code.Handle) -> ^code.Handle)[100],
+
+    # Stack of loops (for break and continue).
+    mut loops: list.List
 }
 
 implement Generator {
@@ -65,6 +75,9 @@ implement Generator {
 
         # Dispose of our namespace list.
         self.ns.dispose();
+
+        # Dispose of our loop stack.
+        self.loops.dispose();
     }
 
 }

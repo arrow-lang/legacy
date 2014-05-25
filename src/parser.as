@@ -1021,6 +1021,70 @@ def parse_cast_expr(&mut self) -> bool
     true;
 }
 
+# Pointer type
+# -----------------------------------------------------------------------------
+def parse_pointer_type(&mut self) -> bool
+{
+    # This is a pointer-to the next type.
+    # Declare and allocate the node.
+    let mut node: ast.Node = ast.make(ast.TAG_POINTER_TYPE);
+    let expr: ^ast.PointerType = node.unwrap() as ^ast.PointerType;
+
+    # Pop the `*` token.
+    self.pop_token();
+
+    # Check for a `mut` token and make the pointee mutable.
+    if self.peek_token(1) == tokens.TOK_MUT
+    {
+        # Set us as mutable.
+        expr.mutable = true;
+
+        # Pop the `mut` token.
+        self.pop_token();
+    }
+
+    # Attempt to parse a type next.
+    if not self.parse_type() { return false; }
+    expr.pointee = self.stack.pop();
+
+    # Push our pointer node.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Array type
+# -----------------------------------------------------------------------------
+def parse_array_type(&mut self) -> bool
+{
+    # This is an array of the previous type node.
+    # Declare and allocate the node.
+    let mut node: ast.Node = ast.make(ast.TAG_ARRAY_TYPE);
+    let expr: ^ast.ArrayType = node.unwrap() as ^ast.ArrayType;
+
+    # Pop the previous type node as our primary element type.
+    expr.element = self.stack.pop();
+
+    # Pop the `[` token.
+    self.pop_token();
+
+    # Attempt to parse the size expression next.
+    if not self.parse_expr(false) { return false; }
+    expr.size = self.stack.pop();
+
+    # Expect a `]` token.
+    if not self.expect(tokens.TOK_RBRACKET) { return false; }
+
+    # Push our pointer node.
+    self.stack.push(node);
+
+    # Attempt to continue the type expression with "[" to
+    # mean an array type.
+    if self.peek_token(1) == tokens.TOK_LBRACKET { self.parse_array_type(); }
+    else { true; }
+}
+
 # Type
 # -----------------------------------------------------------------------------
 # type = path | tuple-type | function-type | array-type ;
@@ -1029,57 +1093,39 @@ def parse_cast_expr(&mut self) -> bool
 # -----------------------------------------------------------------------------
 def parse_type(&mut self) -> bool
 {
-    # Delegate based on what we are.
+    # Check if we are a `type(..)` expression.
     let tok: int = self.peek_token(1);
-    if      tok == tokens.TOK_IDENTIFIER { self.parse_ident_expr(); }
-    else if tok == tokens.TOK_LPAREN     { self.parse_paren_expr(); }
-    else if tok == tokens.TOK_TYPE       { self.parse_type_expr(); }
-    else if tok == tokens.TOK_STAR
-    {
-        # This is a pointer-to the next type.
-        # Declare and allocate the node.
-        let mut node: ast.Node = ast.make(ast.TAG_POINTER_TYPE);
-        let expr: ^ast.PointerType = node.unwrap() as ^ast.PointerType;
+    if tok == tokens.TOK_TYPE { return self.parse_type_expr(); }
 
-        # Pop the `*` token.
-        self.pop_token();
-
-        # Check for a `mut` token and make the pointee mutable.
-        if self.peek_token(1) == tokens.TOK_MUT
+    # Delegate based on what we are.
+    let rv: bool =
+        if      tok == tokens.TOK_IDENTIFIER { self.parse_ident_expr(); }
+        # FIXME: Tuple type parsing needs to be done properly and not
+        #   be piggy-backed on top of tuple expression parsing.
+        else if tok == tokens.TOK_LPAREN     { self.parse_paren_expr(); }
+        else if tok == tokens.TOK_STAR       { self.parse_pointer_type(); }
+        else
         {
-            # Set us as mutable.
-            expr.mutable = true;
+            # Expected some kind of type expression node.
+            self.consume_until(tokens.TOK_SEMICOLON);
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "expected %s, %s or %s but found %s" as ^int8,
+                           tokens.to_str(tokens.TOK_STAR),
+                           tokens.to_str(tokens.TOK_IDENTIFIER),
+                           tokens.to_str(tokens.TOK_LPAREN),
+                           tokens.to_str(tok));
+            errors.end();
 
-            # Pop the `mut` token.
-            self.pop_token();
-        }
+            # Return failure.
+            false;
+        };
+    if not rv { return false; }
 
-        # Attempt to parse a type next.
-        if not self.parse_type() { return false; }
-        expr.pointee = self.stack.pop();
-
-        # Push our pointer node.
-        self.stack.push(node);
-
-        # Return success.
-        true;
-    }
-    else
-    {
-        # Expected some kind of type expression node.
-        self.consume_until(tokens.TOK_SEMICOLON);
-        errors.begin_error();
-        errors.fprintf(errors.stderr,
-                       "expected %s, %s or %s but found %s" as ^int8,
-                       tokens.to_str(tokens.TOK_STAR),
-                       tokens.to_str(tokens.TOK_IDENTIFIER),
-                       tokens.to_str(tokens.TOK_LPAREN),
-                       tokens.to_str(tok));
-        errors.end();
-
-        # Return failure.
-        false;
-    }
+    # Attempt to continue the type expression with "[" to
+    # mean an array type.
+    if self.peek_token(1) == tokens.TOK_LBRACKET { self.parse_array_type(); }
+    else { true; }
 }
 
 # Type expression

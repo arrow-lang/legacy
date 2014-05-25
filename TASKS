@@ -25,8 +25,6 @@
 # [ ] functions
 # [ ]   types
 # [ ]   expressions
-let m = () -> std.print("Hello");
-
 # -----------------------------------------------------------------------------
 # [x] casts
 # [ ] external functions
@@ -60,3 +58,4 @@ let m = () -> std.print("Hello");
 # [ ] mutally recursive function parameter type resolution
 # [ ] rethink conditional expression parsing so that `x if c else y = 30` works without parens
 # [ ] refactor selection statements so that they do not require ";" afterwords
+# [ ] `uint` and `int` should be given the same bits as a ptr has

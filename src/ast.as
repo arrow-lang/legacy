@@ -78,6 +78,7 @@ let TAG_CONTINUE        : int = 68;             # Continue
 let TAG_POINTER_TYPE    : int = 69;             # PointerType
 let TAG_ADDRESS_OF      : int = 70;             # AddressOfExpr
 let TAG_DEREF           : int = 71;             # DerefExpr
+let TAG_ARRAY_TYPE      : int = 72;             # ArrayType
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -265,6 +266,9 @@ type Ident { mut name: string.String }
 # Pointer type.
 type PointerType { mutable: bool, mut pointee: Node }
 
+# Array type.
+type ArrayType { mut element: Node, mut size: Node }
+
 # Import
 # ids: ordered collection of the identifiers that make up the `x.y.z` name
 #      to import.
@@ -334,6 +338,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
     else if tag == TAG_POINTER_TYPE   { let tmp: PointerType; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_ARRAY_TYPE     { let tmp: ArrayType; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IMPORT  { let tmp: Import; ((&tmp + 1) - &tmp); }
     else if tag == TAG_INDEX   { let tmp: IndexExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CAST    { let tmp: CastExpr; ((&tmp + 1) - &tmp); }
@@ -493,6 +498,7 @@ def dump(&node: Node) {
         dump_table[TAG_LOOP] = dump_loop;
         dump_table[TAG_POINTER_TYPE] = dump_pointer_type;
         dump_table[TAG_INDEX] = dump_index_expr;
+        dump_table[TAG_ARRAY_TYPE] = dump_array_type;
         dump_initialized = true;
     }
 
@@ -966,6 +972,18 @@ def dump_pointer_type(node: ^Node) {
 
     dump_indent = dump_indent + 1;
     dump(x.pointee);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_array_type
+# -----------------------------------------------------------------------------
+def dump_array_type(node: ^Node) {
+    let x: ^ArrayType = unwrap(node^) as ^ArrayType;
+    printf("ArrayType <?>\n");
+
+    dump_indent = dump_indent + 1;
+    dump(x.size);
+    dump(x.element);
     dump_indent = dump_indent - 1;
 }
 

@@ -967,7 +967,30 @@ def parse_call_expr(&mut self) -> bool
 
 # Index expression
 # -----------------------------------------------------------------------------
-def parse_index_expr(&mut self) -> bool { false; }
+def parse_index_expr(&mut self) -> bool {
+    # Declare and allocate the node.
+    let node: ast.Node = ast.make(ast.TAG_INDEX);
+    let expr: ^ast.IndexExpr = node.unwrap() as ^ast.IndexExpr;
+
+    # Pop the expression in the stack as our expression.
+    expr.expression = self.stack.pop();
+
+    # Pop the `[` token.
+    self.pop_token();
+
+    # Parse an expression node for the argument.
+    if not self.parse_expr(false) { return false; }
+    expr.subscript = self.stack.pop();
+
+    # Expect a `]` token.
+    if not self.expect(tokens.TOK_RBRACKET) { return false; }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
 
 # Cast expression
 # -----------------------------------------------------------------------------

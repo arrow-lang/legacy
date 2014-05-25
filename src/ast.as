@@ -492,6 +492,7 @@ def dump(&node: Node) {
         dump_table[TAG_TYPE_PARAM] = dump_type_param;
         dump_table[TAG_LOOP] = dump_loop;
         dump_table[TAG_POINTER_TYPE] = dump_pointer_type;
+        dump_table[TAG_INDEX] = dump_index_expr;
         dump_initialized = true;
     }
 

@@ -30,15 +30,3 @@ h = (a: false, 51);
 h = (:a, 51);
 i = (734, a: true);
 i = (231, :a);
-
-
-# May be treated as a sequence
-# Structural type-equivalency
-use Point = (x: int, y: int);
-
-# Sequential access is forbidden
-# Nominal type-equivalency
-struct Point { x: int, y: int }
-
-let mut origin = Point(60, 20);
-let mut origin = Point(x: 10, y: 30);

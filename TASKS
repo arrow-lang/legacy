@@ -18,10 +18,15 @@
 # [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
 # [ ] by-reference parameters
 # [ ] mutable parameters
-# [ ] arrays
-# [ ]   parsing
+# [.] arrays
+# [.]   parsing
 # [ ]   type
 # [ ]   index
+# [ ] functions
+# [ ]   types
+# [ ]   expressions
+let m = () -> std.print("Hello");
+
 # -----------------------------------------------------------------------------
 # [x] casts
 # [ ] external functions

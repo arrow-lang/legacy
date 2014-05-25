@@ -102,11 +102,17 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
     # Get the name out of the node.
     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
 
-    # Get and resolve the type node (if we have one).
+    # Get and build the type node (if we have one).
     let type_han: ^code.Handle = code.make_nil();
     let type_: ^code.Type = 0 as ^code.Type;
     if not ast.isnull(x.type_) {
+        # Resolve the initial type.
         type_han = resolver.resolve_s(g, &x.type_, scope);
+        if code.isnil(type_han) { return code.make_nil(); }
+
+        # Build the final type.
+        type_han = builder.build(g, &x.type_, scope, type_han);
+        if code.isnil(type_han) { return code.make_nil(); }
         type_ = type_han._object as ^code.Type;
     }
 
@@ -1752,4 +1758,69 @@ def continue_(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Return nil (void).
     code.make_nil();
+}
+
+# Pointer Type [TAG_POINTER_TYPE]
+# -----------------------------------------------------------------------------
+def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
+                 scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # This has been fully resolved; return.
+    target;
+}
+
+# Array Type [TAG_ARRAY_TYPE]
+# -----------------------------------------------------------------------------
+def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
+              scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.ArrayType = (node^).unwrap() as ^ast.ArrayType;
+
+    # Unwrap the target type to our destination type.
+    let type_: ^code.ArrayType = target._object as ^code.ArrayType;
+    let el_type_han: ^code.Handle = type_.element;
+    let el_type: ^code.Type = el_type_han._object as ^code.Type;
+
+    # The resolver has taken care of the initial resolution; we only
+    # need to build the element size (in a static context).
+    let size_ty: ^code.Handle = g.items.get_ptr("uint") as ^code.Handle;
+    let size_han: ^code.Handle;
+    size_han = builder.build(g, &x.size, scope, size_ty);
+    if code.isnil(size_han) { return code.make_nil(); }
+    let size_val_han: ^code.Handle = generator_def.to_value(
+        g^, size_han, code.VC_RVALUE, true);
+    let size_val: ^code.Value = size_val_han._object as ^code.Value;
+    if code.isnil(size_val_han) { return code.make_nil(); }
+
+    # If we are dealing with a `Constant` ...
+    if llvm.LLVMIsConstant(size_val.handle) <> 0
+    {
+        # TODO: We should implement a heuristic that would determine
+        #   whether this is a heap-allocated array or not. Something
+        #   like int[100000] shouldn't go on the stack as it just
+        #   woudln't fit.
+
+        # Get the size of the array out of the contsant value.
+        let val: uint64 = llvm.LLVMConstIntGetZExtValue(size_val.handle);
+
+        # Set the array size of the solid type.
+        type_.size = val;
+
+        # Create the LLVM type.
+        type_.handle = llvm.LLVMArrayType(el_type.handle, val as uint32);
+
+        # Return our type.
+        target;
+    }
+    else
+    {
+        # Else, make a variable length array on the heap.
+        # TODO: This requires the concept of destructors to be implmented.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "not implemented: heap-allocated arrays" as ^int8);
+        errors.end();
+        code.make_nil();
+    }
 }

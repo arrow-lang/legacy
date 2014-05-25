@@ -814,6 +814,55 @@ def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
     code.make_pointer_type(pointee, x.mutable, val);
 }
 
+# Array Type [TAG_ARRAY_TYPE]
+# -----------------------------------------------------------------------------
+def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
+               scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.ArrayType = (node^).unwrap() as ^ast.ArrayType;
+
+    # Resolve the types of the pointee.
+    let element: ^code.Handle = resolver.resolve_s(g, &x.element, scope);
+    if code.isnil(element) { return code.make_nil(); }
+    let element_type: ^code.Type = element._object as ^code.Type;
+
+    # Resolve the type of the size.
+    let size_ty: ^code.Handle = g.items.get_ptr("uint") as ^code.Handle;
+    let size: ^code.Handle = resolver.resolve_st(g, &x.size, scope, size_ty);
+    if code.isnil(size) { return code.make_nil(); }
+
+    # Ensure we are dealing with a "integral" type.
+    # Ensure this is unsigned.
+    let error: bool = false;
+    error = size._tag <> code.TAG_INT_TYPE;
+    if not error
+    {
+        let size_type: ^code.IntegerType = size._object as ^code.IntegerType;
+        error = size_type.signed;
+    }
+
+    if error
+    {
+        # Report error.
+        let mut s_typename: string.String = code.typename(size);
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "mismatched types: expected `unsigned integer` but found '%s'" as ^int8,
+                       s_typename.data());
+        errors.end();
+
+        # Dispose.
+        s_typename.dispose();
+
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Return the new pointer type.
+    code.make_array_type(x, element);
+}
+
 # Address Of Expression [TAG_ADDRESS_OF]
 # -----------------------------------------------------------------------------
 def address_of(g: ^mut generator_.Generator, node: ^ast.Node,

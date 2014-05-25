@@ -8,12 +8,8 @@
 # }
 
 def main() {
-
-    let m = 10;
-    let pm = &m;
-    let pm2 = pm + 1;
-    let pm3 = (pm2 + 1) + 1;
-
+    static x: int[10];
+    # let y: int[x];
 }
 
 # struct Name {

@@ -9,6 +9,7 @@ import generator_;
 import generator_util;
 import generator_util;
 import resolver;
+import builder;
 
 # Generate the `type` of each declaration "item".
 # -----------------------------------------------------------------------------
@@ -87,6 +88,12 @@ def generate_static_slot(&mut g: generator_.Generator,
             &g, &x.context.type_, &x.namespace,
             code.make_nil_scope(),
             code.make_nil());
+
+        # Build the final type.
+        han = builder.build(
+            &g, &x.context.type_,
+            code.make_nil_scope(),
+            han);
     }
     else if not ast.isnull(x.context.initializer)
     {

@@ -28,6 +28,7 @@ let TAG_STRUCT: int = 14;
 let TAG_STRUCT_TYPE: int = 15;
 let TAG_MEMBER: int = 16;
 let TAG_POINTER_TYPE: int = 17;
+let TAG_ARRAY_TYPE: int = 18;
 
 # Value categories
 # -----------------------------------------------------------------------------
@@ -245,6 +246,16 @@ def typename(handle: ^Handle) -> string.String {
         let mut ptr_name: string.String = typename(p_ty.pointee);
         name.extend(ptr_name.data() as str);
         ptr_name.dispose();
+    } else if handle._tag == TAG_ARRAY_TYPE {
+        let a_ty: ^ArrayType = handle._object as ^ArrayType;
+        let mut el_name: string.String = typename(a_ty.element);
+        name.extend(el_name.data() as str);
+        el_name.dispose();
+        name.append("[");
+        let int_node: ast.Node = a_ty.context.size;
+        let int_: ^ast.IntegerExpr = int_node.unwrap() as ^ast.IntegerExpr;
+        name.extend(int_.text.data() as str);
+        name.append("]");
     }
 
     # Return the name.
@@ -273,6 +284,32 @@ def make_pointer_type(pointee: ^Handle, mutable: bool, handle: ^llvm.LLVMOpaqueT
 
     # Wrap in a handle.
     make(TAG_POINTER_TYPE, han as ^void);
+}
+
+# Array type
+# -----------------------------------------------------------------------------
+
+type ArrayType {
+    handle: ^LLVMOpaqueType,
+    bits: uint,
+    mut element: ^Handle,
+    size: uint,
+    context: ^ast.ArrayType
+}
+
+let ARRAY_TYPE_SIZE: uint = ((0 as ^ArrayType) + 1) - (0 as ^ArrayType);
+
+def make_array_type(context: ^ast.ArrayType, element: ^Handle) -> ^Handle {
+    # Build the parameter.
+    let han: ^ArrayType = libc.malloc(ARRAY_TYPE_SIZE as int64) as ^ArrayType;
+    han.handle = 0 as ^LLVMOpaqueType;
+    han.element = element;
+    han.bits = 0;  # FIXME: Get the actual size of this type with sizeof
+    han.size = 0;
+    han.context = context;
+
+    # Wrap in a handle.
+    make(TAG_ARRAY_TYPE, han as ^void);
 }
 
 # Function type

@@ -1779,7 +1779,8 @@ def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Unwrap the target type to our destination type.
     let type_: ^code.ArrayType = target._object as ^code.ArrayType;
-    let el_type_han: ^code.Handle = type_.element;
+    let mut el_type_han: ^code.Handle = type_.element;
+    el_type_han = builder.build(g, &x.element, scope, el_type_han);
     let el_type: ^code.Type = el_type_han._object as ^code.Type;
 
     # The resolver has taken care of the initial resolution; we only
@@ -1823,4 +1824,63 @@ def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
         errors.end();
         code.make_nil();
     }
+}
+
+# Index Expression [TAG_INDEX]
+# -----------------------------------------------------------------------------
+def index(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.IndexExpr = (node^).unwrap() as ^ast.IndexExpr;
+
+    # Resolve the operand for its type.
+    let expr_ty: ^code.Handle = resolver.resolve_s(g, &x.expression, scope);
+    let sub_ty: ^code.Handle = resolver.resolve_s(g, &x.subscript, scope);
+
+    # Build each operand.
+    let expr: ^code.Handle = builder.build(g, &x.expression, scope, expr_ty);
+    let sub: ^code.Handle = builder.build(g, &x.subscript, scope, sub_ty);
+    if code.isnil(expr) { return code.make_nil(); }
+    if code.isnil(sub) { return code.make_nil(); }
+
+    # Coerce the operands to values.
+    let expr_val_han: ^code.Handle = generator_def.to_value(
+        g^, expr, code.VC_RVALUE, false);
+    let sub_val_han: ^code.Handle = generator_def.to_value(
+        g^, sub, code.VC_RVALUE, false);
+    if code.isnil(expr_val_han) { return code.make_nil(); }
+    if code.isnil(sub_val_han) { return code.make_nil(); }
+
+    # Cast to values.
+    let expr_val: ^code.Value = expr_val_han._object as ^code.Value;
+    let sub_val: ^code.Value = sub_val_han._object as ^code.Value;
+
+    # Build an index list.
+    let mut indicies: list.List = list.make(types.PTR);
+    indicies.reserve(2);
+    let mut idxs: ^^llvm.LLVMOpaqueValue =
+        indicies.elements as ^^llvm.LLVMOpaqueValue;
+    let zero_val: ^llvm.LLVMOpaqueValue =
+        llvm.LLVMConstInt(llvm.LLVMTypeOf(sub_val.handle), 0, false);
+    ((idxs + 0)^) = zero_val;
+    ((idxs + 1)^) = sub_val.handle;
+
+    # Build the `GEP` instruction.
+    let val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMBuildInBoundsGEP(
+        g.irb, expr_val.handle,
+        idxs, 2, "" as ^int8);
+
+    # Wrap and return the value (the direct address).
+    let han: ^code.Handle;
+    han = code.make_value(target, code.VC_LVALUE, val);
+
+    # Dispose.
+    code.dispose(expr_val_han);
+    code.dispose(sub_val_han);
+    indicies.dispose();
+
+    # Return our wrapped result.
+    han;
 }

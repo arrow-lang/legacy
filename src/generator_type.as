@@ -150,6 +150,12 @@ def generate_function(&mut g: generator_.Generator,
             &g, &x.context.return_type, &x.namespace,
             &x.scope, code.make_nil());
 
+        # Build the final type.
+        ret_han = builder.build(
+            &g, &x.context.return_type,
+            code.make_nil_scope(),
+            ret_han);
+
         if code.isnil(ret_han) {
             # Failed to resolve type; mark us as poisioned.
             x.type_ = code.make_poison();

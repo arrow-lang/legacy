@@ -70,3 +70,12 @@
 # -----------------------------------------------------------------------------
 # [ ] various tests for blocks and ensuring lifetime
 # -----------------------------------------------------------------------------
+# [ ] array (advanced)
+# [ ]   variable length arrays with heap storage and scoped destructors
+# [ ]   using a platform-dependent heuristic; push even a constant-sized array
+#           into heap storage (for large N arrays).
+# -----------------------------------------------------------------------------
+# [ ] integral expressions don't carry the target type through
+# [ ] pointers need to build their pointee type
+
+let x: int[0x1000];  # 5 KiB

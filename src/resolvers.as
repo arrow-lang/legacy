@@ -959,3 +959,55 @@ def loop_(g: ^mut generator_.Generator, node: ^ast.Node,
     # Loops resolve to nothing.
     code.make_void_type(llvm.LLVMVoidType());
 }
+
+# Index Expression [TAG_INDEX]
+# -----------------------------------------------------------------------------
+def index(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.IndexExpr = (node^).unwrap() as ^ast.IndexExpr;
+
+    # Resolve the types of the operand.
+    let operand: ^code.Handle = resolver.resolve_s(g, &x.expression, scope);
+    if code.isnil(operand) { return code.make_nil(); }
+
+    # Ensure we are dealing with an array.
+    if operand._tag <> code.TAG_ARRAY_TYPE
+    {
+        # Report error.
+        let mut typename: string.String = code.typename(operand);
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "type `%s` cannot be indexed" as ^int8,
+                       typename.data());
+        errors.end();
+
+        # Dispose.
+        typename.dispose();
+
+        # Bail.
+        return code.make_nil();
+    }
+
+    # Resolve the type of the subscript.
+    let subscript: ^code.Handle = resolver.resolve_s(g, &x.subscript, scope);
+    if code.isnil(operand) { return code.make_nil(); }
+
+    # Ensure we are dealing with an integral type.
+    if subscript._tag <> code.TAG_INT_TYPE
+    {
+        # Report error.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "array subscript is not an integer" as ^int8);
+        errors.end();
+
+        # Bail.
+        return code.make_nil();
+    }
+
+    # Return the element type.
+    let operand_type: ^code.ArrayType = operand._object as ^code.ArrayType;
+    return operand_type.element;
+}

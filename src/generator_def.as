@@ -246,6 +246,12 @@ def to_value(&mut g: generator_.Generator,
                 # Pull out the initializer.
                 generate_static_slot(g, slot.name.data() as str, slot);
             }
+            else if slot.type_._tag == code.TAG_ARRAY_TYPE
+            {
+                # We have an array type.
+                # Wrap it in a handle.
+                code.make_value(slot.type_, category, slot.handle);
+            }
             else
             {
                 # Load the static slot value.
@@ -267,12 +273,21 @@ def to_value(&mut g: generator_.Generator,
         let slot: ^code.LocalSlot = handle._object as ^code.LocalSlot;
         if category == code.VC_RVALUE
         {
-            # Load the local slot value.
-            let val: ^llvm.LLVMOpaqueValue;
-            val = llvm.LLVMBuildLoad(g.irb, slot.handle, "" as ^int8);
+            if slot.type_._tag == code.TAG_ARRAY_TYPE
+            {
+                # We have an array type.
+                # Wrap it in a handle.
+                code.make_value(slot.type_, category, slot.handle);
+            }
+            else
+            {
+                # Load the local slot value.
+                let val: ^llvm.LLVMOpaqueValue;
+                val = llvm.LLVMBuildLoad(g.irb, slot.handle, "" as ^int8);
 
-            # Wrap it in a handle.
-            code.make_value(slot.type_, code.VC_RVALUE, val);
+                # Wrap it in a handle.
+                code.make_value(slot.type_, code.VC_RVALUE, val);
+            }
         }
         else
         {
@@ -290,12 +305,21 @@ def to_value(&mut g: generator_.Generator,
         }
         else if category == code.VC_RVALUE
         {
-            # Perform a "LOAD" and get the r-value from the l-value.
-            let obj: ^llvm.LLVMOpaqueValue;
-            obj = llvm.LLVMBuildLoad(g.irb, val.handle, "" as ^int8);
+            if val.type_._tag == code.TAG_ARRAY_TYPE
+            {
+                # We have an array type.
+                # Wrap it in a handle.
+                code.make_value(val.type_, category, val.handle);
+            }
+            else
+            {
+                # Perform a "LOAD" and get the r-value from the l-value.
+                let obj: ^llvm.LLVMOpaqueValue;
+                obj = llvm.LLVMBuildLoad(g.irb, val.handle, "" as ^int8);
 
-            # Wrap it in a handle.
-            code.make_value(val.type_, code.VC_RVALUE, obj);
+                # Wrap it in a handle.
+                code.make_value(val.type_, code.VC_RVALUE, obj);
+            }
         }
         else
         {

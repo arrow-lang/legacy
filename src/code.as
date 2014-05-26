@@ -473,7 +473,8 @@ def is_type(handle: ^Handle) -> bool {
     handle._tag == TAG_TUPLE_TYPE or
     handle._tag == TAG_STRUCT_TYPE or
     handle._tag == TAG_POINTER_TYPE or
-    handle._tag == TAG_FLOAT_TYPE;
+    handle._tag == TAG_FLOAT_TYPE or
+    handle._tag == TAG_ARRAY_TYPE;
 }
 
 # Gets the type of the thing.

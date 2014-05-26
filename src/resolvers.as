@@ -806,12 +806,8 @@ def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
     if code.isnil(pointee) { return code.make_nil(); }
     let pointee_type: ^code.Type = pointee._object as ^code.Type;
 
-    # Create the llvm pointer to the pointee.
-    let val: ^llvm.LLVMOpaqueType;
-    val = llvm.LLVMPointerType(pointee_type.handle, 0);
-
     # Return the new pointer type.
-    code.make_pointer_type(pointee, x.mutable, val);
+    code.make_pointer_type(pointee, x.mutable, 0 as ^llvm.LLVMOpaqueType);
 }
 
 # Array Type [TAG_ARRAY_TYPE]

@@ -155,6 +155,9 @@ def generate_function(&mut g: generator_.Generator,
             &g, &x.context.return_type,
             code.make_nil_scope(),
             ret_han);
+        if not code.is_type(ret_han) {
+            ret_han = code.type_of(ret_han);
+        }
 
         if code.isnil(ret_han) {
             # Failed to resolve type; mark us as poisioned.
@@ -184,6 +187,15 @@ def generate_function(&mut g: generator_.Generator,
             # Failed to resolve type; mark us as poisioned.
             x.type_ = code.make_poison();
             return code.make_poison();
+        }
+
+        # Build the param type.
+        ptype_handle = builder.build(
+            &g, &p.type_,
+            code.make_nil_scope(),
+            ptype_handle);
+        if not code.is_type(ptype_handle) {
+            ptype_handle = code.type_of(ptype_handle);
         }
 
         let ptype_obj: ^code.Type = ptype_handle._object as ^code.Type;

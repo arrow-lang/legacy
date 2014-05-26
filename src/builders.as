@@ -1595,6 +1595,9 @@ def cast(g: ^mut generator_.Generator, node: ^ast.Node,
         g, &x.lhs, scope, operand_ty);
     if code.isnil(operand) { return code.make_nil(); }
 
+    # Build the destination type.
+    target = builder.build(g, &x.rhs, scope, target);
+
     # Coerce the operands to values.
     let operand_val_han: ^code.Handle = generator_def.to_value(
         g^, operand, code.VC_RVALUE, false);
@@ -1765,6 +1768,24 @@ def continue_(g: ^mut generator_.Generator, node: ^ast.Node,
 def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
                  scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
+    # Unwrap the node to its proper type.
+    let x: ^ast.PointerType = (node^).unwrap() as ^ast.PointerType;
+
+    # Unwrap the type.
+    let type_: ^code.PointerType = target._object as ^code.PointerType;
+
+    # Build the pointee type.
+    type_.pointee = builder.build(
+        g, &x.pointee, scope, type_.pointee);
+    if not code.is_type(type_.pointee) {
+        type_.pointee = code.type_of(type_.pointee);
+    }
+
+    let pointee_type: ^code.Type = type_.pointee._object as ^code.Type;
+
+    # Create the llvm pointer to the pointee.
+    type_.handle = llvm.LLVMPointerType(pointee_type.handle, 0);
+
     # This has been fully resolved; return.
     target;
 }
@@ -1781,6 +1802,10 @@ def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
     let type_: ^code.ArrayType = target._object as ^code.ArrayType;
     let mut el_type_han: ^code.Handle = type_.element;
     el_type_han = builder.build(g, &x.element, scope, el_type_han);
+    if not code.is_type(el_type_han) {
+        el_type_han = code.type_of(el_type_han);
+    }
+
     let el_type: ^code.Type = el_type_han._object as ^code.Type;
 
     # The resolver has taken care of the initial resolution; we only

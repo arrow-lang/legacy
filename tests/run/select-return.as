@@ -1,7 +1,7 @@
 def even(x: uint): bool {
     if x < 2 { false; }
     else if x == 2 { true; }
-    else { even(x - 2); }
+    else { even(x - 2); };
 }
 
 def main() {

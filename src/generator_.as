@@ -30,6 +30,9 @@ type Generator {
     # A LLVM target machine.
     target_machine: ^mut llvm.LLVMOpaqueTargetMachine,
 
+    # The LLVM target data.
+    target_data: ^llvm.LLVMOpaqueTargetData,
+
     # A dictionary of "items" that have been declared. These can be
     # `types`, `functions`, or `modules`.
     mut items: dict.Dictionary,

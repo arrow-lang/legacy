@@ -33,11 +33,11 @@ ModuleDecl <?> _
     LocalSlotDecl <?> t
       ArrayType <?>
         IntegerExpr <?> 10 (10)
-        TupleExpr <?>
+        TupleType <?>
           Elements <?> 
-            TupleExprMem <?>
+            TupleTypeMem <?>
               Ident <?> int
-            TupleExprMem <?>
+            TupleTypeMem <?>
               Ident <?> bool
     IndexExpr <?>
       IndexExpr <?>
@@ -76,7 +76,7 @@ ModuleDecl <?> _
         IntegerExpr <?> 5 (10)
         ArrayType <?>
           IntegerExpr <?> 5 (10)
-          DerefExpr <?>
+          PointerType <?>
             Ident <?> int
     Struct <?> Blob
       Type Parameters <?> 

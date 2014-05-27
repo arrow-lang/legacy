@@ -650,6 +650,42 @@ def tuple(g: ^mut generator_.Generator, node: ^ast.Node,
     han;
 }
 
+# Tuple Type [TAG_TUPLE_TYPE]
+# -----------------------------------------------------------------------------
+def tuple_type(g: ^mut generator_.Generator, node: ^ast.Node,
+               scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.TupleType = (node^).unwrap() as ^ast.TupleType;
+
+    # Iterate through each element of the tuple.
+    let mut i: int = 0;
+    let mut elements: list.List = list.make(types.PTR);
+    while i as uint < x.nodes.size()
+    {
+        # Get the specific element.
+        let enode: ast.Node = x.nodes.get(i);
+        i = i + 1;
+        let e: ^ast.TupleTypeMem = enode.unwrap() as ^ast.TupleTypeMem;
+
+        # Resolve the type of this element expression.
+        let expr: ^code.Handle = resolver.resolve_st(
+            g, &e.type_, scope, target);
+        if code.isnil(expr) { return code.make_nil(); }
+        let typ: ^code.Type = expr._object as ^code.Type;
+
+        # Push the type and its handle.
+        elements.push_ptr(expr as ^void);
+    }
+
+    # Create and store our type.
+    let han: ^code.Handle;
+    han = code.make_tuple_type(0 as ^llvm.LLVMOpaqueType, elements);
+
+    # Return the type handle.
+    han;
+}
+
 # Array [TAG_ARRAY_EXPR]
 # -----------------------------------------------------------------------------
 def array(g: ^mut generator_.Generator, node: ^ast.Node,

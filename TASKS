@@ -14,7 +14,7 @@
 # [ ] string
 # [ ] char
 # [ ] tuple
-# [ ]   type
+# [x]   type
 # [ ]   expression (pack)
 # [ ]   destructure
 # [ ] module import `import`
@@ -30,8 +30,8 @@
 # [ ] rethink conditional expression parsing so that `x if c else y = 30` works without parens
 # [ ] refactor selection statements so that they do not require ";" afterwords
 # [ ] `uint` and `int` should be given the same bits as a ptr has
-# [ ] tuple types need to be given a proper path in the parser
-# [ ] types slots and parameters need to built now across the board (
+# [x] tuple types need to be given a proper path in the parser
+# [x] types slots and parameters need to built now across the board (
 #       to be able to accept expressions in them [for array types mainly])
 # [ ] integral expressions don't carry the target type through
 # [ ] promote aggregates to `sret` parameters (function body and call builders)

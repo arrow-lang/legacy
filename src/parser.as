@@ -1085,6 +1085,182 @@ def parse_array_type(&mut self) -> bool
     else { true; }
 }
 
+# Paren Type
+# -----------------------------------------------------------------------------
+def parse_paren_type(&mut self) -> bool
+{
+    # Consume the `(` token.
+    self.pop_token();
+
+    # Check for an immediate `)` token that would close an empty tuple.
+    if self.peek_token(1) == tokens.TOK_RPAREN
+    {
+        # Consume the `)` token.
+        self.pop_token();
+
+        # Allocate and create the node for the tuple.
+        # Return immediately.
+        self.stack.push(ast.make(ast.TAG_TUPLE_TYPE));
+        return true;
+    }
+
+    # Check for a { "identifier" `:` } sequence that indicates a tuple (and
+    # the initial member named).
+    let mut in_tuple: bool = false;
+    let mut node: ast.Node;
+    if      self.peek_token(1) == tokens.TOK_IDENTIFIER
+        and self.peek_token(2) == tokens.TOK_COLON
+    {
+        # Declare we are in a tuple (to continue parsing).
+        in_tuple = true;
+
+        # Allocate and create a tuple member node.
+        node = ast.make(ast.TAG_TUPLE_TYPE_MEM);
+        let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
+
+        # Parse an identifier.
+        if not self.parse_ident_expr() { return false; }
+        mem.id = self.stack.pop();
+
+        # Pop the `:` token.
+        self.pop_token();
+
+        # Parse an expression node.
+        if not self.parse_type() { return false; }
+        mem.expression = self.stack.pop();
+    }
+    # Check for a { ":" "identifier" } sequence that indicates a tuple (and
+    # the initial member named).
+    else if self.peek_token(1) == tokens.TOK_COLON
+        and self.peek_token(2) == tokens.TOK_IDENTIFIER
+    {
+        # Declare we are in a tuple (to continue parsing).
+        in_tuple = true;
+
+        # Allocate and create a tuple member node.
+        node = ast.make(ast.TAG_TUPLE_TYPE_MEM);
+        let mem: ^ast.TupleTypeMem = node.unwrap() as ^ast.TupleTypeMem;
+
+        # Pop the `:` token.
+        self.pop_token();
+
+        # Parse an identifier.
+        if not self.parse_ident_expr() { return false; }
+        mem.id = self.stack.pop();
+
+        # Push the identifier as the expression.
+        mem.type_ = mem.id;
+    }
+    # Could be a tuple with an initial member unnamed or just a
+    # parenthetical expression.
+    else
+    {
+        # Parse an expression node.
+        if not self.parse_type() { return false; }
+
+        # Check for a comma that would make this a tuple.
+        if self.peek_token(1) == tokens.TOK_COMMA
+        {
+            # Declare we are in a tuple (to continue parsing).
+            in_tuple = true;
+
+            # Allocate and create a tuple member node.
+            node = ast.make(ast.TAG_TUPLE_TYPE_MEM);
+            let mem: ^ast.TupleTypeMem = node.unwrap() as ^ast.TupleTypeMem;
+
+            # Switch the node with the member node.
+            mem.type_ = self.stack.pop();
+        }
+        else
+        {
+            # Switch the node with the member node.
+            node = self.stack.pop();
+        }
+    }
+
+    # Continue parsing if we are a tuple.
+    if in_tuple
+    {
+        # Allocate and create the node for the tuple.
+        let tup_node: ast.Node = ast.make(ast.TAG_TUPLE_TYPE);
+        let expr: ^ast.TupleType = tup_node.unwrap() as ^ast.TupleType;
+
+        # Push the initial node.
+        expr.nodes.push(node);
+
+        if self.peek_token(1) == tokens.TOK_COMMA
+        {
+            # Pop the `,` token and continue the tuple.
+            self.pop_token();
+
+            # Enumerate until we reach the `)` token.
+            while self.peek_token(1) <> tokens.TOK_RPAREN {
+                # Allocate and create a tuple member node.
+                let mem_node: ast.Node = ast.make(ast.TAG_TUPLE_TYPE_MEM);
+                let mem: ^ast.TupleTypeMem =
+                    mem_node.unwrap() as ^ast.TupleTypeMem;
+
+                # Check for a { "identifier" `:` } sequence that indicates
+                # a named member.
+                if      self.peek_token(1) == tokens.TOK_IDENTIFIER
+                    and self.peek_token(2) == tokens.TOK_COLON
+                {
+                    # Parse an identifier.
+                    if not self.parse_ident_expr() { return false; }
+                    mem.id = self.stack.pop();
+
+                    # Pop the `:` token.
+                    self.pop_token();
+
+                    # Parse an expression node.
+                    if not self.parse_type() { return false; }
+                    mem.type_ = self.stack.pop();
+                }
+                # Check for a { `:` "identifier" } sequence that indicates
+                # a named member and expression (shorthand).
+                else if self.peek_token(1) == tokens.TOK_COLON
+                    and self.peek_token(2) == tokens.TOK_IDENTIFIER
+                {
+                    # Pop the `:` token.
+                    self.pop_token();
+
+                    # Parse an identifier.
+                    if not self.parse_ident_expr() { return false; }
+                    mem.id = self.stack.pop();
+                    mem.type_ = mem.id;
+                }
+                else
+                {
+                    # Parse an expression node.
+                    if not self.parse_type() { return false; }
+                    mem.type_ = self.stack.pop();
+                }
+
+                # Push the node.
+                expr.nodes.push(mem_node);
+
+                # Peek and consume the `,` token if present; else, consume
+                # tokens until we reach the `)`.
+                if self._expect_sequence_continue(tokens.TOK_RPAREN) {
+                    continue; }
+                return false;
+            }
+        }
+
+        # Switch our node.
+        node = tup_node;
+    }
+
+    # Expect a `)` token.
+    self.expect(tokens.TOK_RPAREN);
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
 # Type
 # -----------------------------------------------------------------------------
 # type = path | tuple-type | function-type | array-type ;
@@ -1100,9 +1276,7 @@ def parse_type(&mut self) -> bool
     # Delegate based on what we are.
     let rv: bool =
         if      tok == tokens.TOK_IDENTIFIER { self.parse_ident_expr(); }
-        # FIXME: Tuple type parsing needs to be done properly and not
-        #   be piggy-backed on top of tuple expression parsing.
-        else if tok == tokens.TOK_LPAREN     { self.parse_paren_expr(); }
+        else if tok == tokens.TOK_LPAREN     { self.parse_paren_type(); }
         else if tok == tokens.TOK_STAR       { self.parse_pointer_type(); }
         else
         {

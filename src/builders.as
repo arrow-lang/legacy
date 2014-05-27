@@ -872,7 +872,7 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
             let lhs_ty: ^code.PointerType = lhs_ty_han._object as
                 ^code.PointerType;
             let size_han: ^code.Handle =
-                generator_util.sizeof(g^, lhs_ty.pointee);
+                generator_util.build_sizeof(g^, lhs_ty.pointee);
             let size_val: ^code.Value = size_han._object as ^code.Value;
 
             # Perform an integral division to find the -number- of elements.
@@ -1768,6 +1768,73 @@ def continue_(g: ^mut generator_.Generator, node: ^ast.Node,
     code.make_nil();
 }
 
+# Tuple type [TAG_TUPLE_TYPE]
+# -----------------------------------------------------------------------------
+def tuple_type(g: ^mut generator_.Generator, node: ^ast.Node,
+                 scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.TupleType = (node^).unwrap() as ^ast.TupleType;
+
+    # Unwrap the type.
+    let type_: ^mut code.TupleType = target._object as ^code.TupleType;
+
+    # Return immediately if we have a built type.
+    if type_.handle <> 0 as ^llvm.LLVMOpaqueType
+    {
+        return target;
+    }
+
+    # Iterate through the members of the tuple type.
+    let mut i: int = 0;
+    let mut eleme_type_handles: list.List = list.make(types.PTR);
+    while i as uint < type_.elements.size
+    {
+        # Get the specific element.
+        let el_han: ^code.Handle = type_.elements.at_ptr(i) as ^code.Handle;
+        let enode: ast.Node = x.nodes.get(i);
+        let e: ^ast.TupleTypeMem = enode.unwrap() as ^ast.TupleTypeMem;
+
+        # Build the type.
+        el_han = builder.build(
+            g, &e.type_, scope, el_han);
+        if not code.is_type(el_han) {
+            el_han = code.type_of(el_han);
+        }
+        if code.isnil(el_han) {
+            return code.make_nil();
+        }
+
+        # Emplace the type.
+        let &eleml: list.List = type_.elements;
+        let elem: ^^code.Handle = eleml.elements as ^^code.Handle;
+        (elem + i)^ = el_han;
+
+        # Emplace the type handle.
+        let el_type_: ^code.Type = el_han._object as ^code.Type;
+        eleme_type_handles.push_ptr(el_type_.handle as ^void);
+
+        # Advance.
+        i = i + 1;
+    }
+
+    # Build the LLVM type handle.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMStructType(
+        eleme_type_handles.elements as ^^llvm.LLVMOpaqueType,
+        eleme_type_handles.size as uint32,
+        0);
+
+    # Create and store our type.
+    type_.handle = val;
+
+    # Dispose of dynamic memory.
+    eleme_type_handles.dispose();
+
+    # Return the type handle.
+    target;
+}
+
 # Pointer Type [TAG_POINTER_TYPE]
 # -----------------------------------------------------------------------------
 def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -1938,6 +2005,7 @@ def array(g: ^mut generator_.Generator, node: ^ast.Node,
     let x: ^ast.ArrayExpr = (node^).unwrap() as ^ast.ArrayExpr;
 
     # Get the type of the target expression.
+    # FIXME: Resolve our own type.
     let array_type: ^code.ArrayType = target._object as ^code.ArrayType;
 
     # Iterate and build each element in the array.
@@ -2047,3 +2115,10 @@ def array(g: ^mut generator_.Generator, node: ^ast.Node,
     # Wrap and return the value.
     code.make_value(target, code.VC_RVALUE, ptr);
 }
+
+# Tuple [TAG_TUPLE_EXPR]
+# -----------------------------------------------------------------------------
+# def tuple(g: ^mut generator_.Generator, node: ^ast.Node,
+#           scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+# {
+# }

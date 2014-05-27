@@ -79,6 +79,8 @@ let TAG_POINTER_TYPE    : int = 69;             # PointerType
 let TAG_ADDRESS_OF      : int = 70;             # AddressOfExpr
 let TAG_DEREF           : int = 71;             # DerefExpr
 let TAG_ARRAY_TYPE      : int = 72;             # ArrayType
+let TAG_TUPLE_TYPE      : int = 73;             # TupleType
+let TAG_TUPLE_TYPE_MEM  : int = 74;             # TupleTypeMem
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -196,6 +198,12 @@ type TupleExpr { mut nodes: Nodes }
 
 # TupleExprMem
 type TupleExprMem { mut id: Node, expression: Node }
+
+# TupleType.
+type TupleType { mut nodes: Nodes }
+
+# TupleTypeMem
+type TupleTypeMem { mut id: Node, type_: Node }
 
 # Return expression.
 type ReturnExpr { expression: Node }
@@ -333,6 +341,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_ARRAY_EXPR { let tmp: ArrayExpr; ((&tmp + 1) - &tmp); }
     # else if tag == TAG_SEQ_EXPR  { let tmp: SequenceExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_TUPLE_EXPR { let tmp: TupleExpr; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_TUPLE_TYPE { let tmp: TupleType; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODE    { let tmp: Node; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
@@ -377,6 +386,9 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_TUPLE_EXPR_MEM {
         let tmp: TupleExprMem;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_TUPLE_TYPE_MEM {
+        let tmp: TupleTypeMem;
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_STRUCT {
         let tmp: Struct;
@@ -489,8 +501,10 @@ def dump(&node: Node) {
         dump_table[TAG_ARRAY_EXPR] = dump_array_expr;
         # dump_table[TAG_SEQ_EXPR] = dump_seq_expr;
         dump_table[TAG_TUPLE_EXPR] = dump_tuple_expr;
+        dump_table[TAG_TUPLE_TYPE] = dump_tuple_type;
         # dump_table[TAG_RECORD_EXPR] = dump_record_expr;
         dump_table[TAG_TUPLE_EXPR_MEM] = dump_tuple_expr_mem;
+        dump_table[TAG_TUPLE_TYPE_MEM] = dump_tuple_type_mem;
         dump_table[TAG_STRUCT] = dump_struct;
         dump_table[TAG_STRUCT_MEM] = dump_struct_mem;
         dump_table[TAG_POSTFIX_EXPR] = dump_postfix_expr;
@@ -761,6 +775,26 @@ def dump_tuple_expr_mem(node: ^Node) {
     dump_indent = dump_indent - 1;
 }
 
+# dump_tuple_type_mem
+# -----------------------------------------------------------------------------
+def dump_tuple_type_mem(node: ^Node) {
+    let x: ^TupleTypeMem = unwrap(node^) as ^TupleTypeMem;
+    printf("TupleTypeMem <?>");
+    if not isnull(x.id)
+    {
+        let id: ^Ident = unwrap(x.id) as ^Ident;
+        printf(" %s\n", id.name.data());
+    }
+    else
+    {
+        printf("\n");
+    }
+
+    dump_indent = dump_indent + 1;
+    dump(x.type_);
+    dump_indent = dump_indent - 1;
+}
+
 # dump_postfix_expr
 # -----------------------------------------------------------------------------
 def dump_postfix_expr(node: ^Node) {
@@ -823,6 +857,17 @@ def dump_struct_mem(node: ^Node) {
 def dump_tuple_expr(node: ^Node) {
     let x: ^TupleExpr = unwrap(node^) as ^TupleExpr;
     printf("TupleExpr <?>\n");
+
+    dump_indent = dump_indent + 1;
+    dump_nodes("Elements", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_tuple_type
+# -----------------------------------------------------------------------------
+def dump_tuple_type(node: ^Node) {
+    let x: ^TupleType = unwrap(node^) as ^TupleType;
+    printf("TupleType <?>\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes("Elements", x.nodes);

@@ -29,67 +29,67 @@ ModuleDecl <?> _
         TupleExprMem <?>
           FloatExpr <?> 3232e-1
     LocalSlotDecl <?> a
-      TupleExpr <?>
+      TupleType <?>
         Elements <?> 
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> int
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> bool
     LocalSlotDecl <?> b
-      TupleExpr <?>
+      TupleType <?>
         Elements <?> 
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> int
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> int
     LocalSlotDecl <?> c
-      TupleExpr <?>
+      TupleType <?>
         Elements <?> 
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> int
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> str
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> float64
     LocalSlotDecl <?> d
-      TupleExpr <?>
+      TupleType <?>
         Elements <?> 
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> uint
     LocalSlotDecl <?> e
-      TupleExpr <?>
+      TupleType <?>
         Elements <?> 
-          TupleExprMem <?> a
+          TupleTypeMem <?> a
             Ident <?> int
-          TupleExprMem <?> b
+          TupleTypeMem <?> b
             Ident <?> str
-          TupleExprMem <?> c
+          TupleTypeMem <?> c
             Ident <?> float64
     LocalSlotDecl <?> f
-      TupleExpr <?>
+      TupleType <?>
         Elements <?> 
-          TupleExprMem <?> a
+          TupleTypeMem <?> a
             Ident <?> int
-          TupleExprMem <?> b
+          TupleTypeMem <?> b
             Ident <?> uint
     LocalSlotDecl <?> g
-      TupleExpr <?>
+      TupleType <?>
         Elements <?> 
-          TupleExprMem <?> a
+          TupleTypeMem <?> a
             Ident <?> bool
     LocalSlotDecl <?> h
-      TupleExpr <?>
+      TupleType <?>
         Elements <?> 
-          TupleExprMem <?> a
+          TupleTypeMem <?> a
             Ident <?> bool
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> int
     LocalSlotDecl <?> i
-      TupleExpr <?>
+      TupleType <?>
         Elements <?> 
-          TupleExprMem <?>
+          TupleTypeMem <?>
             Ident <?> int
-          TupleExprMem <?> a
+          TupleTypeMem <?> a
             Ident <?> bool
     AssignExpr <?>
       Ident <?> a

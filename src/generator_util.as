@@ -57,12 +57,12 @@ def declare_basic_types(&mut g: generator_.Generator) {
     declare_float_type(g, "float64", llvm.LLVMDoubleType(), 64);
 
     # Unsigned machine-dependent integer
-    # FIXME: Find how big this really is.
-    declare_int_type(g,  "uint",  llvm.LLVMInt64Type(), false, 64);
+    let ptr_size: uint = sizeof(
+        g, llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0));
+    declare_int_type(g,  "uint",  llvm.LLVMInt64Type(), false, ptr_size * 8);
 
     # Signed machine-dependent integer
-    # FIXME: Find how big this really is.
-    declare_int_type(g,  "int",  llvm.LLVMInt64Type(), true, 64);
+    declare_int_type(g,  "int",  llvm.LLVMInt64Type(), true, ptr_size * 8);
 
     # TODO: UTF-32 Character
 
@@ -280,7 +280,7 @@ def is_same_type(a: ^code.Handle, b: ^code.Handle) -> bool
 
 # Build a "sizeof" expression for a specific type handle.
 # -----------------------------------------------------------------------------
-def sizeof(&mut g: generator_.Generator, han: ^code.Handle) -> ^code.Handle
+def build_sizeof(&mut g: generator_.Generator, han: ^code.Handle) -> ^code.Handle
 {
     # Get the type handle.
     let type_: ^code.Type = han._object as ^code.Type;
@@ -291,6 +291,14 @@ def sizeof(&mut g: generator_.Generator, han: ^code.Handle) -> ^code.Handle
     # Wrap and return it.
     code.make_value(g.items.get_ptr("uint") as ^code.Handle,
                     code.VC_RVALUE, val);
+}
+
+# Find the allocation size (in bytes).
+# -----------------------------------------------------------------------------
+def sizeof(&mut g: generator_.Generator, typ: ^llvm.LLVMOpaqueType) -> uint
+{
+    # Get the `sizeof` using llvm ABI.
+    return llvm.LLVMABISizeOfType(g.target_data, typ);
 }
 
 # Create a cast from a value to a type.

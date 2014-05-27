@@ -54,9 +54,10 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     llvm.LLVMSetTarget(g.mod, triple);
 
     # Get and set the data layout.
-    let target_data: ^llvm.LLVMOpaqueTargetData =
+    g.target_data =
         llvm.LLVMGetTargetMachineData(g.target_machine);
-    let data_layout: ^int8 = llvm.LLVMCopyStringRepOfTargetData(target_data);
+    let data_layout: ^int8 = llvm.LLVMCopyStringRepOfTargetData(
+        g.target_data);
     llvm.LLVMSetDataLayout(g.mod, data_layout);
 
     # Dispose of the used triple.
@@ -101,6 +102,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_GT] = resolvers.relational;
     g.type_resolvers[ast.TAG_GE] = resolvers.relational;
     g.type_resolvers[ast.TAG_TUPLE_EXPR] = resolvers.tuple;
+    g.type_resolvers[ast.TAG_TUPLE_TYPE] = resolvers.tuple_type;
     g.type_resolvers[ast.TAG_RETURN] = resolvers.pass;
     g.type_resolvers[ast.TAG_ASSIGN] = resolvers.assign;
     g.type_resolvers[ast.TAG_LOCAL_SLOT] = resolvers.pass;
@@ -160,6 +162,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_POINTER_TYPE] = builders.pointer_type;
     g.builders[ast.TAG_INDEX] = builders.index;
     g.builders[ast.TAG_ARRAY_EXPR] = builders.array;
+    g.builders[ast.TAG_TUPLE_TYPE] = builders.tuple_type;
 
     # Add basic type definitions.
     generator_util.declare_basic_types(g);

@@ -118,9 +118,15 @@ def _test_run(ctx):
             p2 = Popen(["lli"], stdin=p.stdout, stdout=PIPE, stderr=PIPE)
             stdout, stderr = p2.communicate()
 
+            # Read in the expected return code.
+            expected = _read_suffix(fixture, ".returncode")
+            returncode = 0
+            if expected:
+                returncode = int(expected)
+
             # Check the output against the expected.
             status = True
-            status = p2.returncode == 0
+            status = p2.returncode == returncode
             status = status and _check_expected_stdout(fixture, stdout)
 
             # Report our status.

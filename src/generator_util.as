@@ -138,58 +138,6 @@ def declare_assert(&mut g: generator_.Generator) {
     llvm.LLVMBuildRetVoid(g.irb);
 }
 
-# Declare the `main` function.
-# -----------------------------------------------------------------------------
-def declare_main(&mut g: generator_.Generator) {
-    # Qualify a module main name.
-    let mut name: string.String = string.make();
-    name.extend(g.top_ns.data() as str);
-    name.append('.');
-    name.extend("main");
-
-    # Was their a main function defined?
-    let module_main_fn: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
-    if g.items.contains(name.data() as str) {
-        let module_main_han: ^code.Handle;
-        module_main_han = g.items.get_ptr(name.data() as str) as ^code.Handle;
-        let module_main_fn_han: ^code.Function;
-        module_main_fn_han = module_main_han._object as ^code.Function;
-        module_main_fn = module_main_fn_han.handle;
-    }
-
-    # Build the LLVM type for the `main` fn.
-    let main_type: ^llvm.LLVMOpaqueType = llvm.LLVMFunctionType(
-        llvm.LLVMInt32Type(), 0 as ^^llvm.LLVMOpaqueType, 0, 0);
-
-    # Build the LLVM function for `main`.
-    let main_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMAddFunction(
-        g.mod, "main" as ^int8, main_type);
-
-    # Build the LLVM function definition.
-    let entry_block: ^llvm.LLVMOpaqueBasicBlock;
-    entry_block = llvm.LLVMAppendBasicBlock(main_fn, "" as ^int8);
-    llvm.LLVMPositionBuilderAtEnd(g.irb, entry_block);
-
-    if module_main_fn <> 0 as ^llvm.LLVMOpaqueValue {
-        # Create a `call` to the module main method.
-        llvm.LLVMBuildCall(
-            g.irb, module_main_fn,
-            0 as ^^llvm.LLVMOpaqueValue, 0,
-            "" as ^int8);
-    }
-
-    # Create a constant 0.
-    let zero: ^llvm.LLVMOpaqueValue;
-    zero = llvm.LLVMConstInt(llvm.LLVMInt32Type(), 0, false);
-
-    # Add the `ret void` instruction to terminate the function.
-    llvm.LLVMBuildRet(g.irb, zero);
-
-    # Dispose.
-    name.dispose();
-
-}
-
 # Qualify a name in context of the passed namespace.
 # -----------------------------------------------------------------------------
 def qualify_name_in(s: str, ns: list.List) -> string.String {

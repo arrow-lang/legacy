@@ -190,7 +190,96 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     if errors.count > 0 { return; }
 
     # Generate a main function.
-    generator_util.declare_main(g);
+    declare_main(g);
+}
+
+# Declare the `main` function.
+# -----------------------------------------------------------------------------
+def declare_main(&mut g: generator_.Generator) {
+    # Qualify a module main name.
+    let mut name: string.String = string.make();
+    name.extend(g.top_ns.data() as str);
+    name.append('.');
+    name.extend("main");
+
+    # Was their a main function defined?
+    let module_main_fn_returns: bool = false;
+    let module_main_fn: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
+    let module_main_fn_han: ^code.Function;
+    let module_main_fn_type: ^code.FunctionType;
+    if g.items.contains(name.data() as str) {
+        let module_main_han: ^code.Handle;
+        module_main_han = g.items.get_ptr(name.data() as str) as ^code.Handle;
+        module_main_fn_han = module_main_han._object as ^code.Function;
+        module_main_fn = module_main_fn_han.handle;
+        let module_main_fn_type_han: ^code.Handle = module_main_fn_han.type_;
+        module_main_fn_type = module_main_fn_type_han._object as
+            ^code.FunctionType;
+
+        # Does the module main function return?
+        module_main_fn_returns =
+            module_main_fn_type.return_type._tag <> code.TAG_VOID_TYPE;
+    }
+
+    # Build the LLVM type for the `main` fn.
+    let main_type: ^llvm.LLVMOpaqueType = llvm.LLVMFunctionType(
+        llvm.LLVMInt32Type(), 0 as ^^llvm.LLVMOpaqueType, 0, 0);
+
+    # Build the LLVM function for `main`.
+    let main_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMAddFunction(
+        g.mod, "main" as ^int8, main_type);
+
+    # Build the LLVM function definition.
+    let entry_block: ^llvm.LLVMOpaqueBasicBlock;
+    entry_block = llvm.LLVMAppendBasicBlock(main_fn, "" as ^int8);
+    llvm.LLVMPositionBuilderAtEnd(g.irb, entry_block);
+
+    let main_res: ^llvm.LLVMOpaqueValue;
+    if module_main_fn <> 0 as ^llvm.LLVMOpaqueValue {
+        # Create a `call` to the module main method.
+        main_res = llvm.LLVMBuildCall(
+            g.irb, module_main_fn,
+            0 as ^^llvm.LLVMOpaqueValue, 0,
+            "" as ^int8);
+    }
+
+    # If the main is supposed to return ...
+    if module_main_fn_returns
+    {
+        # Wrap the value.
+        let val: ^code.Handle = code.make_value(
+            module_main_fn_type.return_type,
+            code.VC_RVALUE,
+            main_res);
+
+        # Coerce to value.
+        let val_han: ^code.Handle = generator_def.to_value(
+            g, val, code.VC_RVALUE, false);
+        if code.isnil(val_han) { return; }
+
+        # Build the cast.
+        let cast_han: ^code.Handle = generator_util.cast(
+            g, val, g.items.get_ptr("int32") as ^code.Handle);
+        if code.isnil(cast_han) { return; }
+
+        # Get the value.
+        let cast_val: ^code.Value = cast_han._object as ^code.Value;
+
+        # Add the `ret` instruction to terminate the function.
+        llvm.LLVMBuildRet(g.irb, cast_val.handle);
+    }
+    else
+    {
+        # Create a constant 0.
+        let zero: ^llvm.LLVMOpaqueValue;
+        zero = llvm.LLVMConstInt(llvm.LLVMInt32Type(), 0, false);
+
+        # Add the `ret void` instruction to terminate the function.
+        llvm.LLVMBuildRet(g.irb, zero);
+    }
+
+    # Dispose.
+    name.dispose();
 }
 
 # Test driver using `stdin`.

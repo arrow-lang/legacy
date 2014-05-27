@@ -30,6 +30,14 @@ def extract(&mut g: generator_.Generator, node: ast.Node) -> bool
     {
         extract_struct(g, node.unwrap() as ^ast.Struct);
     }
+    else if node.tag == ast.TAG_EXTERN_FUNC
+    {
+        extract_extern_function(g, node.unwrap() as ^ast.ExternFunc);
+    }
+    else if node.tag == ast.TAG_EXTERN_STATIC
+    {
+        extract_extern_static(g, node.unwrap() as ^ast.ExternStaticSlot);
+    }
     else { return false; }
 
     # Return success.
@@ -101,9 +109,6 @@ def extract_function(&mut g: generator_.Generator, x: ^ast.FuncDecl)
     # Set us as an `item`.
     g.items.set_ptr(qname.data() as str, han as ^void);
 
-    # Set us as the `top` namespace if there isn't one yet.
-    if g.top_ns.size() == 0  { g.top_ns.extend(id.name.data() as str); }
-
     # Push our name onto the namespace stack.
     g.ns.push_str(id.name.data() as str);
 
@@ -164,4 +169,34 @@ def extract_struct(&mut g: generator_.Generator, x: ^ast.Struct)
 
     # Dispose of dynamic memory.
     qname.dispose();
+}
+
+# Extract external "function" item.
+# -----------------------------------------------------------------------------
+def extract_extern_function(&mut g: generator_.Generator, x: ^ast.ExternFunc)
+{
+    # Build the qual name for this function "item".
+    let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+    let mut qname: string.String = generator_util.qualify_name(
+        g, id.name.data() as str);
+
+    # Create a `code` handle for the function (ignoring the type for now).
+    let han: ^code.Handle = code.make_extern_function(
+        x, id.name.data() as str, g.ns, code.make_nil(),
+        0 as ^llvm.LLVMOpaqueValue);
+
+    # Set us as an `item`.
+    g.items.set_ptr(qname.data() as str, han as ^void);
+
+    # Dispose of dynamic memory.
+    qname.dispose();
+}
+
+# Extract external "static" item.
+# -----------------------------------------------------------------------------
+def extract_extern_static(&mut g: generator_.Generator, x: ^ast.ExternStaticSlot)
+{
+    errors.begin_error();
+    errors.fprintf(errors.stderr, "not implemented: extract_extern_static" as ^int8);
+    errors.end();
 }

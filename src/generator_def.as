@@ -39,17 +39,20 @@ def generate(&mut g: generator_.Generator) {
                 or val._tag == code.TAG_LOCAL_SLOT
                 or val._tag == code.TAG_BOOL_TYPE
                 or val._tag == code.TAG_MODULE
+                or val._tag == code.TAG_STRUCT
+                or val._tag == code.TAG_EXTERN_STATIC
+                or val._tag == code.TAG_EXTERN_FUNC
         {
             # Do nothing; these do not need definitions.
             continue;
         }
-        # else
-        # {
-        #     errors.begin_error();
-        #     errors.fprintf(errors.stderr, "not implemented: generator_def.generate(%d)" as ^int8, val._tag);
-        #     errors.end();
-        #     code.make_nil();
-        # }
+        else
+        {
+            errors.begin_error();
+            errors.fprintf(errors.stderr, "not implemented: generator_def.generate(%d)" as ^int8, val._tag);
+            errors.end();
+            code.make_nil();
+        }
     }
 }
 

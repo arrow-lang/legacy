@@ -272,7 +272,7 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
 # -----------------------------------------------------------------------------
 def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                   scope: ^mut code.Scope,
-                  x: ^code.Function,
+                  handle: ^llvm.LLVMOpaqueValue,
                   type_: ^code.FunctionType) -> ^code.Handle
 {
     # First we create and zero a list to hold the entire argument list.
@@ -387,7 +387,7 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
     # Build the `call` instruction.
     let val: ^llvm.LLVMOpaqueValue;
     val = llvm.LLVMBuildCall(
-        g.irb, x.handle, argv, argl.size as uint32, "" as ^int8);
+        g.irb, handle, argv, argl.size as uint32, "" as ^int8);
 
     # Dispose of dynamic memory.
     argl.dispose();
@@ -584,7 +584,27 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
         let type_: ^code.FunctionType;
         let fn_han: ^code.Function = expr._object as ^code.Function;
         type_ = fn_han.type_._object as ^code.FunctionType;
-        return call_function(g, x, scope, fn_han, type_);
+        return call_function(g, x, scope, fn_han.handle, type_);
+    }
+    else if expr._tag == code.TAG_EXTERN_FUNC
+    {
+        let type_: ^code.FunctionType;
+        let fn_han: ^code.ExternFunction =
+            expr._object as ^code.ExternFunction;
+        type_ = fn_han.type_._object as ^code.FunctionType;
+
+        # Ensure our external handle has been declared.
+        if fn_han.handle == 0 as ^llvm.LLVMOpaqueValue
+        {
+            # Add the function to the module.
+            # TODO: Set priv, vis, etc.
+            fn_han.handle = llvm.LLVMAddFunction(
+                g.mod, fn_han.name.data(), type_.handle);
+        }
+
+        # Delegate off to `call_function`
+        return call_function(
+            g, x, code.make_nil_scope(), fn_han.handle, type_);
     }
     else if expr._tag == code.TAG_STRUCT
     {

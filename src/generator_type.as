@@ -29,6 +29,8 @@ def generate(&mut g: generator_.Generator)
         if     val._tag == code.TAG_STATIC_SLOT
             or val._tag == code.TAG_FUNCTION
             or val._tag == code.TAG_STRUCT
+            or val._tag == code.TAG_EXTERN_FUNC
+            or val._tag == code.TAG_EXTERN_STATIC
         {
             generate_handle(g, key, val);
         }
@@ -57,6 +59,14 @@ def generate_handle(&mut g: generator_.Generator, qname: str,
     # else if handle._tag == code.TAG_STRUCT_MEM
     # {
     #     generate_struct_mem(g, handle._object as ^code.StructMem);
+    # }
+    else if handle._tag == code.TAG_EXTERN_FUNC
+    {
+        generate_extern_function(g, qname, handle._object as ^code.ExternFunction);
+    }
+    # else if handle._tag == code.TAG_EXTERN_STATIC
+    # {
+        # generate_extern_static(g, qname, handle._object as ^code.ExternStaticSlot);
     # }
     else
     {
@@ -179,36 +189,13 @@ def generate_function(&mut g: generator_.Generator,
         let pnode: ast.Node = x.context.params.get(i);
         i = i + 1;
         let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
-
-        # Resolve the type.
-        let ptype_handle: ^code.Handle = resolver.resolve_in(
-            &g, &p.type_, &x.namespace, &x.scope, code.make_nil());
-        if code.isnil(ptype_handle) {
-            # Failed to resolve type; mark us as poisioned.
-            x.type_ = code.make_poison();
-            return code.make_poison();
+        if not _generate_func_param(
+            g, p, &x.namespace, &x.scope, params, param_type_handles)
+        {
+             # Failed to resolve type; mark us as poisioned.
+             x.type_ = code.make_poison();
+             return code.make_poison();
         }
-
-        # Build the param type.
-        ptype_handle = builder.build(
-            &g, &p.type_,
-            code.make_nil_scope(),
-            ptype_handle);
-        if not code.is_type(ptype_handle) {
-            ptype_handle = code.type_of(ptype_handle);
-        }
-
-        let ptype_obj: ^code.Type = ptype_handle._object as ^code.Type;
-
-        # Emplace the type handle.
-        param_type_handles.push_ptr(ptype_obj.handle as ^void);
-
-        # Emplace a solid parameter.
-        let param_id: ^ast.Ident = p.id.unwrap() as ^ast.Ident;
-        params.push_ptr(code.make_parameter(
-            param_id.name.data() as str,
-            ptype_handle,
-            code.make_nil()) as ^void);
     }
 
     # Build the LLVM type handle.
@@ -324,4 +311,148 @@ def generate_struct_member(&mut g: generator_.Generator,
 
     # Return the type.
     type_handle;
+}
+
+# Generate the type for the external `function`.
+# -----------------------------------------------------------------------------
+def generate_extern_function(&mut g: generator_.Generator,
+                             qname: str, x: ^code.ExternFunction)
+    -> ^code.Handle
+{
+    # Return our type if it is resolved.
+    if not code.isnil(x.type_) { return x.type_; }
+
+    # Return nil if we have been poisioned from a previous failure.
+    if code.ispoison(x.type_) { return code.make_nil(); }
+
+    # Resolve the return type.
+    let ret_han: ^code.Handle = code.make_nil();
+    let ret_typ_han: ^llvm.LLVMOpaqueType;
+    if ast.isnull(x.context.return_type)
+    {
+        # No return type specified.
+        # TODO: In the future this should resolve the type
+        #   of the function body.
+        # Use a void return type for now.
+        ret_typ_han = llvm.LLVMVoidType();
+        ret_han = code.make_void_type(ret_typ_han);
+        ret_typ_han;  # HACK!
+    }
+    else
+    {
+        # Get and resolve the return type.
+        ret_han = resolver.resolve_in(
+            &g, &x.context.return_type, &x.namespace,
+            code.make_nil_scope(),
+            code.make_nil());
+
+        # Build the final type.
+        ret_han = builder.build(
+            &g, &x.context.return_type,
+            code.make_nil_scope(),
+            ret_han);
+        if not code.is_type(ret_han) {
+            ret_han = code.type_of(ret_han);
+        }
+
+        if code.isnil(ret_han) {
+            # Failed to resolve type; mark us as poisioned.
+            x.type_ = code.make_poison();
+            return code.make_poison();
+        }
+
+        # Get the ret type handle.
+        let ret_typ: ^code.Type = ret_han._object as ^code.Type;
+        ret_typ_han = ret_typ.handle;
+    }
+
+    # Resolve the type for each parameter.
+    let mut params: list.List = list.make(types.PTR);
+    let mut param_type_handles: list.List = list.make(types.PTR);
+    let mut i: int = 0;
+    while i as uint < x.context.params.size()
+    {
+        let pnode: ast.Node = x.context.params.get(i);
+        i = i + 1;
+        let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
+        if not _generate_func_param(
+            g, p, &x.namespace, code.make_nil_scope(),
+            params, param_type_handles)
+        {
+             # Failed to resolve type; mark us as poisioned.
+             x.type_ = code.make_poison();
+             return code.make_poison();
+        }
+    }
+
+    # Build the LLVM type handle.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMFunctionType(
+        ret_typ_han,
+        param_type_handles.elements as ^^llvm.LLVMOpaqueType,
+        param_type_handles.size as uint32,
+        0);
+
+    # Create and store our type.
+    let han: ^code.Handle;
+    han = code.make_function_type(
+        qname, x.namespace, x.name.data() as str, val, ret_han, params);
+    x.type_ = han;
+
+    # Dispose of dynamic memory.
+    param_type_handles.dispose();
+
+    # Return the type handle.
+    han;
+}
+
+# Helper: Generate the type for a parameter
+# -----------------------------------------------------------------------------
+def _generate_func_param(
+    &mut g: generator_.Generator,
+    x: ^ast.FuncParam,
+    namespace: ^mut list.List,
+    scope: ^mut code.Scope,
+    &mut types: list.List,
+    &mut handles: list.List) -> bool
+{
+    # Resolve the type.
+    let ptype_handle: ^code.Handle = resolver.resolve_in(
+        &g, &x.type_, namespace, scope, code.make_nil());
+    if code.isnil(ptype_handle) { return false; }
+
+    # Build the param type.
+    ptype_handle = builder.build(
+        &g, &x.type_,
+        code.make_nil_scope(),
+        ptype_handle);
+    if not code.is_type(ptype_handle) {
+        ptype_handle = code.type_of(ptype_handle);
+    }
+
+    let ptype_obj: ^code.Type = ptype_handle._object as ^code.Type;
+
+    # Emplace the type handle.
+    handles.push_ptr(ptype_obj.handle as ^void);
+
+    if not ast.isnull(x.id)
+    {
+        # Emplace a solid, named parameter.
+        let param_id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+        types.push_ptr(code.make_parameter(
+            param_id.name.data() as str,
+            ptype_handle,
+            code.make_nil()) as ^void);
+    }
+    else
+    {
+        # Emplace a solid, unnamed parameter.
+        types.push_ptr(code.make_parameter(
+            (0 as ^int8) as str,
+            ptype_handle,
+            code.make_nil()) as ^void);
+    }
+
+    # Return success.
+    return true;
 }

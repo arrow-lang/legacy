@@ -19,6 +19,8 @@ def make() -> String {
     string;
 }
 
+let Nil: str = (0 as ^int8) as str;
+
 implement String {
 
     # Dispose of the memory used in this string.

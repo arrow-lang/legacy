@@ -29,6 +29,8 @@ let TAG_STRUCT_TYPE: int = 15;
 let TAG_MEMBER: int = 16;
 let TAG_POINTER_TYPE: int = 17;
 let TAG_ARRAY_TYPE: int = 18;
+let TAG_EXTERN_FUNC: int = 19;
+let TAG_EXTERN_STATIC: int = 20;
 
 # Value categories
 # -----------------------------------------------------------------------------
@@ -253,7 +255,7 @@ def typename(handle: ^Handle) -> string.String {
         el_name.dispose();
         name.append("[");
 
-        if a_ty.handle <> 0 as ^llvm.LLVMOpaqueType
+        if a_ty.handle <> 0 as ^LLVMOpaqueType
         {
             let len: uint = LLVMGetArrayLength(a_ty.handle);
             let int_: int8[100];
@@ -287,7 +289,7 @@ type PointerType {
 
 let POINTER_TYPE_SIZE: uint = ((0 as ^PointerType) + 1) - (0 as ^PointerType);
 
-def make_pointer_type(pointee: ^Handle, mutable: bool, handle: ^llvm.LLVMOpaqueType) -> ^Handle {
+def make_pointer_type(pointee: ^Handle, mutable: bool, handle: ^LLVMOpaqueType) -> ^Handle {
     # Build the parameter.
     let han: ^PointerType = libc.malloc(POINTER_TYPE_SIZE as int64) as ^PointerType;
     han.handle = handle;
@@ -355,7 +357,9 @@ def make_parameter(name: str, type_: ^Handle,
     # Build the parameter.
     let param: ^Parameter = libc.malloc(PARAMETER_SIZE as int64) as ^Parameter;
     param.name = string.make();
-    param.name.extend(name);
+    if name <> string.Nil {
+        param.name.extend(name);
+    }
     param.type_ = type_;
     param.default = default;
 
@@ -389,7 +393,9 @@ def make_function_type(
     {
         let param_han: ^Handle = parameters.at_ptr(idx) as ^Handle;
         let param: ^Parameter = param_han._object as ^Parameter;
-        func.parameter_map.set_uint(param.name.data() as str, idx as uint);
+        if param.name.size() > 0 {
+            func.parameter_map.set_uint(param.name.data() as str, idx as uint);
+        }
         idx = idx + 1;
     }
 
@@ -733,6 +739,42 @@ def make_function(
 
     # Wrap in a handle.
     make(TAG_FUNCTION, func as ^void);
+}
+
+# External function
+# -----------------------------------------------------------------------------
+
+type ExternFunction {
+    context: ^ast.ExternFunc,
+    handle: ^LLVMOpaqueValue,
+    mut namespace: list.List,
+    mut name: string.String,
+    mut qualified_name: string.String,
+    mut type_: ^mut Handle
+}
+
+let EXTERN_FUNCTION_SIZE: uint = ((0 as ^ExternFunction) + 1) - (0 as ^ExternFunction);
+
+def make_extern_function(
+        context: ^ast.ExternFunc,
+        name: str,
+        &mut namespace: list.List,
+        type_: ^Handle,
+        handle: ^LLVMOpaqueValue) -> ^Handle {
+    # Build the function.
+    let func: ^ExternFunction = libc.malloc(EXTERN_FUNCTION_SIZE as int64) as ^ExternFunction;
+    func.context = context;
+    func.handle = handle;
+    func.name = string.make();
+    func.name.extend(name);
+    func.namespace = namespace.clone();
+    func.qualified_name = string.join(".", func.namespace);
+    func.qualified_name.append(".");
+    func.qualified_name.extend(name);
+    func.type_ = type_;
+
+    # Wrap in a handle.
+    make(TAG_EXTERN_FUNC, func as ^void);
 }
 
 # Handle

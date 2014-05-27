@@ -45,6 +45,7 @@ def generate(&mut g: generator_.Generator)
                 or val._tag == code.TAG_LOCAL_SLOT
                 or val._tag == code.TAG_BOOL_TYPE
                 or val._tag == code.TAG_MODULE
+                or val._tag == code.TAG_EXTERN_FUNC
         {
             # Do nothing; these do not need declarations.
             continue;

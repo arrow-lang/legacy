@@ -9,7 +9,8 @@
 # [x]   expressions
 # [ ] pointer
 # [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
-# [ ] external functions (ABI-selected calling convention)
+# [x] external functions
+# [ ] external function result
 # [ ] external statics
 # [ ] string
 # [ ] char

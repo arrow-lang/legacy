@@ -38,6 +38,13 @@ def _type_of(g: ^mut generator_.Generator, item: ^code.Handle)
                 g^, fn.qualified_name.data() as str,
                 item._object as ^code.Function);
         }
+        else if item._tag == code.TAG_EXTERN_FUNC
+        {
+            let fn: ^code.ExternFunction = item._object as ^code.ExternFunction;
+            generator_type.generate_extern_function(
+                g^, fn.qualified_name.data() as str,
+                item._object as ^code.ExternFunction);
+        }
         else if item._tag == code.TAG_MODULE
         {
             # This is a module; deal with it.
@@ -361,8 +368,6 @@ def ident(g: ^mut generator_.Generator, node: ^ast.Node,
     let id: ^ast.Ident = (node^).unwrap() as ^ast.Ident;
     let item: ^code.Handle = generator_util.get_scoped_item_in(
         g^, id.name.data() as str, scope, g.ns);
-
-
 
     # Bail if we weren't able to resolve this identifier.
     if code.isnil(item) {

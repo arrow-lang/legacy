@@ -5,8 +5,8 @@
 # [ ] functions
 # [ ]   types
 # [ ]   expressions
-# [ ] array
-# [ ]   expressions
+# [x] array
+# [x]   expressions
 # [ ] pointer
 # [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
 # [ ] external functions (ABI-selected calling convention)

@@ -604,7 +604,7 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Delegate off to `call_function`
         return call_function(
-            g, x, code.make_nil_scope(), fn_han.handle, type_);
+            g, x, scope, fn_han.handle, type_);
     }
     else if expr._tag == code.TAG_STRUCT
     {

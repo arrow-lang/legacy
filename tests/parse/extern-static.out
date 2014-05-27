@@ -1,0 +1,7 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    ExternStaticSlot <?> mut errno
+      Ident <?> int
+    ExternStaticSlot <?> stdout
+      PointerType <?>
+        Ident <?> int8

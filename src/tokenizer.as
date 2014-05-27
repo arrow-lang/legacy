@@ -131,6 +131,7 @@ def scan_identifier() -> int {
     if current_buf.eq_str("global")    { return tokens.TOK_GLOBAL; }
     if current_buf.eq_str("struct")    { return tokens.TOK_STRUCT; }
     if current_buf.eq_str("implement") { return tokens.TOK_IMPL; }
+    if current_buf.eq_str("extern")    { return tokens.TOK_EXTERN; }
 
     # Scanned identifier does not match any defined keyword.
     # Update the current_id.

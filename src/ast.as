@@ -81,6 +81,8 @@ let TAG_DEREF           : int = 71;             # DerefExpr
 let TAG_ARRAY_TYPE      : int = 72;             # ArrayType
 let TAG_TUPLE_TYPE      : int = 73;             # TupleType
 let TAG_TUPLE_TYPE_MEM  : int = 74;             # TupleTypeMem
+let TAG_EXTERN_STATIC   : int = 75;             # ExternStaticSlot
+let TAG_EXTERN_FUNC     : int = 76;             # ExternFunc
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -229,6 +231,13 @@ type FuncDecl {
     block: Node
 }
 
+# External function declaration.
+type ExternFunc {
+    mut id: Node,
+    return_type: Node,
+    mut params: Nodes
+}
+
 # Function parameter.
 type FuncParam {
     mut id: Node,
@@ -243,6 +252,13 @@ type StaticSlotDecl {
     type_: Node,
     mutable: bool,
     initializer: Node
+}
+
+# External static slot.
+type ExternStaticSlot {
+    mut id: Node,
+    type_: Node,
+    mutable: bool
 }
 
 # Local slot declaration.
@@ -355,6 +371,8 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_LOOP    { let tmp: Loop; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CALL_ARG{ let tmp: Argument; ((&tmp + 1) - &tmp); }
     else if tag == TAG_TYPE_PARAM{ let tmp: TypeParam; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_EXTERN_STATIC { let tmp: ExternStaticSlot; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_EXTERN_FUNC { let tmp: ExternFunc; ((&tmp + 1) - &tmp); }
     else if tag == TAG_STATIC_SLOT {
         let tmp: StaticSlotDecl;
         ((&tmp + 1) - &tmp);
@@ -477,6 +495,8 @@ def dump(&node: Node) {
         dump_table[TAG_ASSIGN_MOD] = dump_binop_expr;
         dump_table[TAG_SELECT_OP] = dump_binop_expr;
         dump_table[TAG_STATIC_SLOT] = dump_static_slot;
+        dump_table[TAG_EXTERN_STATIC] = dump_extern_static_slot;
+        dump_table[TAG_EXTERN_FUNC] = dump_extern_func;
         dump_table[TAG_LOCAL_SLOT] = dump_local_slot;
         dump_table[TAG_IDENT] = dump_ident;
         dump_table[TAG_SELECT] = dump_select_expr;
@@ -896,6 +916,20 @@ def dump_static_slot(node: ^Node) {
     dump_indent = dump_indent - 1;
 }
 
+# dump_extern_static_slot
+# -----------------------------------------------------------------------------
+def dump_extern_static_slot(node: ^Node) {
+    let x: ^ExternStaticSlot = unwrap(node^) as ^ExternStaticSlot;
+    printf("ExternStaticSlot <?> ");
+    if x.mutable { printf("mut "); }
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    printf("%s\n", id.name.data());
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.type_) { dump(x.type_); }
+    dump_indent = dump_indent - 1;
+}
+
 # dump_local_slot
 # -----------------------------------------------------------------------------
 def dump_local_slot(node: ^Node) {
@@ -976,6 +1010,20 @@ def dump_conditional_expr(node: ^Node) {
     dump_indent = dump_indent - 1;
 }
 
+# dump_extern_func
+# -----------------------------------------------------------------------------
+def dump_extern_func(node: ^Node) {
+    let x: ^ExternFunc = unwrap(node^) as ^ExternFunc;
+    printf("ExternFunc <?> ");
+    let id: ^Ident = unwrap(x.id) as ^Ident;
+    printf("%s\n", id.name.data());
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.return_type) { dump(x.return_type); }
+    dump_nodes("Parameters", x.params);
+    dump_indent = dump_indent - 1;
+}
+
 # dump_func_decl
 # -----------------------------------------------------------------------------
 def dump_func_decl(node: ^Node) {
@@ -996,10 +1044,14 @@ def dump_func_decl(node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_func_param(node: ^Node) {
     let x: ^FuncParam = unwrap(node^) as ^FuncParam;
-    printf("FuncParam <?> ");
-    if x.mutable { printf("mut "); }
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    printf("%s\n", id.name.data());
+    printf("FuncParam <?>");
+    if x.mutable { printf(" mut"); }
+    if not isnull(x.id) {
+        let id: ^Ident = unwrap(x.id) as ^Ident;
+        printf(" %s\n", id.name.data());
+    } else {
+        printf("\n");
+    }
 
     dump_indent = dump_indent + 1;
     if not isnull(x.type_) { dump(x.type_); }

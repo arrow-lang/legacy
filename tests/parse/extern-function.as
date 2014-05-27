@@ -10,4 +10,4 @@ extern def exit(int);
 extern def socket(domain: int, type_: int, protocol: int): int;
 
 # Create an extern specification for the "recv" function.
-extern def recv(socket: int, buffer: uint8*, length: uint, flags: int): int;
+extern def recv(socket: int, buffer: *uint8, length: uint, flags: int): int;

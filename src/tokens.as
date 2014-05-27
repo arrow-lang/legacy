@@ -103,6 +103,9 @@ let TOK_STRUCT: int = -1029;
 # "implement" -- Implement
 let TOK_IMPL: int = -1030;
 
+# "extern" -- External declarations
+let TOK_EXTERN: int = -1031;
+
 # "->" -- Function return type declarator
 let TOK_RARROW: int = -2001;
 

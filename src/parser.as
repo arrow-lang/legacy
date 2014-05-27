@@ -265,6 +265,7 @@ def parse_module_node(&mut self) -> bool {
     # Peek ahead and see if we are a module `item`.
     let tok: int = self.peek_token(1);
     if tok == tokens.TOK_MODULE { return self.parse_module(); }
+    if tok == tokens.TOK_EXTERN { return self.parse_extern(); }
 
     if tok == tokens.TOK_SEMICOLON {
         # Consume the semicolon and attempt to match the next item.
@@ -430,7 +431,7 @@ def parse_function(&mut self) -> bool
     if not self.parse_type_params(decl.type_params) { return false; }
 
     # Parse the parameter list.
-    if not self.parse_function_params(decl.params) { return false; }
+    if not self.parse_function_params(decl.params, true) { return false; }
 
     # Check for a return type annotation which would again
     # be preceeded by a `:` token.
@@ -457,7 +458,8 @@ def parse_function(&mut self) -> bool
 
 # Function parameter list
 # -----------------------------------------------------------------------------
-def parse_function_params(&mut self, &mut nodes: ast.Nodes) -> bool
+def parse_function_params(&mut self, &mut nodes: ast.Nodes,
+                          require_names: bool) -> bool
 {
     # Expect a `(` token to start the parameter list.
     if not self.expect(tokens.TOK_LPAREN) { return false; }
@@ -466,7 +468,7 @@ def parse_function_params(&mut self, &mut nodes: ast.Nodes) -> bool
     while self.peek_token(1) <> tokens.TOK_RPAREN
     {
         # Parse the parameter.
-        if not self.parse_function_param() { return false; }
+        if not self.parse_function_param(require_names) { return false; }
         nodes.push(self.stack.pop());
 
         # Peek and consume the `,` token if present; else, consume
@@ -484,7 +486,7 @@ def parse_function_params(&mut self, &mut nodes: ast.Nodes) -> bool
 
 # Function parameter
 # -----------------------------------------------------------------------------
-def parse_function_param(&mut self) -> bool
+def parse_function_param(&mut self, require_name: bool) -> bool
 {
     # Declare the function param node.
     let node: ast.Node = ast.make(ast.TAG_FUNC_PARAM);
@@ -500,21 +502,43 @@ def parse_function_param(&mut self) -> bool
         param.mutable = true;
     }
 
-    # Expect an `identifier` next.
-    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
-        self.expect(tokens.TOK_IDENTIFIER);
-        return false;
-    }
-
-    # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident_expr() { return false; }
-    param.id = self.stack.pop();
-
-    # Check for a type annotation which would be preceeded by a `:` token.
-    if self.peek_token(1) == tokens.TOK_COLON
+    if require_name
     {
-        # Pop the `:` token.
-        self.pop_token();
+        # Expect an `identifier` next.
+        if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+            self.expect(tokens.TOK_IDENTIFIER);
+            return false;
+        }
+
+        # Parse and set the identifier (this shouldn't fail).
+        if not self.parse_ident_expr() { return false; }
+        param.id = self.stack.pop();
+
+        # Check for a type annotation which would be preceeded by a `:` token.
+        if self.peek_token(1) == tokens.TOK_COLON
+        {
+            # Pop the `:` token.
+            self.pop_token();
+
+            # Parse and set the type.
+            if not self.parse_type() { return false; }
+            param.type_ = self.stack.pop();
+        }
+    }
+    else
+    {
+        # Check for an `identifier` `:` sequence.
+        if self.peek_token(1) == tokens.TOK_IDENTIFIER and
+                self.peek_token(2) == tokens.TOK_COLON
+        {
+            # Parse and set the identifier (this shouldn't fail).
+            if not self.parse_ident_expr() { return false; }
+            param.id = self.stack.pop();
+
+            # Pop the `:` token.
+            self.pop_token();
+
+        }
 
         # Parse and set the type.
         if not self.parse_type() { return false; }
@@ -2082,6 +2106,118 @@ def parse_slot(&mut self) -> bool
         # Parse and set the initializer.
         if not self.parse_expr(false) { return false; }
         slot.initializer = self.stack.pop();
+    }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# External
+# -----------------------------------------------------------------------------
+def parse_extern(&mut self) -> bool
+{
+    # Pop the `extern` token.
+    self.pop_token();
+
+    # This could either be `static` or `def`.
+    let tok: int = self.peek_token(1);
+    let res: bool =
+        if      tok == tokens.TOK_STATIC { self.parse_extern_static(); }
+        else if tok == tokens.TOK_DEF { self.parse_extern_function(); }
+        else { false; };
+    if not res { return false; }
+
+    # Expect a semicolon to close us.
+    self.expect(tokens.TOK_SEMICOLON);
+}
+
+# External Static
+# -----------------------------------------------------------------------------
+def parse_extern_static(&mut self) -> bool
+{
+    # Allocate space for the node
+    let node: ast.Node = ast.make(ast.TAG_EXTERN_STATIC);
+    let slot: ^ast.ExternStaticSlot =  node.unwrap() as ^ast.ExternStaticSlot;
+
+    # Pop the `static` token.
+    self.pop_token();
+
+    # Check for a `mut` token which would make the slot mutable.
+    if self.peek_token(1) == tokens.TOK_MUT
+    {
+        # Pop the `mut` token.
+        self.pop_token();
+
+        # Make the slot mutable.
+        slot.mutable = true;
+    }
+
+    # Bail if we don't have an identifier next.
+    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+        self.expect(tokens.TOK_IDENTIFIER);
+        self.consume_until(tokens.TOK_SEMICOLON);
+        return false;
+    }
+
+    # Parse and set the identifier (this shouldn't fail).
+    if not self.parse_ident_expr() { return false; }
+    slot.id = self.stack.pop();
+
+    # Check for a type annotation which would be preceeded by a `:` token.
+    if self.peek_token(1) == tokens.TOK_COLON
+    {
+        # Pop the `:` token.
+        self.pop_token();
+
+        # Parse and set the type.
+        if not self.parse_type() { return false; }
+        slot.type_ = self.stack.pop();
+    }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# External Function
+# -----------------------------------------------------------------------------
+def parse_extern_function(&mut self) -> bool
+{
+    # Allocate space for the node
+    let node: ast.Node = ast.make(ast.TAG_EXTERN_FUNC);
+    let decl: ^ast.ExternFunc =  node.unwrap() as ^ast.ExternFunc;
+
+    # Pop the `def` token.
+    self.pop_token();
+
+    # Expect an `identifier` next.
+    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+        self.expect(tokens.TOK_IDENTIFIER);
+        return false;
+    }
+
+    # Parse and set the identifier (this shouldn't fail).
+    if not self.parse_ident_expr() { return false; }
+    decl.id = self.stack.pop();
+
+    # Parse the parameter list.
+    if not self.parse_function_params(decl.params, false) { return false; }
+
+    # Check for a return type annotation which would again
+    # be preceeded by a `:` token.
+    if self.peek_token(1) == tokens.TOK_COLON
+    {
+        # Pop the `:` token.
+        self.pop_token();
+
+        # Parse and set the type.
+        if not self.parse_type() { return false; }
+        decl.return_type = self.stack.pop();
     }
 
     # Push our node on the stack.

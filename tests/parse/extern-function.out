@@ -1,0 +1,27 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    ExternFunc <?> exit
+      Parameters <?> 
+        FuncParam <?>
+          Ident <?> int
+    ExternFunc <?> socket
+      Ident <?> int
+      Parameters <?> 
+        FuncParam <?> domain
+          Ident <?> int
+        FuncParam <?> type_
+          Ident <?> int
+        FuncParam <?> protocol
+          Ident <?> int
+    ExternFunc <?> recv
+      Ident <?> int
+      Parameters <?> 
+        FuncParam <?> socket
+          Ident <?> int
+        FuncParam <?> buffer
+          PointerType <?>
+            Ident <?> uint8
+        FuncParam <?> length
+          Ident <?> uint
+        FuncParam <?> flags
+          Ident <?> int

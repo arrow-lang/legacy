@@ -128,6 +128,11 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
         if code.isnil(type_han) {
             type_han = typ;
             type_ = type_han._object as ^code.Type;
+        } else {
+            # Ensure that the types are compatible.
+            if not resolvers.type_compatible(type_han, typ) {
+                return code.make_nil();
+            }
         }
 
         # Build the initializer
@@ -1774,6 +1779,12 @@ def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
     # Unwrap the type.
     let type_: ^code.PointerType = target._object as ^code.PointerType;
 
+    # Return immediately if we have a built type.
+    if type_.handle <> 0 as ^llvm.LLVMOpaqueType
+    {
+        return target;
+    }
+
     # Build the pointee type.
     type_.pointee = builder.build(
         g, &x.pointee, scope, type_.pointee);
@@ -1800,6 +1811,14 @@ def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Unwrap the target type to our destination type.
     let type_: ^code.ArrayType = target._object as ^code.ArrayType;
+
+    # Return immediately if we have a built type.
+    if type_.handle <> 0 as ^llvm.LLVMOpaqueType
+    {
+        return target;
+    }
+
+    # Continue to build the element type.
     let mut el_type_han: ^code.Handle = type_.element;
     el_type_han = builder.build(g, &x.element, scope, el_type_han);
     if not code.is_type(el_type_han) {
@@ -1908,4 +1927,123 @@ def index(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Return our wrapped result.
     han;
+}
+
+# Array [TAG_ARRAY]
+# -----------------------------------------------------------------------------
+def array(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.ArrayExpr = (node^).unwrap() as ^ast.ArrayExpr;
+
+    # Get the type of the target expression.
+    let array_type: ^code.ArrayType = target._object as ^code.ArrayType;
+
+    # Iterate and build each element in the array.
+    let mut valuel: list.List = list.make(types.PTR);
+    valuel.reserve(x.nodes.size());
+    valuel.size = x.nodes.size();
+    let values: ^^llvm.LLVMOpaqueValue = valuel.elements as
+        ^^llvm.LLVMOpaqueValue;
+    let mut i: int = 0;
+    while i as uint < x.nodes.size()
+    {
+        # Get the specific element.
+        let enode: ast.Node = x.nodes.get(i);
+
+        # Build the argument expression node.
+        let han: ^code.Handle = builder.build(
+            g, &enode, scope, array_type.element);
+        if code.isnil(han) { return code.make_nil(); }
+
+        # Coerce this to a value.
+        let val_han: ^code.Handle = generator_def.to_value(
+            g^, han, code.VC_RVALUE, false);
+
+        # Cast the value to the target type.
+        let cast_han: ^code.Handle = generator_util.cast(
+            g^, val_han, array_type.element);
+        let cast_val: ^code.Value = cast_han._object as ^code.Value;
+
+        # Emplace in the argument list.
+        (values + i)^ =  cast_val.handle;
+
+        # Advance forward.
+        i = i + 1;
+    }
+
+    # We can only generate an initial "constant" structure for a
+    # purely constant literal.
+    # Collect indicies and values of non-constant members of the
+    # literal.
+    let el_type_han: ^code.Handle = array_type.element as ^code.Handle;
+    let el_type: ^code.Type = el_type_han._object as ^code.Type;
+    let mut nonconst_values: list.List = list.make(types.PTR);
+    let mut nonconst_indicies: list.List = list.make(types.INT);
+    i = 0;
+    while i as uint < valuel.size {
+        let arg: ^llvm.LLVMOpaqueValue = (values + i)^;
+        i = i + 1;
+
+        # Is this not some kind of "constant"?
+        if llvm.LLVMIsConstant(arg) == 0 {
+            # Yep; store and zero out the value.
+            nonconst_indicies.push_int(i - 1);
+            nonconst_values.push_ptr(arg as ^void);
+            (values + (i - 1))^ = llvm.LLVMGetUndef(el_type.handle);
+        }
+    }
+
+    # Build the `array` instruction (and create the constant array).
+    let mut val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMConstArray(
+        el_type.handle, values, valuel.size as uint32);
+
+    # Create a temporary allocation.
+    let mut ptr: ^llvm.LLVMOpaqueValue;
+    ptr = llvm.LLVMBuildAlloca(g.irb, array_type.handle, "" as ^int8);
+
+    # FIXME: Copy in what we have.
+    # Store what we have.
+    llvm.LLVMBuildStore(g.irb, val, ptr);
+
+    # Iterate through our non-constant values and push them in.
+    let sub_type: ^llvm.LLVMOpaqueType = llvm.LLVMInt64Type();
+    i = 0;
+    let mut indicies: list.List = list.make(types.PTR);
+    indicies.reserve(2);
+    let mut idxs: ^^llvm.LLVMOpaqueValue =
+        indicies.elements as ^^llvm.LLVMOpaqueValue;
+    let zero_val: ^llvm.LLVMOpaqueValue =
+        llvm.LLVMConstInt(sub_type, 0, false);
+    ((idxs + 0)^) = zero_val;
+    while i as uint < nonconst_indicies.size {
+        let arg: ^llvm.LLVMOpaqueValue = nonconst_values.at_ptr(i) as
+            ^llvm.LLVMOpaqueValue;
+        let idx: int = nonconst_indicies.at_int(i);
+
+        # Build an `offset` pointer.
+        ((idxs + 1)^) = llvm.LLVMConstInt(sub_type, idx as uint64, false);
+        let mut tmp: ^llvm.LLVMOpaqueValue;
+        tmp = llvm.LLVMBuildInBoundsGEP(g.irb, ptr, idxs, 2, "" as ^int8);
+
+        # Build the `store` instruction.
+        llvm.LLVMBuildStore(g.irb, arg, tmp);
+
+        # Advance.
+        i = i + 1;
+    }
+
+    # Dispose of dynamic memory.
+    nonconst_values.dispose();
+    nonconst_indicies.dispose();
+    valuel.dispose();
+    # indicies.dispose();
+
+    # Load the value.
+    ptr = llvm.LLVMBuildLoad(g.irb, ptr, "" as ^int8);
+
+    # Wrap and return the value.
+    code.make_value(target, code.VC_RVALUE, ptr);
 }

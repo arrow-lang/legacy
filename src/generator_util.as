@@ -265,6 +265,14 @@ def is_same_type(a: ^code.Handle, b: ^code.Handle) -> bool
         let b_type: ^code.PointerType = b._object as ^code.PointerType;
         return is_same_type(a_type.pointee, b_type.pointee);
     }
+    else if a._tag == code.TAG_ARRAY_TYPE and a._tag == b._tag
+    {
+        # These are both arrays; move to the element types.
+        let a_type: ^code.ArrayType = a._object as ^code.ArrayType;
+        let b_type: ^code.ArrayType = b._object as ^code.ArrayType;
+        return a_type.size == b_type.size and
+               is_same_type(a_type.element, b_type.element);
+    }
 
     # Perform an address check.
     return a._object == b._object;

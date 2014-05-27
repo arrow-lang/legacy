@@ -1,58 +1,26 @@
-# [x] bitwise
-# [x] selection statement
-# [x] selection expression
-# [x] conditional expression
-# [x] repeated evaluation (loop, while)
-# [x] break
-# [x] continue
-# [x] structures
-# [x] member expressions
-# [.] pointers
-# [x]   parsing
-# [x]   type
-# [x]   address of
-# [x]   dereference
-# [x]   relational
-# [x]   arithmetic
-# [x]   difference
-# [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
-# [ ] by-reference parameters
-# [ ] mutable parameters
-# [.] arrays
-# [x]   parsing
-# [x]   type
-# [ ]   index
-# [ ]   expressions
+# Self Hosting ================================================================
+# [ ] "arrow" calling convention
+# [ ]   aggregate by-reference parameters
+# [ ]   mutable parameters
 # [ ] functions
 # [ ]   types
 # [ ]   expressions
-# -----------------------------------------------------------------------------
-# [x] casts
-# [ ] external functions
-# [ ]   parsing
-# [ ]   create declarations
-# [ ] external statics
-# -----------------------------------------------------------------------------
-# [ ] simple enumerations
-# [ ] string
-# [ ] character
-# [ ] import
-# [ ] tuples
+# [ ] array
 # [ ]   expressions
-# [ ]   types
+# [ ] pointer
+# [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
+# [ ] external functions (ABI-selected calling convention)
+# [ ] external statics
+# [ ] string
+# [ ] char
+# [ ] tuple
+# [ ]   type
+# [ ]   expression (pack)
 # [ ]   destructure
-# [ ] patterns
-# -----------------------------------------------------------------------------
-# [ ] traits
-# -----------------------------------------------------------------------------
-# [ ] generics
-# -----------------------------------------------------------------------------
-# [x] data layout
-# [x] target triple
-# [x] add a "sizeof" method to generator_util that takes a code.Handle (where it is a Type)
-# -----------------------------------------------------------------------------
-# [ ] infer the return type from the function body
-# -----------------------------------------------------------------------------
+# [ ] module import `import`
+# [ ] driver
+
+# Issues ======================================================================
 # [ ] shorthand name reference for function calls (prefixed ":")
 # [ ] type expressions should allow for paths
 # [ ] type expressions should allow for `type(..)`
@@ -65,17 +33,19 @@
 # [ ] tuple types need to be given a proper path in the parser
 # [ ] types slots and parameters need to built now across the board (
 #       to be able to accept expressions in them [for array types mainly])
-# -----------------------------------------------------------------------------
-# [ ] usage-based type inference
-# -----------------------------------------------------------------------------
-# [ ] various tests for blocks and ensuring lifetime
-# -----------------------------------------------------------------------------
+# [ ] integral expressions don't carry the target type through
+# [ ] promote aggregates to `sret` parameters (function body and call builders)
+
+# Future ======================================================================
 # [ ] array (advanced)
 # [ ]   variable length arrays with heap storage and scoped destructors
 # [ ]   using a platform-dependent heuristic; push even a constant-sized array
 #           into heap storage (for large N arrays).
-# -----------------------------------------------------------------------------
-# [ ] integral expressions don't carry the target type through
-# [ ] pointers need to build their pointee type
-
-let x: int[0x1000];  # 5 KiB
+# [ ] infer the return type from the function body
+# [ ] usage-based type inference
+# [ ] various tests for blocks and ensuring lifetime
+# [ ] traits
+# [ ] generics
+# [ ] patterns
+# [ ] enumeration
+# [ ] local import

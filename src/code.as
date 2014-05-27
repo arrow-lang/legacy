@@ -252,9 +252,22 @@ def typename(handle: ^Handle) -> string.String {
         name.extend(el_name.data() as str);
         el_name.dispose();
         name.append("[");
-        let int_node: ast.Node = a_ty.context.size;
-        let int_: ^ast.IntegerExpr = int_node.unwrap() as ^ast.IntegerExpr;
-        name.extend(int_.text.data() as str);
+
+        if a_ty.handle <> 0 as ^llvm.LLVMOpaqueType
+        {
+            let len: uint = LLVMGetArrayLength(a_ty.handle);
+            let int_: int8[100];
+            libc.memset(&int_[0] as ^void, 0, 100);
+            libc.snprintf(&int_[0], 100, "%d" as ^int8, len);
+            name.extend(&int_[0] as str);
+        }
+        else
+        {
+            let int_node: ast.Node = a_ty.context.size;
+            let int_: ^ast.IntegerExpr = int_node.unwrap() as ^ast.IntegerExpr;
+            name.extend(int_.text.data() as str);
+        }
+
         name.append("]");
     }
 

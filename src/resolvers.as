@@ -129,7 +129,7 @@ def type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
     let d_ty: ^code.Type = d._object as ^code.Type;
 
     # If these are the `same` then were okay.
-    if s_ty == d_ty { return true; }
+    if generator_util.is_same_type(d, s) { return true; }
     else if s_ty.handle == d_ty.handle { return true; }
     else if s._tag == code.TAG_INT_TYPE and d._tag == code.TAG_INT_TYPE {
         return true;
@@ -645,6 +645,81 @@ def tuple(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Dispose of dynamic memory.
     eleme_type_handles.dispose();
+
+    # Return the type handle.
+    han;
+}
+
+# Array [TAG_ARRAY_EXPR]
+# -----------------------------------------------------------------------------
+def array(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.ArrayExpr = (node^).unwrap() as ^ast.ArrayExpr;
+
+    # Iterate through each element of the tuple.
+    let mut i: int = 0;
+    let mut type_han: ^code.Handle = code.make_nil();
+    let mut prev_el: ast.Node = ast.null();
+    while i as uint < x.nodes.size()
+    {
+        # Get the specific element.
+        let enode: ast.Node = x.nodes.get(i);
+
+        # Resolve the type of this element expression.
+        let han: ^code.Handle = resolver.resolve_st(
+            g, &enode, scope, target);
+        if code.isnil(han) { return code.make_nil(); }
+
+        if code.isnil(type_han) {
+            # This is the first block; set the type_han directly.
+            type_han = han;
+        } else {
+            # Need to resolve the common type between this and
+            # the existing handle.
+            let com_han: ^code.Handle = type_common(
+                &prev_el, type_han, &enode, han);
+            if code.isnil(com_han) {
+                # There was no common type found.
+                # Get formal type names.
+                let mut lhs_name: string.String = code.typename(type_han);
+                let mut rhs_name: string.String = code.typename(han);
+
+                # Report error.
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "no common type can be resolved for '%s' and '%s'" as ^int8,
+                               lhs_name.data(), rhs_name.data());
+                errors.end();
+
+                # Dispose.
+                lhs_name.dispose();
+                rhs_name.dispose();
+
+                return code.make_nil();
+            }
+
+            # Common type found; set as the new type han.
+            type_han = com_han;
+        }
+
+        # Move along to the next node.
+        prev_el = enode;
+        i = i + 1;
+    }
+
+    # Build the LLVM type handle.
+    let type_: ^code.Type = type_han._object as ^code.Type;
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMArrayType(type_.handle, x.nodes.size() as uint32);
+
+    # Create and store our type.
+    let han: ^code.Handle;
+    han = code.make_array_type(0 as ^ast.ArrayType, type_han);
+    let typ: ^code.ArrayType = han._object as ^code.ArrayType;
+    typ.handle = val;
+    typ.size = x.nodes.size();
 
     # Return the type handle.
     han;

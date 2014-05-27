@@ -10,7 +10,7 @@
 # [ ] pointer
 # [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
 # [x] external functions
-# [ ] external function result
+# [x] external function result
 # [ ] external statics
 # [ ] string
 # [ ] char

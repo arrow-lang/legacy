@@ -2,12 +2,7 @@
 # [ ] string
 # [ ] char
 # [ ] module import `import`
-# [ ] arrays should be able to be "casted" as long as the element type can
-#     be casted
-# [x] extern function calls aren't seeing local vars
-# [ ] an error isn't properly reported when a `return ..` expression doesn't
-#     match the required type (eg. the .. is `void` but its expecting like int)
-# [ ] A cast from an integer to a pointer died in a return.
+# [ ] proper error reporting (with location spans)
 
 # Self Hosting ================================================================
 # [ ] "arrow" calling convention

@@ -23,6 +23,8 @@
 # [ ]   expression (pack)
 # [ ]   destructure
 # [ ] driver
+# [ ] divergence in the type system; a divergent expression is one that
+#     does not continue. `return ..` is divergent -- `exit(0)` is divergent
 
 # Issues ======================================================================
 # [ ] shorthand name reference for function calls (prefixed ":")

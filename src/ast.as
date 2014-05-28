@@ -83,6 +83,7 @@ let TAG_TUPLE_TYPE      : int = 73;             # TupleType
 let TAG_TUPLE_TYPE_MEM  : int = 74;             # TupleTypeMem
 let TAG_EXTERN_STATIC   : int = 75;             # ExternStaticSlot
 let TAG_EXTERN_FUNC     : int = 76;             # ExternFunc
+let TAG_STRING          : int = 77;             # StringExpr
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -149,6 +150,9 @@ type FloatExpr { mut text: string.String }
 
 # Expression type for a boolean literal
 type BooleanExpr { value: bool }
+
+# Expression type for a string literal
+type StringExpr { mut text: string.String }
 
 # "Generic" binary expression type.
 type BinaryExpr { mut lhs: Node, mut rhs: Node }
@@ -310,6 +314,9 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_FLOAT {
         let tmp: FloatExpr;
+        ((&tmp + 1) - &tmp);
+    } else if tag == TAG_STRING {
+        let tmp: StringExpr;
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_ADD
            or tag == TAG_SUBTRACT
@@ -533,6 +540,7 @@ def dump(&node: Node) {
         dump_table[TAG_POINTER_TYPE] = dump_pointer_type;
         dump_table[TAG_INDEX] = dump_index_expr;
         dump_table[TAG_ARRAY_TYPE] = dump_array_type;
+        dump_table[TAG_STRING] = dump_string_expr;
         dump_initialized = true;
     }
 
@@ -571,6 +579,13 @@ def dump_integer_expr(node: ^Node) {
 def dump_float_expr(node: ^Node) {
     let x: ^FloatExpr = unwrap(node^) as ^FloatExpr;
     printf("FloatExpr <?> %s\n", x.text.data());
+}
+
+# dump_string_expr
+# -----------------------------------------------------------------------------
+def dump_string_expr(node: ^Node) {
+    let x: ^StringExpr = unwrap(node^) as ^StringExpr;
+    printf("StringExpr <?> %s\n", x.text.data());
 }
 
 # dump_binop_expr

@@ -2,9 +2,6 @@
 # A simple string literal.
 "Hello World";
 
-# A string literal using interpolation.
-"Hello #{name}";
-
 # A single-quoted string literal.
 'Goodbye';
 

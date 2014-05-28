@@ -1412,6 +1412,10 @@ def parse_primary_expr(&mut self) -> bool
     {
         self.parse_bool_expr();
     }
+    else if tok == tokens.TOK_STRING
+    {
+        self.parse_string_expr();
+    }
     else if tok == tokens.TOK_LPAREN
     {
         self.parse_paren_expr();
@@ -1522,6 +1526,37 @@ def parse_bool_expr(&mut self) -> bool
 
     # Set our value and consume our token.
     boole.value = self.pop_token() == tokens.TOK_TRUE;
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# String expression
+# -----------------------------------------------------------------------------
+def parse_string_expr(&mut self) -> bool
+{
+    # Allocate and create the node.
+    let node: ast.Node = ast.make(ast.TAG_STRING);
+    let expr: ^ast.StringExpr = node.unwrap() as ^ast.StringExpr;
+
+    # Store the text for the string literal.
+    expr.text.extend(tokenizer.cur_str.data() as str);
+
+    # Consume our token.
+    self.pop_token();
+
+    # Iterate and consume any adjacent strings.
+    while self.peek_token(1) == tokens.TOK_STRING
+    {
+        # Store the text for the string literal.
+        expr.text.extend(tokenizer.cur_str.data() as str);
+
+        # Consume our token.
+        self.pop_token();
+    }
 
     # Push our node on the stack.
     self.stack.push(node);

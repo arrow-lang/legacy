@@ -1,0 +1,19 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    StringExpr <?> Hello World
+    StringExpr <?> Goodbye
+    StringExpr <?> someone in the world; someone in the world; should hopefully read this, sometime
+    StringExpr <?> A
+    StringExpr <?> b
+    StringExpr <?> \\
+    StringExpr <?> \'
+    StringExpr <?> \"
+    StringExpr <?> \a
+    StringExpr <?> \b
+    StringExpr <?> \f
+    StringExpr <?> \n
+    StringExpr <?> \r
+    StringExpr <?> \t
+    StringExpr <?> \v
+    StringExpr <?> \x7e
+    StringExpr <?> \xc2\xa7

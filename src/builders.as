@@ -1115,8 +1115,13 @@ def return_(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Generate a handle for the expression (if we have one.)
     if not ast.isnull(x.expression) {
+        # Resolve the type of the expression.
+        let type_: ^code.Handle = resolver.resolve_s(
+            g, &x.expression, scope);
+
+        # Build the expression.
         let expr: ^code.Handle = builder.build(
-            g, &x.expression, scope, target);
+            g, &x.expression, scope, type_);
         if code.isnil(expr) { return code.make_nil(); }
 
         # Coerce the expression to a value.

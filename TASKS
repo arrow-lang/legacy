@@ -3,11 +3,11 @@
 # [ ] char
 # [ ] module import `import`
 # [ ] proper error reporting (with location spans)
-
-# Self Hosting ================================================================
 # [ ] "arrow" calling convention
 # [ ]   aggregate by-reference parameters
 # [ ]   mutable parameters
+
+# Self Hosting ================================================================
 # [ ] functions
 # [ ]   types
 # [ ]   expressions

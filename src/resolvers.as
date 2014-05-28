@@ -1123,3 +1123,32 @@ def index(g: ^mut generator_.Generator, node: ^ast.Node,
     let operand_type: ^code.ArrayType = operand._object as ^code.ArrayType;
     return operand_type.element;
 }
+
+# Return statement [TAG_RETURN]
+# -----------------------------------------------------------------------------
+def return_(g: ^mut generator_.Generator, node: ^ast.Node,
+            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.ReturnExpr = (node^).unwrap() as ^ast.ReturnExpr;
+
+    if not ast.isnull(x.expression)
+    {
+        # Resolve the types of the operand.
+        let operand: ^code.Handle = resolver.resolve_st(
+            g, &x.expression, scope, target);
+        if code.isnil(operand) { return code.make_nil(); }
+        if not type_compatible(target, operand) { return code.make_nil(); }
+    }
+    else if not code.isnil(target)
+    {
+        if not type_compatible(
+            target, code.make_void_type(llvm.LLVMVoidType()))
+        {
+            return code.make_nil();
+        }
+    }
+
+    # Return void (a return isn't worth anything, type-wise to the block).
+    code.make_void_type(llvm.LLVMVoidType());
+}

@@ -1,2 +1,3 @@
-extern def exit(int);
-def main() { exit(3); }
+def main(): int {
+    if true { return 2; };
+}

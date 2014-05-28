@@ -866,7 +866,8 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
 
             # Resolve the type of the final node in the block.
             let node: ast.Node = blk.nodes.get(-1);
-            let han: ^code.Handle = resolver.resolve_s(g, &node, scope);
+            let han: ^code.Handle = resolver.resolve_st(
+                g, &node, scope, target);
             if code.isnil(han) {
                 # This block does not resolve to a value; this causes
                 # the entire select expression to not resolve to a
@@ -1132,18 +1133,26 @@ def return_(g: ^mut generator_.Generator, node: ^ast.Node,
     # Unwrap the node to its proper type.
     let x: ^ast.ReturnExpr = (node^).unwrap() as ^ast.ReturnExpr;
 
+    # Get the return type of the current function.
+    let cur_fn_type: ^code.FunctionType =
+        g.current_function.type_._object as ^code.FunctionType;
+    let target_type: ^code.Handle = cur_fn_type.return_type;
+
     if not ast.isnull(x.expression)
     {
         # Resolve the types of the operand.
         let operand: ^code.Handle = resolver.resolve_st(
-            g, &x.expression, scope, target);
+            g, &x.expression, scope, target_type);
         if code.isnil(operand) { return code.make_nil(); }
-        if not type_compatible(target, operand) { return code.make_nil(); }
+        if not type_compatible(target_type, operand)
+        {
+            return code.make_nil();
+        }
     }
-    else if not code.isnil(target)
+    else if not code.isnil(target_type)
     {
         if not type_compatible(
-            target, code.make_void_type(llvm.LLVMVoidType()))
+            target_type, code.make_void_type(llvm.LLVMVoidType()))
         {
             return code.make_nil();
         }

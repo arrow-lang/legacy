@@ -114,6 +114,10 @@ def generate_static_slot(&mut g: generator_.Generator, qname: str,
 def generate_function(&mut g: generator_.Generator, qname: str,
                       x: ^code.Function)
 {
+    # Set the current function.
+    let prev_fn: ^code.Function = g.current_function;
+    g.current_function = x;
+
     # Skip if this function been generated or is available externally.
     if llvm.LLVMCountBasicBlocks(x.handle) > 0 { return; }
 
@@ -227,6 +231,9 @@ def generate_function(&mut g: generator_.Generator, qname: str,
 
     # Reset to the old insert block.
     llvm.LLVMPositionBuilderAtEnd(g.irb, cur_block);
+
+    # Unset the current function.
+    g.current_function = prev_fn;
 }
 
 # Internal

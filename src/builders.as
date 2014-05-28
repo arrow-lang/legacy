@@ -1113,11 +1113,16 @@ def return_(g: ^mut generator_.Generator, node: ^ast.Node,
     # Unwrap the "ploymorphic" node to its proper type.
     let x: ^ast.ReturnExpr = (node^).unwrap() as ^ast.ReturnExpr;
 
+    # Get the return type of the current function.
+    let cur_fn_type: ^code.FunctionType =
+        g.current_function.type_._object as ^code.FunctionType;
+    let target_type: ^code.Handle = cur_fn_type.return_type;
+
     # Generate a handle for the expression (if we have one.)
     if not ast.isnull(x.expression) {
         # Resolve the type of the expression.
-        let type_: ^code.Handle = resolver.resolve_s(
-            g, &x.expression, scope);
+        let type_: ^code.Handle = resolver.resolve_st(
+            g, &x.expression, scope, target_type);
 
         # Build the expression.
         let expr: ^code.Handle = builder.build(
@@ -1421,19 +1426,31 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
         llvm.LLVMPositionBuilderAtEnd(g.irb, then_b);
 
         # Build each node in the branch.
-        let blk_val_han: ^code.Handle = block(g, &blk_node, scope, type_target);
+        let blk_val_han: ^code.Handle = block(
+            g, &blk_node, scope, type_target);
 
-        # If we are expecting a value ...
-        if has_value {
-            # Cast the block value to our target type.
-            let val_han: ^code.Handle = generator_def.to_value(
-                g^, blk_val_han, code.VC_RVALUE, false);
-            let cast_han: ^code.Handle = generator_util.cast(
-                g^, val_han, type_target);
-            let val: ^code.Value = cast_han._object as ^code.Value;
+        # If we are not terminated ...
+        if not generator_util.is_terminated(llvm.LLVMGetInsertBlock(g.irb))
+        {
+            # And if we are expecting a value ...
+            if has_value {
+                # Cast the block value to our target type.
+                let val_han: ^code.Handle = generator_def.to_value(
+                    g^, blk_val_han, code.VC_RVALUE, false);
+                let cast_han: ^code.Handle = generator_util.cast(
+                    g^, val_han, type_target);
+                let val: ^code.Value = cast_han._object as ^code.Value;
 
-            # Update our value list.
-            values.push_ptr(val.handle as ^void);
+                # Update our value list.
+                values.push_ptr(val.handle as ^void);
+            }
+        }
+        else if has_value {
+            # Push an undefined value.
+            let type_target_: ^code.Type = type_target._object as ^code.Type;
+            let undef: ^llvm.LLVMOpaqueValue = llvm.LLVMGetUndef(
+                type_target_.handle);
+            values.push_ptr(undef as ^void);
         }
 
         # Update the branch list.
@@ -1459,17 +1476,28 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
         let blk_val_han: ^code.Handle = block(
             g, &br.block, scope, type_target);
 
-        # If we are expecting a value ...
-        if has_value {
-            # Cast the block value to our target type.
-            let val_han: ^code.Handle = generator_def.to_value(
-                g^, blk_val_han, code.VC_RVALUE, false);
-            let cast_han: ^code.Handle = generator_util.cast(
-                g^, val_han, type_target);
-            let val: ^code.Value = cast_han._object as ^code.Value;
+        # If we are not terminated ...
+        if not generator_util.is_terminated(llvm.LLVMGetInsertBlock(g.irb))
+        {
+            # And if we are expecting a value ...
+            if has_value {
+                # Cast the block value to our target type.
+                let val_han: ^code.Handle = generator_def.to_value(
+                    g^, blk_val_han, code.VC_RVALUE, false);
+                let cast_han: ^code.Handle = generator_util.cast(
+                    g^, val_han, type_target);
+                let val: ^code.Value = cast_han._object as ^code.Value;
 
-            # Update our value list.
-            values.push_ptr(val.handle as ^void);
+                # Update our value list.
+                values.push_ptr(val.handle as ^void);
+            }
+        }
+        else if has_value {
+            # Push an undefined value.
+            let type_target_: ^code.Type = type_target._object as ^code.Type;
+            let undef: ^llvm.LLVMOpaqueValue = llvm.LLVMGetUndef(
+                type_target_.handle);
+            values.push_ptr(undef as ^void);
         }
 
         # Update the branch list.

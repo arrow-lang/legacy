@@ -107,7 +107,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_ASSIGN] = resolvers.assign;
     g.type_resolvers[ast.TAG_LOCAL_SLOT] = resolvers.pass;
     g.type_resolvers[ast.TAG_CONDITIONAL] = resolvers.conditional;
-    # g.type_resolvers[ast.TAG_SELECT] = resolvers.select;
+    g.type_resolvers[ast.TAG_SELECT] = resolvers.select;
     g.type_resolvers[ast.TAG_MEMBER] = resolvers.member;
     g.type_resolvers[ast.TAG_POINTER_TYPE] = resolvers.pointer_type;
     g.type_resolvers[ast.TAG_ADDRESS_OF] = resolvers.address_of;
@@ -150,7 +150,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_ASSIGN] = builders.assign;
     g.builders[ast.TAG_LOCAL_SLOT] = builders.local_slot;
     g.builders[ast.TAG_CONDITIONAL] = builders.conditional;
-    # g.builders[ast.TAG_SELECT] = builders.select;
+    g.builders[ast.TAG_SELECT] = builders.select;
     g.builders[ast.TAG_MEMBER] = builders.member;
     g.builders[ast.TAG_ADDRESS_OF] = builders.address_of;
     g.builders[ast.TAG_DEREF] = builders.dereference;

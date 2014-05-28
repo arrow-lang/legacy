@@ -54,7 +54,10 @@ type Generator {
     mut builders: (def (^mut Generator, ^ast.Node, ^mut code.Scope, ^code.Handle) -> ^code.Handle)[100],
 
     # Stack of loops (for break and continue).
-    mut loops: list.List
+    mut loops: list.List,
+
+    # The current function being generated.
+    mut current_function: ^code.Function
 }
 
 implement Generator {

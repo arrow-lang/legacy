@@ -6,5 +6,5 @@ def nil(val: *int8): *int8 {
 
 def main() {
     let null: *int8 = 0 as *int8;
-    assert(nil() == null);
+    assert(nil(null) == null);
 }

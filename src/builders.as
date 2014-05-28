@@ -91,6 +91,25 @@ def float(g: ^mut generator_.Generator, node: ^ast.Node,
     code.make_value(target, code.VC_RVALUE, val);
 }
 
+# String [TAG_STRING]
+# -----------------------------------------------------------------------------
+def string_(g: ^mut generator_.Generator, node: ^ast.Node,
+            scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.StringExpr = (node^).unwrap() as ^ast.StringExpr;
+
+    # Get the type handle from the target.
+    let typ: ^code.Type = target._object as ^code.Type;
+
+    # Build a llvm val for the ASCII string.
+    let val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMBuildGlobalStringPtr(g.irb, x.text.data(), "" as ^int8);
+
+    # Wrap and return the value.
+    code.make_value(target, code.VC_RVALUE, val);
+}
+
 # Local Slot [TAG_LOCAL_SLOT]
 # -----------------------------------------------------------------------------
 def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,

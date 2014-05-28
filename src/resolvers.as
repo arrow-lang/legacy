@@ -357,6 +357,15 @@ def float(g: ^mut generator_.Generator, node: ^ast.Node,
     (g^).items.get_ptr("float64") as ^code.Handle;
 }
 
+# String [TAG_STRING]
+# -----------------------------------------------------------------------------
+def string_(g: ^mut generator_.Generator, node: ^ast.Node,
+            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Without context we default to `str`.
+    (g^).items.get_ptr("str") as ^code.Handle;
+}
+
 # Identifier [TAG_IDENT]
 # -----------------------------------------------------------------------------
 def ident(g: ^mut generator_.Generator, node: ^ast.Node,

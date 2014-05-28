@@ -57,8 +57,9 @@ def declare_basic_types(&mut g: generator_.Generator) {
     declare_float_type(g, "float64", llvm.LLVMDoubleType(), 64);
 
     # Unsigned machine-dependent integer
-    let ptr_size: uint = sizeof(
-        g, llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0));
+    let ptr_type: ^llvm.LLVMOpaqueType =
+        llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0);
+    let ptr_size: uint = sizeof(g, ptr_type);
     declare_int_type(g,  "uint",  llvm.LLVMInt64Type(), false, ptr_size * 8);
 
     # Signed machine-dependent integer
@@ -67,6 +68,8 @@ def declare_basic_types(&mut g: generator_.Generator) {
     # TODO: UTF-32 Character
 
     # TODO: UTF-8 String
+    # ASCII String
+    declare_type(g, "str", ptr_type);
 }
 
 # Declare `assert` built-in function

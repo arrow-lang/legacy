@@ -1,5 +1,5 @@
 # Fun =========================================================================
-# [ ] string
+# [x] static strings
 # [ ] char
 # [ ] module import `import`
 # [ ] proper error reporting (with location spans)

@@ -5,6 +5,7 @@ import ast;
 import libc;
 import types;
 import list;
+import llvm;
 import dict;
 
 # Tags
@@ -255,20 +256,11 @@ def typename(handle: ^Handle) -> string.String {
         el_name.dispose();
         name.append("[");
 
-        if a_ty.handle <> 0 as ^LLVMOpaqueType
-        {
-            let len: uint = LLVMGetArrayLength(a_ty.handle);
-            let int_: int8[100];
-            libc.memset(&int_[0] as ^void, 0, 100);
-            libc.snprintf(&int_[0], 100, "%d" as ^int8, len);
-            name.extend(&int_[0] as str);
-        }
-        else
-        {
-            let int_node: ast.Node = a_ty.context.size;
-            let int_: ^ast.IntegerExpr = int_node.unwrap() as ^ast.IntegerExpr;
-            name.extend(int_.text.data() as str);
-        }
+        let len: uint = LLVMGetArrayLength(a_ty.handle);
+        let int_: int8[100];
+        libc.memset(&int_[0] as ^void, 0, 100);
+        libc.snprintf(&int_[0], 100, "%d" as ^int8, len);
+        name.extend(&int_[0] as str);
 
         name.append("]");
     }
@@ -308,20 +300,18 @@ type ArrayType {
     handle: ^LLVMOpaqueType,
     bits: uint,
     mut element: ^Handle,
-    size: uint,
-    context: ^ast.ArrayType
+    size: uint
 }
 
 let ARRAY_TYPE_SIZE: uint = ((0 as ^ArrayType) + 1) - (0 as ^ArrayType);
 
-def make_array_type(context: ^ast.ArrayType, element: ^Handle) -> ^Handle {
+def make_array_type(element: ^Handle, size: uint, handle: ^LLVMOpaqueType) -> ^Handle {
     # Build the parameter.
     let han: ^ArrayType = libc.malloc(ARRAY_TYPE_SIZE as int64) as ^ArrayType;
-    han.handle = 0 as ^LLVMOpaqueType;
+    han.handle = handle;
     han.element = element;
     han.bits = 0;  # FIXME: Get the actual size of this type with sizeof
-    han.size = 0;
-    han.context = context;
+    han.size = size;
 
     # Wrap in a handle.
     make(TAG_ARRAY_TYPE, han as ^void);

@@ -159,11 +159,11 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_LOOP] = builders.loop_;
     g.builders[ast.TAG_BREAK] = builders.break_;
     g.builders[ast.TAG_CONTINUE] = builders.continue_;
-    g.builders[ast.TAG_ARRAY_TYPE] = builders.array_type;
-    g.builders[ast.TAG_POINTER_TYPE] = builders.pointer_type;
+    # g.builders[ast.TAG_ARRAY_TYPE] = builders.array_type;
+    # g.builders[ast.TAG_POINTER_TYPE] = builders.pointer_type;
     g.builders[ast.TAG_INDEX] = builders.index;
     g.builders[ast.TAG_ARRAY_EXPR] = builders.array;
-    g.builders[ast.TAG_TUPLE_TYPE] = builders.tuple_type;
+    # g.builders[ast.TAG_TUPLE_TYPE] = builders.tuple_type;
     g.builders[ast.TAG_STRING] = builders.string_;
 
     # Add basic type definitions.

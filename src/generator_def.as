@@ -203,22 +203,29 @@ def generate_function(&mut g: generator_.Generator, qname: str,
     # Has the function been terminated?
     let last_block: ^llvm.LLVMOpaqueBasicBlock =
         llvm.LLVMGetLastBasicBlock(x.handle);
-    let last_terminator: ^llvm.LLVMOpaqueValue =
-        llvm.LLVMGetBasicBlockTerminator(last_block);
-    if last_terminator == 0 as ^llvm.LLVMOpaqueValue {
+    if not generator_util.is_terminated(last_block) {
         # Not terminated; we need to close the function.
-        if code.isnil(res) {
+        if code.isnil(res)
+        {
             llvm.LLVMBuildRetVoid(g.irb);
-        } else {
-            if type_.return_type._tag == code.TAG_VOID_TYPE {
+        }
+        else
+        {
+            if type_.return_type._tag == code.TAG_VOID_TYPE
+            {
                 llvm.LLVMBuildRetVoid(g.irb);
-            } else {
+            }
+            else
+            {
                 let val_han: ^code.Handle = to_value(
                     g, res, code.VC_RVALUE, false);
                 let typ: ^code.Handle = code.type_of(val_han) as ^code.Handle;
-                if typ._tag == code.TAG_VOID_TYPE {
+                if typ._tag == code.TAG_VOID_TYPE
+                {
                     llvm.LLVMBuildRetVoid(g.irb);
-                } else {
+                }
+                else
+                {
                     let val: ^code.Value = val_han._object as ^code.Value;
                     llvm.LLVMBuildRet(g.irb, val.handle);
                 }

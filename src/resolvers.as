@@ -9,6 +9,8 @@ import errors;
 import generator_util;
 import generator_type;
 import resolver;
+import builder;
+import generator_def;
 
 # Resolve a type from an item.
 # -----------------------------------------------------------------------------
@@ -675,6 +677,7 @@ def tuple_type(g: ^mut generator_.Generator, node: ^ast.Node,
     # Iterate through each element of the tuple.
     let mut i: int = 0;
     let mut elements: list.List = list.make(types.PTR);
+    let mut eleme_type_handles: list.List = list.make(types.PTR);
     while i as uint < x.nodes.size()
     {
         # Get the specific element.
@@ -690,11 +693,24 @@ def tuple_type(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Push the type and its handle.
         elements.push_ptr(expr as ^void);
+
+        # Emplace the type handle.
+        eleme_type_handles.push_ptr(typ.handle as ^void);
     }
+
+    # Build the LLVM type handle.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMStructType(
+        eleme_type_handles.elements as ^^llvm.LLVMOpaqueType,
+        eleme_type_handles.size as uint32,
+        0);
 
     # Create and store our type.
     let han: ^code.Handle;
-    han = code.make_tuple_type(0 as ^llvm.LLVMOpaqueType, elements);
+    han = code.make_tuple_type(val, elements);
+
+    # Dispose of dynamic memory.
+    eleme_type_handles.dispose();
 
     # Return the type handle.
     han;
@@ -766,10 +782,7 @@ def array(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Create and store our type.
     let han: ^code.Handle;
-    han = code.make_array_type(0 as ^ast.ArrayType, type_han);
-    let typ: ^code.ArrayType = han._object as ^code.ArrayType;
-    typ.handle = val;
-    typ.size = x.nodes.size();
+    han = code.make_array_type(type_han, x.nodes.size(), val);
 
     # Return the type handle.
     han;
@@ -932,8 +945,12 @@ def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
     if code.isnil(pointee) { return code.make_nil(); }
     let pointee_type: ^code.Type = pointee._object as ^code.Type;
 
+    # Create the llvm pointer to the pointee.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMPointerType(pointee_type.handle, 0);
+
     # Return the new pointer type.
-    code.make_pointer_type(pointee, x.mutable, 0 as ^llvm.LLVMOpaqueType);
+    code.make_pointer_type(pointee, x.mutable, val);
 }
 
 # Array Type [TAG_ARRAY_TYPE]
@@ -981,8 +998,43 @@ def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
         return code.make_nil();
     }
 
-    # Return the new pointer type.
-    code.make_array_type(x, element);
+    # Build the size.
+    let size_han: ^code.Handle;
+    size_han = builder.build(g, &x.size, scope, size_ty);
+    if code.isnil(size_han) { return code.make_nil(); }
+    let size_val_han: ^code.Handle = generator_def.to_value(
+        g^, size_han, code.VC_RVALUE, true);
+    let size_val: ^code.Value = size_val_han._object as ^code.Value;
+    if code.isnil(size_val_han) { return code.make_nil(); }
+
+    # If we are dealing with a `Constant` ...
+    if llvm.LLVMIsConstant(size_val.handle) <> 0
+    {
+        # TODO: We should implement a heuristic that would determine
+        #   whether this is a heap-allocated array or not. Something
+        #   like int[100000] shouldn't go on the stack as it just
+        #   woudln't fit.
+
+        # Get the size of the array out of the contsant value.
+        let val: uint64 = llvm.LLVMConstIntGetZExtValue(size_val.handle);
+
+        # Create the LLVM type.
+        let handle: ^llvm.LLVMOpaqueType;
+        handle = llvm.LLVMArrayType(element_type.handle, val as uint32);
+
+        # Return the new pointer type.
+        code.make_array_type(element, val, handle);
+    }
+    else
+    {
+        # Else, make a variable length array on the heap.
+        # TODO: This requires the concept of destructors to be implmented.
+        errors.begin_error();
+        errors.fprintf(errors.stderr,
+                       "not implemented: heap-allocated arrays" as ^int8);
+        errors.end();
+        code.make_nil();
+    }
 }
 
 # Address Of Expression [TAG_ADDRESS_OF]

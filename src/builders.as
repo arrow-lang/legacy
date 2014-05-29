@@ -128,10 +128,6 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
         # Resolve the initial type.
         type_han = resolver.resolve_s(g, &x.type_, scope);
         if code.isnil(type_han) { return code.make_nil(); }
-
-        # Build the final type.
-        type_han = builder.build(g, &x.type_, scope, type_han);
-        if code.isnil(type_han) { return code.make_nil(); }
         type_ = type_han._object as ^code.Type;
     }
 
@@ -1672,9 +1668,6 @@ def cast(g: ^mut generator_.Generator, node: ^ast.Node,
         g, &x.lhs, scope, operand_ty);
     if code.isnil(operand) { return code.make_nil(); }
 
-    # Build the destination type.
-    target = builder.build(g, &x.rhs, scope, target);
-
     # Coerce the operands to values.
     let operand_val_han: ^code.Handle = generator_def.to_value(
         g^, operand, code.VC_RVALUE, false);
@@ -1838,175 +1831,6 @@ def continue_(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Return nil (void).
     code.make_nil();
-}
-
-# Tuple type [TAG_TUPLE_TYPE]
-# -----------------------------------------------------------------------------
-def tuple_type(g: ^mut generator_.Generator, node: ^ast.Node,
-                 scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
-{
-    # Unwrap the node to its proper type.
-    let x: ^ast.TupleType = (node^).unwrap() as ^ast.TupleType;
-
-    # Unwrap the type.
-    let type_: ^mut code.TupleType = target._object as ^code.TupleType;
-
-    # Return immediately if we have a built type.
-    if type_.handle <> 0 as ^llvm.LLVMOpaqueType
-    {
-        return target;
-    }
-
-    # Iterate through the members of the tuple type.
-    let mut i: int = 0;
-    let mut eleme_type_handles: list.List = list.make(types.PTR);
-    while i as uint < type_.elements.size
-    {
-        # Get the specific element.
-        let el_han: ^code.Handle = type_.elements.at_ptr(i) as ^code.Handle;
-        let enode: ast.Node = x.nodes.get(i);
-        let e: ^ast.TupleTypeMem = enode.unwrap() as ^ast.TupleTypeMem;
-
-        # Build the type.
-        el_han = builder.build(
-            g, &e.type_, scope, el_han);
-        if not code.is_type(el_han) {
-            el_han = code.type_of(el_han);
-        }
-        if code.isnil(el_han) {
-            return code.make_nil();
-        }
-
-        # Emplace the type.
-        let &eleml: list.List = type_.elements;
-        let elem: ^^code.Handle = eleml.elements as ^^code.Handle;
-        (elem + i)^ = el_han;
-
-        # Emplace the type handle.
-        let el_type_: ^code.Type = el_han._object as ^code.Type;
-        eleme_type_handles.push_ptr(el_type_.handle as ^void);
-
-        # Advance.
-        i = i + 1;
-    }
-
-    # Build the LLVM type handle.
-    let val: ^llvm.LLVMOpaqueType;
-    val = llvm.LLVMStructType(
-        eleme_type_handles.elements as ^^llvm.LLVMOpaqueType,
-        eleme_type_handles.size as uint32,
-        0);
-
-    # Create and store our type.
-    type_.handle = val;
-
-    # Dispose of dynamic memory.
-    eleme_type_handles.dispose();
-
-    # Return the type handle.
-    target;
-}
-
-# Pointer Type [TAG_POINTER_TYPE]
-# -----------------------------------------------------------------------------
-def pointer_type(g: ^mut generator_.Generator, node: ^ast.Node,
-                 scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
-{
-    # Unwrap the node to its proper type.
-    let x: ^ast.PointerType = (node^).unwrap() as ^ast.PointerType;
-
-    # Unwrap the type.
-    let type_: ^code.PointerType = target._object as ^code.PointerType;
-
-    # Return immediately if we have a built type.
-    if type_.handle <> 0 as ^llvm.LLVMOpaqueType
-    {
-        return target;
-    }
-
-    # Build the pointee type.
-    type_.pointee = builder.build(
-        g, &x.pointee, scope, type_.pointee);
-    if not code.is_type(type_.pointee) {
-        type_.pointee = code.type_of(type_.pointee);
-    }
-
-    let pointee_type: ^code.Type = type_.pointee._object as ^code.Type;
-
-    # Create the llvm pointer to the pointee.
-    type_.handle = llvm.LLVMPointerType(pointee_type.handle, 0);
-
-    # This has been fully resolved; return.
-    target;
-}
-
-# Array Type [TAG_ARRAY_TYPE]
-# -----------------------------------------------------------------------------
-def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
-              scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
-{
-    # Unwrap the node to its proper type.
-    let x: ^ast.ArrayType = (node^).unwrap() as ^ast.ArrayType;
-
-    # Unwrap the target type to our destination type.
-    let type_: ^code.ArrayType = target._object as ^code.ArrayType;
-
-    # Return immediately if we have a built type.
-    if type_.handle <> 0 as ^llvm.LLVMOpaqueType
-    {
-        return target;
-    }
-
-    # Continue to build the element type.
-    let mut el_type_han: ^code.Handle = type_.element;
-    el_type_han = builder.build(g, &x.element, scope, el_type_han);
-    if not code.is_type(el_type_han) {
-        el_type_han = code.type_of(el_type_han);
-    }
-
-    let el_type: ^code.Type = el_type_han._object as ^code.Type;
-
-    # The resolver has taken care of the initial resolution; we only
-    # need to build the element size (in a static context).
-    let size_ty: ^code.Handle = g.items.get_ptr("uint") as ^code.Handle;
-    let size_han: ^code.Handle;
-    size_han = builder.build(g, &x.size, scope, size_ty);
-    if code.isnil(size_han) { return code.make_nil(); }
-    let size_val_han: ^code.Handle = generator_def.to_value(
-        g^, size_han, code.VC_RVALUE, true);
-    let size_val: ^code.Value = size_val_han._object as ^code.Value;
-    if code.isnil(size_val_han) { return code.make_nil(); }
-
-    # If we are dealing with a `Constant` ...
-    if llvm.LLVMIsConstant(size_val.handle) <> 0
-    {
-        # TODO: We should implement a heuristic that would determine
-        #   whether this is a heap-allocated array or not. Something
-        #   like int[100000] shouldn't go on the stack as it just
-        #   woudln't fit.
-
-        # Get the size of the array out of the contsant value.
-        let val: uint64 = llvm.LLVMConstIntGetZExtValue(size_val.handle);
-
-        # Set the array size of the solid type.
-        type_.size = val;
-
-        # Create the LLVM type.
-        type_.handle = llvm.LLVMArrayType(el_type.handle, val as uint32);
-
-        # Return our type.
-        target;
-    }
-    else
-    {
-        # Else, make a variable length array on the heap.
-        # TODO: This requires the concept of destructors to be implmented.
-        errors.begin_error();
-        errors.fprintf(errors.stderr,
-                       "not implemented: heap-allocated arrays" as ^int8);
-        errors.end();
-        code.make_nil();
-    }
 }
 
 # Index Expression [TAG_INDEX]

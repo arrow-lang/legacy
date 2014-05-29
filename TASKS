@@ -1,11 +1,21 @@
 # Fun =========================================================================
 # [x] static strings
-# [ ] char
-# [ ] module import `import`
-# [ ] proper error reporting (with location spans)
+# [ ] Fix issues in open tabs
+# [ ] `char`
+# [ ] location-aware error reporting
+# [ ] module import `import` (source-based only)
 # [ ] "arrow" calling convention
 # [ ]   aggregate by-reference parameters
 # [ ]   mutable parameters
+# [ ] implement
+# [ ]   "instance" methods
+# [ ]   "attached" methods
+# [ ] divergence in the type system; a divergent expression is one that
+#     does not continue. `return ..` is divergent -- `exit(0)` is divergent
+# [ ] promote aggregates to `sret` parameters (function body and call builders)
+# [ ] integral expressions don't carry the target type through
+# [ ] refactor selection statements so that they do not require ";" afterwords
+# [ ] rethink conditional expression parsing so that `x if c else y = 30` works without parens
 
 # Self Hosting ================================================================
 # [ ] functions
@@ -23,8 +33,6 @@
 # [ ]   expression (pack)
 # [ ]   destructure
 # [ ] driver
-# [ ] divergence in the type system; a divergent expression is one that
-#     does not continue. `return ..` is divergent -- `exit(0)` is divergent
 
 # Issues ======================================================================
 # [ ] shorthand name reference for function calls (prefixed ":")
@@ -33,14 +41,10 @@
 # [ ] type expressions should require returning a typename
 # [ ] structure member resolution should be in the namespace of the structure
 # [ ] mutally recursive function parameter type resolution
-# [ ] rethink conditional expression parsing so that `x if c else y = 30` works without parens
-# [ ] refactor selection statements so that they do not require ";" afterwords
 # [x] `uint` and `int` should be given the same bits as a ptr has
 # [x] tuple types need to be given a proper path in the parser
 # [x] types slots and parameters need to built now across the board (
 #       to be able to accept expressions in them [for array types mainly])
-# [ ] integral expressions don't carry the target type through
-# [ ] promote aggregates to `sret` parameters (function body and call builders)
 
 # Future ======================================================================
 # [ ] array (advanced)

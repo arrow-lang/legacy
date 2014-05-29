@@ -98,12 +98,6 @@ def generate_static_slot(&mut g: generator_.Generator,
             &g, &x.context.type_, &x.namespace,
             code.make_nil_scope(),
             code.make_nil());
-
-        # Build the final type.
-        han = builder.build(
-            &g, &x.context.type_,
-            code.make_nil_scope(),
-            han);
     }
     else if not ast.isnull(x.context.initializer)
     {
@@ -159,12 +153,6 @@ def generate_function(&mut g: generator_.Generator,
         ret_han = resolver.resolve_in(
             &g, &x.context.return_type, &x.namespace,
             &x.scope, code.make_nil());
-
-        # Build the final type.
-        ret_han = builder.build(
-            &g, &x.context.return_type,
-            code.make_nil_scope(),
-            ret_han);
         if not code.is_type(ret_han) {
             ret_han = code.type_of(ret_han);
         }
@@ -420,12 +408,6 @@ def _generate_func_param(
     let ptype_handle: ^code.Handle = resolver.resolve_in(
         &g, &x.type_, namespace, scope, code.make_nil());
     if code.isnil(ptype_handle) { return false; }
-
-    # Build the param type.
-    ptype_handle = builder.build(
-        &g, &x.type_,
-        code.make_nil_scope(),
-        ptype_handle);
     if not code.is_type(ptype_handle) {
         ptype_handle = code.type_of(ptype_handle);
     }

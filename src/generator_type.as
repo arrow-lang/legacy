@@ -333,12 +333,6 @@ def generate_extern_function(&mut g: generator_.Generator,
             &g, &x.context.return_type, &x.namespace,
             code.make_nil_scope(),
             code.make_nil());
-
-        # Build the final type.
-        ret_han = builder.build(
-            &g, &x.context.return_type,
-            code.make_nil_scope(),
-            ret_han);
         if not code.is_type(ret_han) {
             ret_han = code.type_of(ret_han);
         }

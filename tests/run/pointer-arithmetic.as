@@ -2,7 +2,10 @@
 extern def malloc(uint): *mut uint8;
 extern def free(*uint8);
 
-def magic(mut m: *mut uint8): uint {
+def magic(m_: *mut uint8): uint {
+    # Get the pointer.
+    let mut m = m_;
+
     # Increment the pointer.
     m = m + 1;
 

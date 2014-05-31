@@ -1,6 +1,6 @@
 # Fun =========================================================================
 # [x] static strings
-# [ ] Fix issues in open tabs
+# [.] Fix issues in open tabs
 # [ ] `char`
 # [ ] location-aware error reporting
 # [ ] module import `import` (source-based only)

@@ -860,7 +860,7 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Iterate through the branches in a selection expression.
     let mut type_han: ^code.Handle = code.make_nil();
-    let mut has_value: bool = true;
+    let mut has_value: bool = x.branches.size() > 1;
     let mut i: int = 0;
     let mut prev_br: ast.Node = ast.null();
     let bool_ty: ^code.Handle = g.items.get_ptr("bool") as ^code.Handle;

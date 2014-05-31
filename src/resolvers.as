@@ -864,6 +864,7 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
     let mut i: int = 0;
     let mut prev_br: ast.Node = ast.null();
     let bool_ty: ^code.Handle = g.items.get_ptr("bool") as ^code.Handle;
+    let mut else_: bool = false;
     while i as uint < x.branches.size() {
         let brn: ast.Node = x.branches.get(i);
         let br: ^ast.SelectBranch = brn.unwrap() as ^ast.SelectBranch;
@@ -876,6 +877,10 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
             let cond_ty: ^code.Handle = resolver.resolve_st(
                 g, &br.condition, scope, bool_ty);
             if code.isnil(cond_ty) { return code.make_nil(); }
+        } else {
+            # There can only be a branch without a condition in
+            # a select on the final `else` branch.
+            else_ = true;
         }
 
         if has_value {
@@ -923,7 +928,7 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
         i = i + 1;
     }
 
-    if not has_value {
+    if not has_value or not else_ {
         # Return the void type.
         code.make_void_type(llvm.LLVMVoidType());
     } else {

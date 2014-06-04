@@ -123,11 +123,9 @@ class Point {
 
 # Function types
 # -----------------------------------------------------------------------------
-delegate(int)
-delegate(bool): int
-delegate()
-
-call_twice(fn: delegate(int, bool): int) -> {
-    fn(50, true);
-    fn(10, false);
-}
+call(fn: (int, bool): int) -> { }   # takes a 2 param fn that returns int
+call(fn: (int, bool): ()) -> { }    # takes a 2 param fn
+call(fn: (): ()) -> { }             # takes a 0 param fn that returns unit
+ret(): (): () -> { }                # returns a 0 param fn that returns unit
+ret(): (int, bool): bool -> { }     # returns a 2 param fn that returns bool
+ret(): (int, bool): () -> { }       # returns a 2 param fn that returns unit

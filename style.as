@@ -121,6 +121,19 @@ class Point {
     sub(other: Point): Point -> { }
 }
 
+# Enumeration (sum types)
+# -----------------------------------------------------------------------------
+enum Color { Red, Green, Blue }
+enum Suit { Clubs, Diamonds, Hearts, Spades }
+enum List { Nil, Cons(int, List = Nil) }
+enum Tree { Leaf, Node(int, Tree = Leaf, Tree = Leaf) }
+
+# Enumerations may have type-parameters (along with all nominal types)
+enum Option<T> {
+    Some(T),
+    None
+}
+
 # Function types
 # -----------------------------------------------------------------------------
 call(fn: (int, bool): int) -> { }   # takes a 2 param fn that returns int

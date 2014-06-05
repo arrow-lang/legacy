@@ -378,7 +378,7 @@ def parse_return(&mut self) -> bool
     let tok: int = self.peek_token(1);
     if tok <> tokens.TOK_SEMICOLON and tok <> tokens.TOK_IF {
         # Parse the direct value expression.
-        if not self.parse_unary_expr() { return false; }
+        if not self.parse_cast_expr() { return false; }
 
         # Try and continue the unary expression as a binary expression.
         if not self.parse_binop_rhs(0, 0, false) { return false; }
@@ -569,13 +569,48 @@ def parse_function_param(&mut self, require_name: bool) -> bool
 # -----------------------------------------------------------------------------
 def parse_expr(&mut self, statement: bool) -> bool {
     # Try and parse a unary expression.
-    if not self.parse_unary_expr() { return false; }
+    if not self.parse_cast_expr() { return false; }
 
     # Try and continue the unary expression as a binary expression.
     self.parse_binop_rhs(0, 0, statement);
 
     # TODO: Try and continue the binary expression into a postfix
     #   control flow statement.
+}
+
+# (Possible) Cast Expression
+# -----------------------------------------------------------------------------
+def parse_cast_expr(&mut self) -> bool {
+    # Attempt to parse the `operand` as a unary expression.
+    if not self.parse_unary_expr() { return false; }
+
+    # Are we a `cast` expression.
+    if self.peek_token(1) <> tokens.TOK_AS {
+        # No; just return the unary expression.
+        return true;
+    }
+
+    # Declare and allocate the node.
+    let node: ast.Node = ast.make(ast.TAG_CAST);
+    let expr: ^ast.CastExpr = node.unwrap() as ^ast.CastExpr;
+    expr.operand = self.stack.pop();
+
+    # Pop the `as` token.
+    self.pop_token();
+
+    # Try and parse a type expression as the target type.
+    if not self.parse_type() {
+        self.consume_until(tokens.TOK_SEMICOLON);
+        return false;
+    }
+
+    expr.type_ = self.stack.pop();
+
+    # Push our operand.
+    self.stack.push(node);
+
+    # Return success.
+    true;
 }
 
 # Binary expression
@@ -655,7 +690,7 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
         self.pop_token();
 
         # Parse the RHS of this expression.
-        if not self.parse_unary_expr() { return false; }
+        if not self.parse_cast_expr() { return false; }
 
         # If the binary operator binds less tightly with RHS than the
         # operator after RHS, let the pending operator take RHS as its LHS.
@@ -863,7 +898,6 @@ def parse_postfix_expr(&mut self) -> bool
     if     tok == tokens.TOK_LPAREN     # Call expression
         or tok == tokens.TOK_LBRACKET   # Index expression
         or tok == tokens.TOK_DOT        # Member expression
-        or tok == tokens.TOK_AS         # Cast expression
     {
         if not self.parse_postfix_expr_operand()
         {
@@ -894,17 +928,12 @@ def parse_postfix_expr_operand(&mut self) -> bool
     {
         if not self.parse_index_expr() { return false; }
     }
-    else if tok == tokens.TOK_AS
-    {
-        if not self.parse_cast_expr() { return false; }
-    }
 
     # Should we continue the postfix expression?
     let tok: int = self.peek_token(1);
     if     tok == tokens.TOK_LPAREN     # Call expression
         or tok == tokens.TOK_LBRACKET   # Index expression
         or tok == tokens.TOK_DOT        # Member expression
-        or tok == tokens.TOK_AS         # Cast expression
     {
         if not self.parse_postfix_expr_operand()
         {
@@ -1010,35 +1039,6 @@ def parse_index_expr(&mut self) -> bool {
     if not self.expect(tokens.TOK_RBRACKET) { return false; }
 
     # Push our node on the stack.
-    self.stack.push(node);
-
-    # Return success.
-    true;
-}
-
-# Cast expression
-# -----------------------------------------------------------------------------
-def parse_cast_expr(&mut self) -> bool
-{
-    # Declare and allocate the node.
-    let node: ast.Node = ast.make(ast.TAG_CAST);
-    let expr: ^ast.CastExpr = node.unwrap() as ^ast.CastExpr;
-
-    # Pop the operand in the stack as our operand.
-    expr.operand = self.stack.pop();
-
-    # Pop the `as` token.
-    self.pop_token();
-
-    # Try and parse a type expression as the target type.
-    if not self.parse_type() {
-        self.consume_until(tokens.TOK_SEMICOLON);
-        return false;
-    }
-
-    expr.type_ = self.stack.pop();
-
-    # Push our operand.
     self.stack.push(node);
 
     # Return success.

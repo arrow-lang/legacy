@@ -45,6 +45,9 @@ square(x: int) -> { return x *  }
 # Additional functions
 cube(x) -> square(x) * x
 
+# Function that returns a function that ..
+some(x) -> (y) -> x ** y;
+
 # Anonymous function declaration
 # -----------------------------------------------------------------------------
 
@@ -84,9 +87,7 @@ let kids = (brother: (name: "Max", age: 11),
 extern exit(status: int32);
 extern puts(s: str): int32;
 extern "stdcall" puts(s: str): int32;
-extern "C" {
-    puts(s: str): int32;
-}
+extern "C" puts(s: str): int32;
 
 # External global variables
 # -----------------------------------------------------------------------------

@@ -145,7 +145,7 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
             type_ = type_han._object as ^code.Type;
         } else {
             # Ensure that the types are compatible.
-            if not resolvers.type_compatible(type_han, typ) {
+            if not generator_util.type_compatible(type_han, typ) {
                 return code.make_nil();
             }
         }

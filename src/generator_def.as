@@ -200,6 +200,9 @@ def generate_function(&mut g: generator_.Generator, qname: str,
         }
     }
 
+    # Have we encountered errors?
+    if errors.count > 0 { return; }
+
     # Has the function been terminated?
     let last_block: ^llvm.LLVMOpaqueBasicBlock =
         llvm.LLVMGetLastBasicBlock(x.handle);
@@ -207,7 +210,28 @@ def generate_function(&mut g: generator_.Generator, qname: str,
         # Not terminated; we need to close the function.
         if code.isnil(res)
         {
-            llvm.LLVMBuildRetVoid(g.irb);
+            # We did not get a result; but we need to check if we
+            # "should" have gotten a result.
+            if type_.return_type._tag == code.TAG_VOID_TYPE
+            {
+                llvm.LLVMBuildRetVoid(g.irb);
+                void;
+            }
+            else
+            {
+                # We should have gotten a result.
+                # Report error.
+                let mut s_typename: string.String =
+                    code.typename(type_.return_type);
+                errors.begin_error();
+                errors.fprintf(errors.stderr,
+                               "mismatched types: expected '%s' but found nothing" as ^int8,
+                               s_typename.data());
+                errors.end();
+
+                # Dispose.
+                s_typename.dispose();
+            }
         }
         else
         {
@@ -220,6 +244,13 @@ def generate_function(&mut g: generator_.Generator, qname: str,
                 let val_han: ^code.Handle = to_value(
                     g, res, code.VC_RVALUE, false);
                 let typ: ^code.Handle = code.type_of(val_han) as ^code.Handle;
+                if not generator_util.type_compatible(
+                    type_.return_type,
+                    typ)
+                {
+                    return;
+                }
+
                 if typ._tag == code.TAG_VOID_TYPE
                 {
                     llvm.LLVMBuildRetVoid(g.irb);

@@ -130,37 +130,6 @@ def type_common(a_ctx: ^ast.Node, a: ^code.Handle,
     }
 }
 
-# Check if the two types are "compatible"
-# -----------------------------------------------------------------------------
-def type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
-    # Get the type handles.
-    let s_ty: ^code.Type = s._object as ^code.Type;
-    let d_ty: ^code.Type = d._object as ^code.Type;
-
-    # If these are the `same` then were okay.
-    if generator_util.is_same_type(d, s) { return true; }
-    else if s_ty.handle == d_ty.handle { return true; }
-    else if s._tag == code.TAG_INT_TYPE and d._tag == code.TAG_INT_TYPE {
-        return true;
-    }
-
-    # Report error.
-    let mut s_typename: string.String = code.typename(s);
-    let mut d_typename: string.String = code.typename(d);
-    errors.begin_error();
-    errors.fprintf(errors.stderr,
-                   "mismatched types: expected '%s' but found '%s'" as ^int8,
-                   d_typename.data(), s_typename.data());
-    errors.end();
-
-    # Dispose.
-    s_typename.dispose();
-    d_typename.dispose();
-
-    # Return false.
-    false;
-}
-
 # Resolve an `arithmetic` unary expression.
 # -----------------------------------------------------------------------------
 def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -406,7 +375,7 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
     let lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
     let rhs: ^code.Handle = resolver.resolve_s(g, &x.rhs, scope);
     if code.isnil(lhs) or code.isnil(rhs) { return code.make_nil(); }
-    if not type_compatible(lhs, rhs) { return code.make_nil(); }
+    if not generator_util.type_compatible(lhs, rhs) { return code.make_nil(); }
 
     # An assignment resolves to the same type as its target.
     lhs;
@@ -1210,14 +1179,14 @@ def return_(g: ^mut generator_.Generator, node: ^ast.Node,
         let operand: ^code.Handle = resolver.resolve_st(
             g, &x.expression, scope, target_type);
         if code.isnil(operand) { return code.make_nil(); }
-        if not type_compatible(target_type, operand)
+        if not generator_util.type_compatible(target_type, operand)
         {
             return code.make_nil();
         }
     }
     else if not code.isnil(target_type)
     {
-        if not type_compatible(
+        if not generator_util.type_compatible(
             target_type, code.make_void_type(llvm.LLVMVoidType()))
         {
             return code.make_nil();

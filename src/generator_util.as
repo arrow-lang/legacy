@@ -368,3 +368,34 @@ def is_terminated(block: ^llvm.LLVMOpaqueBasicBlock) -> bool
         llvm.LLVMGetBasicBlockTerminator(block);
     return terminator <> 0 as ^llvm.LLVMOpaqueValue;
 }
+
+# Check if the two types are "compatible"
+# -----------------------------------------------------------------------------
+def type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
+    # Get the type handles.
+    let s_ty: ^code.Type = s._object as ^code.Type;
+    let d_ty: ^code.Type = d._object as ^code.Type;
+
+    # If these are the `same` then were okay.
+    if is_same_type(d, s) { return true; }
+    else if s_ty.handle == d_ty.handle { return true; }
+    else if s._tag == code.TAG_INT_TYPE and d._tag == code.TAG_INT_TYPE {
+        return true;
+    }
+
+    # Report error.
+    let mut s_typename: string.String = code.typename(s);
+    let mut d_typename: string.String = code.typename(d);
+    errors.begin_error();
+    errors.fprintf(errors.stderr,
+                   "mismatched types: expected '%s' but found '%s'" as ^int8,
+                   d_typename.data(), s_typename.data());
+    errors.end();
+
+    # Dispose.
+    s_typename.dispose();
+    d_typename.dispose();
+
+    # Return false.
+    false;
+}

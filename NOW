@@ -1,0 +1,25 @@
+# [x] Parse import statements
+# [ ] Tokenizer operates on "tokens" (not "integers")
+#     Fixes problem with "consecutive" identifiers or strings, etc.
+# [ ] Driver (getopt?)
+# [ ]   » arrow --version
+# [ ]   » arrow -V
+# [ ]   » arrow -o out
+# [ ]   » arrow < in.as
+# [ ]   » arrow in.as
+# [ ] Module Import (from source)
+# [ ] Mutual recursion tests (circular imports)
+# [ ] Mutable parameters in "arrow" functions
+# [ ] Implement (attached methods)
+# [ ] Implement (instance methods)
+# [ ] Logical operations: `and`, `or`
+# [ ] divergence in the type system; a divergent expression is one that
+#     does not continue. `return ..` is divergent -- `exit(0)` is divergent
+# [ ] promote aggregates to `sret` parameters (function body and call builders)
+# [ ] integral expressions don't carry the target type through
+# [ ] refactor selection statements so that they do not require ";" afterwords
+# [ ] rethink conditional expression parsing so that `x if c else y = 30` works without parens
+# [ ] function types
+# [ ] assign named functions to slots (`to_value`)
+# [ ] function expressions
+

@@ -541,6 +541,7 @@ def dump(&node: Node) {
         dump_table[TAG_INDEX] = dump_index_expr;
         dump_table[TAG_ARRAY_TYPE] = dump_array_type;
         dump_table[TAG_STRING] = dump_string_expr;
+        dump_table[TAG_IMPORT] = dump_import;
         dump_initialized = true;
     }
 

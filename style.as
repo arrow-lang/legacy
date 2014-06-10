@@ -111,17 +111,6 @@ implement Point {
     new(x: int, y: int): Point -> { }
 }
 
-# Class (tentative feature)
-# -----------------------------------------------------------------------------
-class Point {
-    x: int;
-    y: int;
-    to_str(self): str -> { }
-    make(x: int, y: int): Point -> { }
-    add(other: Point): Point -> { }
-    sub(other: Point): Point -> { }
-}
-
 # Enumeration (sum types)
 # -----------------------------------------------------------------------------
 enum Color { Red, Green, Blue }

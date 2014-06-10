@@ -142,3 +142,23 @@ def test(ctx):
     print(ws.test._sep("run-fail", "-"))
     ws.test._test_run_fail(ctx)
     ws.test._print_report()
+
+def _test_parse(ctx):
+    print(ws.test._sep("test session starts", "="))
+    print(ws.test._sep("parse", "-"))
+    ws.test._test_parser(ctx)
+    print(ws.test._sep("parse-fail", "-"))
+    ws.test._test_parser_fail(ctx)
+    ws.test._print_report()
+
+globals()["test:parse"] = _test_parse
+
+def _test_run(ctx):
+    print(ws.test._sep("test session starts", "="))
+    print(ws.test._sep("run", "-"))
+    ws.test._test_run(ctx)
+    print(ws.test._sep("run-fail", "-"))
+    ws.test._test_run_fail(ctx)
+    ws.test._print_report()
+
+globals()["test:run"] = _test_run

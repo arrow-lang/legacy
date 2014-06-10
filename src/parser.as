@@ -290,7 +290,7 @@ def parse_common_statement(&mut self) -> bool {
     # if tok == tokens.TOK_MATCH  { return self.parse_match(); }
     if tok == tokens.TOK_LOOP   { return self.parse_loop(); }
     if tok == tokens.TOK_WHILE  { return self.parse_loop(); }
-    # if tok == tokens.TOK_IMPORT { return self.parse_import(); }
+    if tok == tokens.TOK_IMPORT { return self.parse_import(); }
     if tok == tokens.TOK_STRUCT { return self.parse_struct(); }
     # if tok == tokens.TOK_ENUM   { return self.parse_enum(); }
     # if tok == tokens.TOK_USE    { return self.parse_use(); }
@@ -2144,6 +2144,63 @@ def parse_slot(&mut self) -> bool
     }
 
     # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Import
+# -----------------------------------------------------------------------------
+def parse_import(&mut self) -> bool
+{
+    # Allocate space for the node
+    let node: ast.Node = ast.make(ast.TAG_IMPORT);
+    let slot: ^ast.Import =  node.unwrap() as ^ast.Import;
+
+    # Pop the `import` token.
+    self.pop_token();
+
+    # There should be at least one identifier next.
+    if self.peek_token(1) <> tokens.TOK_IDENTIFIER {
+        self.expect(tokens.TOK_IDENTIFIER);
+        self.consume_until(tokens.TOK_SEMICOLON);
+        return false;
+    }
+
+    # Iterate and push each identifier.
+    while self.peek_token(1) <> tokens.TOK_SEMICOLON {
+        # Expect and consume an identifier.
+        if not self.parse_ident_expr() {
+            self.consume_until(tokens.TOK_SEMICOLON);
+            return false;
+        }
+
+        # Push the ID node.
+        slot.ids.push(self.stack.pop());
+
+        # Check for a comma or the end.
+        let tok: int = self.peek_token(1);
+        if tok == tokens.TOK_DOT { self.pop_token(); continue; }
+        else if tok <> tokens.TOK_SEMICOLON {
+            # Expected a comma and didn't receive one.. consume tokens until
+            # we reach the end.
+            self.consume_until(tokens.TOK_SEMICOLON);
+            errors.begin_error();
+            errors.fprintf(errors.stderr,
+                           "expected %s or %s but found %s" as ^int8,
+                           tokens.to_str(tokens.TOK_DOT),
+                           tokens.to_str(tokens.TOK_SEMICOLON),
+                           tokens.to_str(tok));
+            errors.end();
+            return false;
+        }
+    }
+
+    # Expect a semicolon to close us.
+    if not self.expect(tokens.TOK_SEMICOLON) { return false; }
+
+    # Push our node.
     self.stack.push(node);
 
     # Return success.

@@ -67,46 +67,33 @@ def configure(ctx):
     ctx.check_cfg(path=ctx.options.llvm_config, package='',
                   args='--ldflags --libs all', uselib_store='LLVM')
 
+def _build_part(ctx, name):
+    # Compile to the llvm IL.
+    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
+        source="src/%s.as" % name,
+        target="%s.ll" % name)
+
+    # Optimize.
+    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
+        source="%s.ll" % name,
+        target="%s.opt.ll" % name)
+
+    # Compile from llvm IL into native object code.
+    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
+        source="%s.opt.ll" % name,
+        target="%s.o" % name)
+
+    # Link into a final executable.
+    ctx(rule="${GCC} -o${TGT} ${SRC}",
+        source="%s.o" % name,
+        target="%s" % name)
+
+
 def build(ctx):
-    # Compile the tokenizer to the llvm IL.
-    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
-        source="src/tokenizer.as",
-        target="tokenizer.ll")
-
-    # Optimize the tokenizer.
-    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
-        source="tokenizer.ll",
-        target="tokenizer.opt.ll")
-
-    # Compile the tokenizer from llvm IL into native object code.
-    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
-        source="tokenizer.opt.ll",
-        target="tokenizer.o")
-
-    # Link the tokenizer into a final executable.
-    ctx(rule="${GCC} -o${TGT} ${SRC}",
-        source="tokenizer.o",
-        target="tokenizer")
-
-    # Compile the parser to the llvm IL.
-    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
-        source="src/parser.as",
-        target="parser.ll")
-
-    # Optimize the parser.
-    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
-        source="parser.ll",
-        target="parser.opt.ll")
-
-    # Compile the parser from llvm IL into native object code.
-    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
-        source="parser.opt.ll",
-        target="parser.o")
-
-    # Link the parser into a final executable.
-    ctx(rule="${GCC} -o${TGT} ${SRC}",
-        source="parser.o",
-        target="parser")
+    # Build the simple parts
+    _build_part(ctx, "tokenizer")
+    _build_part(ctx, "tokenizer_")
+    _build_part(ctx, "parser")
 
     # Compile the generator to the llvm IL.
     ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
@@ -142,6 +129,14 @@ def test(ctx):
     print(ws.test._sep("run-fail", "-"))
     ws.test._test_run_fail(ctx)
     ws.test._print_report()
+
+def _test_tokenize(ctx):
+    print(ws.test._sep("test session starts", "="))
+    print(ws.test._sep("tokenize", "-"))
+    ws.test._test_tokenizer(ctx)
+    ws.test._print_report()
+
+globals()["test:tokenize"] = _test_tokenize
 
 def _test_parse(ctx):
     print(ws.test._sep("test session starts", "="))

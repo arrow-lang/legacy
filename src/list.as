@@ -150,6 +150,7 @@ implement List {
     def push_u128(&mut self, el: int128)  { self.push(&el as ^void); }
     def push_int (&mut self, el:    int)  { self.push(&el as ^void); }
     def push_uint(&mut self, el:   uint)  { self.push(&el as ^void); }
+    def push_char(&mut self, el:   char)  { self.push(&el as ^void); }
 
     def push_ptr (&mut self, el:  ^void)  {
         # Request additional memory if needed.
@@ -256,6 +257,11 @@ implement List {
 
     def at_uint(&self, index: int) -> uint {
         let p: ^uint = self.at(index) as ^uint;
+        p^;
+    }
+
+    def at_char(&self, index: int) -> char {
+        let p: ^char = self.at(index) as ^char;
         p^;
     }
 

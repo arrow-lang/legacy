@@ -49,7 +49,7 @@ def generate(&mut g: generator_.Generator) {
         else
         {
             errors.begin_error();
-            errors.fprintf(errors.stderr, "not implemented: generator_def.generate(%d)" as ^int8, val._tag);
+            errors.libc.fprintf(errors.libc.stderr, "not implemented: generator_def.generate(%d)" as ^int8, val._tag);
             errors.end();
             code.make_nil();
         }
@@ -224,7 +224,7 @@ def generate_function(&mut g: generator_.Generator, qname: str,
                 let mut s_typename: string.String =
                     code.typename(type_.return_type);
                 errors.begin_error();
-                errors.fprintf(errors.stderr,
+                errors.libc.fprintf(errors.libc.stderr,
                                "mismatched types: expected '%s' but found nothing" as ^int8,
                                s_typename.data());
                 errors.end();
@@ -372,7 +372,7 @@ def to_value(&mut g: generator_.Generator,
         else
         {
             errors.begin_error();
-            errors.fprintf(errors.stderr, "cannot coerce a r-value as a l-value" as ^int8);
+            errors.libc.fprintf(errors.libc.stderr, "cannot coerce a r-value as a l-value" as ^int8);
             errors.end();
             code.make_nil();
         }

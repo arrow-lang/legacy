@@ -94,7 +94,7 @@ def expect(&mut self, req: int) -> bool {
     } else {
         # Report error.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "expected %s but found %s" as ^int8,
                        tokens.to_str(req),
                        tokens.to_str(tok));
@@ -667,7 +667,7 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
                 if not statement and top.tag == ast.TAG_SELECT_OP
                 {
                     errors.begin_error();
-                    errors.fprintf(errors.stderr,
+                    errors.libc.fprintf(errors.libc.stderr,
                                    "unexpected postfix selection statement" as ^int8);
                     errors.end();
 
@@ -747,7 +747,7 @@ def parse_postfix_selection(&mut self) -> bool
         # It is an error to have a full selection expression in
         # the postfix space.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "unexpected selection statement" as ^int8);
         errors.end();
 
@@ -989,7 +989,7 @@ def parse_call_expr(&mut self) -> bool
             self.consume_until(tokens.TOK_RPAREN);
 
             errors.begin_error();
-            errors.fprintf(errors.stderr, "non-keyword argument after keyword argument" as ^int8);
+            errors.libc.fprintf(errors.libc.stderr, "non-keyword argument after keyword argument" as ^int8);
             errors.end();
 
             return false;
@@ -1307,7 +1307,7 @@ def parse_type(&mut self) -> bool
             # Expected some kind of type expression node.
             self.consume_until(tokens.TOK_SEMICOLON);
             errors.begin_error();
-            errors.fprintf(errors.stderr,
+            errors.libc.fprintf(errors.libc.stderr,
                            "expected %s, %s or %s but found %s" as ^int8,
                            tokens.to_str(tokens.TOK_STAR),
                            tokens.to_str(tokens.TOK_IDENTIFIER),
@@ -1455,7 +1455,7 @@ def parse_primary_expr(&mut self) -> bool
         {
             # Print error.
             errors.begin_error();
-            errors.fprintf(errors.stderr, "unexpected %s" as ^int8,
+            errors.libc.fprintf(errors.libc.stderr, "unexpected %s" as ^int8,
                            tokens.to_str(tok));
             errors.end();
         }
@@ -2187,7 +2187,7 @@ def parse_import(&mut self) -> bool
             # we reach the end.
             self.consume_until(tokens.TOK_SEMICOLON);
             errors.begin_error();
-            errors.fprintf(errors.stderr,
+            errors.libc.fprintf(errors.libc.stderr,
                            "expected %s or %s but found %s" as ^int8,
                            tokens.to_str(tokens.TOK_DOT),
                            tokens.to_str(tokens.TOK_SEMICOLON),
@@ -2354,7 +2354,7 @@ def _expect_sequence_continue(&mut self, end: int) -> bool
         # we reach the end.
         self.consume_until(end);
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "expected %s or %s but found %s" as ^int8,
                        tokens.to_str(tokens.TOK_COMMA),
                        tokens.to_str(end),

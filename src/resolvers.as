@@ -184,7 +184,7 @@ def arithmetic_u(g: ^mut generator_.Generator, node: ^ast.Node,
     let mut op_name: string.String = code.typename(operand);
 
     errors.begin_error();
-    errors.fprintf(errors.stderr,
+    errors.libc.fprintf(errors.libc.stderr,
                    "no unary operation '%s' can be applied to type '%s'" as ^int8,
                    name, op_name.data());
     errors.end();
@@ -260,7 +260,7 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Report error.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "no binary operation '%s' can be applied to types '%s' and '%s'" as ^int8,
                        opname, lhs_name.data(), rhs_name.data());
         errors.end();
@@ -352,7 +352,7 @@ def ident(g: ^mut generator_.Generator, node: ^ast.Node,
     # Bail if we weren't able to resolve this identifier.
     if code.isnil(item) {
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "name '%s' is not defined" as ^int8,
                        id.name.data());
         errors.end();
@@ -413,7 +413,7 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
         if code.isnil(item)
         {
              errors.begin_error();
-             errors.fprintf(errors.stderr,
+             errors.libc.fprintf(errors.libc.stderr,
                             "name '%s' is not defined" as ^int8,
                             rhs_id.name.data());
              errors.end();
@@ -442,7 +442,7 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
             if item == 0 as ^code.Handle {
                 # No; report and bail.
                  errors.begin_error();
-                 errors.fprintf(errors.stderr,
+                 errors.libc.fprintf(errors.libc.stderr,
                                 "module '%s' has no member '%s'" as ^int8,
                                 mod.name.data(), rhs_id.name.data());
                  errors.end();
@@ -466,7 +466,7 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
             if item == 0 as ^code.Handle {
                 # No; report and bail.
                  errors.begin_error();
-                 errors.fprintf(errors.stderr,
+                 errors.libc.fprintf(errors.libc.stderr,
                                 "function '%s' has no member '%s'" as ^int8,
                                 fn.name.data(), rhs_id.name.data());
                  errors.end();
@@ -493,7 +493,7 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
 
             # Report error.
             errors.begin_error();
-            errors.fprintf(errors.stderr,
+            errors.libc.fprintf(errors.libc.stderr,
                            "member operation cannot be applied to type '%s'" as ^int8,
                            lhs_name.data());
             errors.end();
@@ -543,7 +543,7 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Report error.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "type '%s' is not callable" as ^int8,
                        name.data());
         errors.end();
@@ -723,7 +723,7 @@ def array(g: ^mut generator_.Generator, node: ^ast.Node,
 
                 # Report error.
                 errors.begin_error();
-                errors.fprintf(errors.stderr,
+                errors.libc.fprintf(errors.libc.stderr,
                                "no common type can be resolved for '%s' and '%s'" as ^int8,
                                lhs_name.data(), rhs_name.data());
                 errors.end();
@@ -779,7 +779,7 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Report error.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "no common type can be resolved for '%s' and '%s'" as ^int8,
                        lhs_name.data(), rhs_name.data());
         errors.end();
@@ -803,7 +803,7 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Report error.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "mismatched types: expected 'bool' but found '%s'" as ^int8,
                        ty_name.data());
         errors.end();
@@ -960,7 +960,7 @@ def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
         # Report error.
         let mut s_typename: string.String = code.typename(size);
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "mismatched types: expected `unsigned integer` but found '%s'" as ^int8,
                        s_typename.data());
         errors.end();
@@ -1004,7 +1004,7 @@ def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
         # Else, make a variable length array on the heap.
         # TODO: This requires the concept of destructors to be implmented.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "not implemented: heap-allocated arrays" as ^int8);
         errors.end();
         code.make_nil();
@@ -1050,7 +1050,7 @@ def dereference(g: ^mut generator_.Generator, node: ^ast.Node,
         # Report error.
         let mut typename: string.String = code.typename(operand);
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "type `%s` cannot be dereferenced" as ^int8,
                        typename.data());
         errors.end();
@@ -1126,7 +1126,7 @@ def index(g: ^mut generator_.Generator, node: ^ast.Node,
         # Report error.
         let mut typename: string.String = code.typename(operand);
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "type `%s` cannot be indexed" as ^int8,
                        typename.data());
         errors.end();
@@ -1147,7 +1147,7 @@ def index(g: ^mut generator_.Generator, node: ^ast.Node,
     {
         # Report error.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "array subscript is not an integer" as ^int8);
         errors.end();
 

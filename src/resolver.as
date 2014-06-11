@@ -69,7 +69,7 @@ def resolve_in(g: ^mut generator_.Generator, node: ^ast.Node, ns: ^list.List,
     # Bail if we don't have a resolver.
     if (res_fn as ^void) as uint == 0 {
         errors.begin_error();
-        errors.fprintf(errors.stderr, "not implemented: resolve(%d)" as ^int8, node.tag);
+        errors.libc.fprintf(errors.libc.stderr, "not implemented: resolve(%d)" as ^int8, node.tag);
         errors.end();
 
         return code.make_nil();

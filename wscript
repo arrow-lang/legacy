@@ -134,6 +134,8 @@ def _test_tokenize(ctx):
     print(ws.test._sep("test session starts", "="))
     print(ws.test._sep("tokenize", "-"))
     ws.test._test_tokenizer(ctx)
+    print(ws.test._sep("tokenize-fail", "-"))
+    ws.test._test_tokenizer_fail(ctx)
     ws.test._print_report()
 
 globals()["test:tokenize"] = _test_tokenize

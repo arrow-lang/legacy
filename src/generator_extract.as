@@ -197,6 +197,6 @@ def extract_extern_function(&mut g: generator_.Generator, x: ^ast.ExternFunc)
 def extract_extern_static(&mut g: generator_.Generator, x: ^ast.ExternStaticSlot)
 {
     errors.begin_error();
-    errors.fprintf(errors.stderr, "not implemented: extract_extern_static" as ^int8);
+    errors.libc.fprintf(errors.libc.stderr, "not implemented: extract_extern_static" as ^int8);
     errors.end();
 }

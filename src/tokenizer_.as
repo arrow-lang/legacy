@@ -3,98 +3,8 @@ import string;
 import tokens;
 import list;
 import types;
-
-# Position
-# =============================================================================
-
-type Position {
-    column: int,  #< Column offset
-    row: int      #< Row offset
-}
-
-implement Position {
-    def isnull(&self) -> bool {
-        return self.column == -1 and self.row == -1;
-    }
-}
-
-# FIXME: Remove when types have default constructors.
-def position_new(column: int, row: int) -> Position {
-    let pos: Position;
-    pos.column = column;
-    pos.row = row;
-    return pos;
-}
-
-# FIXME: Move to an "attached" function when possible.
-def position_null() -> Position {
-    let pos: Position;
-    pos.column = -1;
-    pos.row = -1;
-    return pos;
-}
-
-# Span
-# =============================================================================
-
-type Span {
-    #! Full path to the file in which this span occurred.
-    mut filename: string.String,
-
-    #! Initial position in the referenced file.
-    begin: Position,
-
-    #! Final position in the referenced file.
-    end: Position
-}
-
-implement Span {
-    def dispose(&mut self) {
-        # Dispose of contained resources.
-        self.filename.dispose();
-    }
-
-    def isnull(&self) -> bool {
-        return self.filename.size() == 0;
-    }
-
-    def print(&self) {
-        if self.isnull() { printf("(nil)"); return; }
-
-        if libc.strcmp(self.filename.data() as ^int8, "-" as ^int8) == 0 {
-            printf("<stdin>:");
-        } else {
-            printf("%s:", self.filename.data());
-        }
-
-        if self.begin.row == self.end.row
-        {
-            printf("%d:%d-%d",
-                   self.begin.row + 1,
-                   self.begin.column + 1,
-                   self.end.column + 1);
-        }
-    }
-}
-
-# FIXME: Move to an "attached" function when possible.
-def span_new(filename: str, begin: Position, end: Position) -> Span {
-    let span: Span;
-    span.filename = string.make();
-    span.filename.extend(filename);
-    span.begin = begin;
-    span.end = end;
-    return span;
-}
-
-# FIXME: Move to an "attached" function when possible.
-def span_null() -> Span {
-    let span: Span;
-    span.filename = string.make();
-    span.begin = position_null();
-    span.end = position_null();
-    return span;
-}
+import errors;
+import span;
 
 # Token
 # =============================================================================
@@ -104,7 +14,7 @@ type Token {
     tag: int,
 
     #! Span in which the token occurs.
-    mut span: Span,
+    mut span: span.Span,
 
     #! Textual content of the token (if the tag indicates it should)
     mut text: string.String
@@ -119,23 +29,25 @@ implement Token {
     }
 
     def println(&self) {
+        # Print location span
         self.span.print();
         printf(": ");
 
-        if self.tag == tokens.TOK_END {
-            printf("<end>");
-        }
+        # Print simple tokens
+        if      self.tag == tokens.TOK_END           { printf("end"); }
+        else if self.tag == tokens.TOK_ERROR         { printf("error"); }
 
+        # Terminate with a newline
         printf("\n");
     }
 
 }
 
 # FIXME: Move to an "attached" function when possible.
-def token_new(tag: int, span: Span, text: str) -> Token {
+def token_new(tag: int, span_: span.Span, text: str) -> Token {
     let tok: Token;
     tok.tag = tag;
-    tok.span = span;
+    tok.span = span_;
     tok.text = string.make();
     tok.text.extend(text);
     return tok;
@@ -183,6 +95,10 @@ implement Tokenizer {
         # libc.fclose(self.stream);
         self.chars.dispose();
         self.buffer.dispose();
+    }
+
+    def current_position(&self) -> span.Position {
+        return span.position_new(self.column, self.row);
     }
 
     def push_chars(&mut self, count: uint) {
@@ -260,13 +176,66 @@ implement Tokenizer {
         # Skip and consume any whitespace characters.
         self.consume_whitespace();
 
-        # Return the <end> token.
-        return token_new(
-            tokens.TOK_END,
-            span_new(
-                self.filename,
-                position_new(self.column, self.row),
-                position_new(self.column, self.row)), "");
+        # Check if we've reached the end of the stream ...
+        if self.peek_char(1) == -1 {
+            # ... and return the <end> token.
+            return token_new(
+                tokens.TOK_END,
+                span.span_new(
+                    self.filename,
+                    self.current_position(),
+                    self.current_position()), "");
+        }
+
+        # Check for a leading digit that would indicate the start of a
+        # numeric token.
+        if is_numeric(self.peek_char(1)) {
+            # Scan for and match the numeric token.
+            return self.scan_numeric();
+        }
+
+        # Consume and ignore line comments; returning the next token
+        # following the line comment.
+        if self.peek_char(1) == "#" {
+            loop {
+                # Pop (and the drop) the next character.
+                self.pop_char();
+
+                # Check if the single-line comment is done.
+                let ch: char = self.peek_char(1);
+                if ch == -1 or ch == "\r" or ch == "\n" {
+                    return self.next();
+                }
+            }
+        }
+
+        # No idea what we have; print an error.
+        let pos: span.Position = self.current_position();
+        let sp: span.Span = span.span_new(self.filename, pos, pos);
+        errors.begin_error_at(sp);
+        errors.libc.fprintf(errors.libc.stderr,
+                            "unknown token: `%c`" as ^int8,
+                            self.pop_char());
+        errors.end();
+
+        # Return the error token.
+        return token_new(tokens.TOK_ERROR, sp, "");
+    }
+
+    # scan_numeric -- Scan for and produce a numeric token.
+    # -------------------------------------------------------------------------
+    # numeric = integer | float
+    # digit = [0-9]
+    # integer = dec_integer | hex_integer | bin_integer | oct_integer
+    # dec_integer = {digit}({digit}|_)*
+    # bin_integer = 0[bB][0-1]([0-1]|_)*
+    # oct_integer = 0[oO][0-7]([0-7]|_)*
+    # hex_integer = 0[xX][0-9A-Fa-f]([0-9A-Fa-f]|_)*
+    # exp = [Ee][-+]?{digit}({digit}|_)*
+    # float = {digit}({digit}|_)*\.{digit}({digit}|_)*{exp}?
+    #       | {digit}({digit}|_)*{exp}?
+    # -------------------------------------------------------------------------
+    def scan_numeric(&mut self) -> Token {
     }
 
 }
@@ -276,6 +245,10 @@ implement Tokenizer {
 
 def is_whitespace(c: char) -> bool {
     c == ' ' or c == '\n' or c == '\t' or c == '\r';
+}
+
+def is_numeric(c: char) -> bool {
+    libc.isdigit(c as int32) <> 0;
 }
 
 # Driver (Test)
@@ -288,13 +261,17 @@ def main() {
     # Iterate through each token in the input stream.
     loop {
         let tok: Token = tokenizer.next();
-        tok.println();
+
+        # Print token if we're still error-free
+        if errors.count == 0 { tok.println(); }
+
+        # Stop if we reach the end.
         if tok.tag == tokens.TOK_END { break; }
     }
 
     # Dispose of the tokenizer.
     tokenizer.dispose();
 
-    # Return success to the environment.
-    libc.exit(0);
+    # Return to the environment.
+    libc.exit(0 if errors.count == 0 else -1);
 }

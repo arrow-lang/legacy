@@ -71,7 +71,7 @@ def generate_handle(&mut g: generator_.Generator, qname: str,
     else
     {
         errors.begin_error();
-        errors.fprintf(errors.stderr, "not implemented: generator_type.generate_handle(%d)" as ^int8, handle._tag);
+        errors.libc.fprintf(errors.libc.stderr, "not implemented: generator_type.generate_handle(%d)" as ^int8, handle._tag);
         errors.end();
         code.make_nil();
     }
@@ -112,7 +112,7 @@ def generate_static_slot(&mut g: generator_.Generator,
         # Bail; static slot declarations require either an initializer
         # or a type.
         errors.begin_error();
-        errors.fprintf(errors.stderr, "static slots require either an an initializer or a type" as ^int8);
+        errors.libc.fprintf(errors.libc.stderr, "static slots require either an an initializer or a type" as ^int8);
         errors.end();
 
         return code.make_nil();
@@ -275,7 +275,7 @@ def generate_struct_member(&mut g: generator_.Generator,
         # Nope; report the error and bail.
         x.member_map.set_ptr(name, code.make_poison() as ^void);
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "type '%s' has no member '%s'" as ^int8,
                        x.name.data(), name);
         errors.end();

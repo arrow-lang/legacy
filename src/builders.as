@@ -326,7 +326,7 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             if not type_.parameter_map.contains(id.name.data() as str)
             {
                 errors.begin_error();
-                errors.fprintf(errors.stderr,
+                errors.libc.fprintf(errors.libc.stderr,
                                "unexpected keyword argument '%s'" as ^int8,
                                id.name.data());
                 errors.end();
@@ -336,7 +336,7 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             # Check if we already have one of these.
             if (argv + param_idx)^ <> 0 as ^llvm.LLVMOpaqueValue {
                 errors.begin_error();
-                errors.fprintf(errors.stderr,
+                errors.libc.fprintf(errors.libc.stderr,
                                "got multiple values for argument '%s'" as ^int8,
                                id.name.data());
                 errors.end();
@@ -388,7 +388,7 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
 
             # Report
             errors.begin_error();
-            errors.fprintf(errors.stderr,
+            errors.libc.fprintf(errors.libc.stderr,
                            "missing required parameter '%s'" as ^int8,
                            prm.name.data());
             errors.end();
@@ -459,7 +459,7 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             if not type_.member_map.contains(id.name.data() as str)
             {
                 errors.begin_error();
-                errors.fprintf(errors.stderr,
+                errors.libc.fprintf(errors.libc.stderr,
                                "unexpected keyword argument '%s'" as ^int8,
                                id.name.data());
                 errors.end();
@@ -469,7 +469,7 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             # Check if we already have one of these.
             if (argv + param_idx)^ <> 0 as ^llvm.LLVMOpaqueValue {
                 errors.begin_error();
-                errors.fprintf(errors.stderr,
+                errors.libc.fprintf(errors.libc.stderr,
                                "got multiple values for argument '%s'" as ^int8,
                                id.name.data());
                 errors.end();
@@ -525,7 +525,7 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
 
             # Report
             errors.begin_error();
-            errors.fprintf(errors.stderr,
+            errors.libc.fprintf(errors.libc.stderr,
                            "missing required parameter '%s'" as ^int8,
                            prm.name.data());
             errors.end();
@@ -1203,7 +1203,7 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
         if not slot.context.mutable {
             # Report error and return nil.
             errors.begin_error();
-            errors.fprintf(errors.stderr,
+            errors.libc.fprintf(errors.libc.stderr,
                            "cannot assign to immutable static item" as ^int8);
             errors.end();
             return code.make_nil();
@@ -1219,7 +1219,7 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
         if not slot.mutable {
             # Report error and return nil.
             errors.begin_error();
-            errors.fprintf(errors.stderr,
+            errors.libc.fprintf(errors.libc.stderr,
                            "re-assignment to immutable local slot" as ^int8);
             errors.end();
             return code.make_nil();
@@ -1233,7 +1233,7 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
         if value.category == code.VC_RVALUE {
             # Report error and return nil.
             errors.begin_error();
-            errors.fprintf(errors.stderr,
+            errors.libc.fprintf(errors.libc.stderr,
                            "left-hand side expression is not assignable" as ^int8);
             errors.end();
             return code.make_nil();
@@ -1791,7 +1791,7 @@ def break_(g: ^mut generator_.Generator, node: ^ast.Node,
     {
         # No; error and bail.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "'break' statement not in loop statement" as ^int8);
         errors.end();
         return code.make_nil();
@@ -1817,7 +1817,7 @@ def continue_(g: ^mut generator_.Generator, node: ^ast.Node,
     {
         # No; error and bail.
         errors.begin_error();
-        errors.fprintf(errors.stderr,
+        errors.libc.fprintf(errors.libc.stderr,
                        "'continue' statement not in loop statement" as ^int8);
         errors.end();
         return code.make_nil();

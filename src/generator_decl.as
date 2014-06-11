@@ -53,7 +53,7 @@ def generate(&mut g: generator_.Generator)
         else
         {
             errors.begin_error();
-            errors.fprintf(errors.stderr, "not implemented: generator_decl.generate(%d)" as ^int8, val._tag);
+            errors.libc.fprintf(errors.libc.stderr, "not implemented: generator_decl.generate(%d)" as ^int8, val._tag);
             errors.end();
             code.make_nil();
         }

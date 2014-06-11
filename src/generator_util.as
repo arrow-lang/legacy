@@ -387,7 +387,7 @@ def type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
     let mut s_typename: string.String = code.typename(s);
     let mut d_typename: string.String = code.typename(d);
     errors.begin_error();
-    errors.fprintf(errors.stderr,
+    errors.libc.fprintf(errors.libc.stderr,
                    "mismatched types: expected '%s' but found '%s'" as ^int8,
                    d_typename.data(), s_typename.data());
     errors.end();

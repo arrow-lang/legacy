@@ -37,6 +37,28 @@ implement Token {
         if      self.tag == tokens.TOK_END           { printf("end"); }
         else if self.tag == tokens.TOK_ERROR         { printf("error"); }
 
+        # Print numeric tokens
+        else if self.tag == tokens.TOK_BIN_INTEGER
+        {
+            printf("binary integer '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_OCT_INTEGER
+        {
+            printf("octal integer '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_HEX_INTEGER
+        {
+            printf("hexadecimal integer '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_DEC_INTEGER
+        {
+            printf("decimal integer '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_FLOAT
+        {
+            printf("floating-point '%s'", self.text.data());
+        }
+
         # Terminate with a newline
         printf("\n");
     }
@@ -179,11 +201,13 @@ implement Tokenizer {
         # Check if we've reached the end of the stream ...
         if self.peek_char(1) == -1 {
             # ... and return the <end> token.
+            let pos: span.Position = self.current_position();
+            self.pop_char();
             return token_new(
                 tokens.TOK_END,
                 span.span_new(
                     self.filename,
-                    self.current_position(),
+                    pos,
                     self.current_position()), "");
         }
 
@@ -211,11 +235,12 @@ implement Tokenizer {
 
         # No idea what we have; print an error.
         let pos: span.Position = self.current_position();
-        let sp: span.Span = span.span_new(self.filename, pos, pos);
+        let ch: char = self.pop_char();
+        let sp: span.Span = span.span_new(
+            self.filename, pos, self.current_position());
         errors.begin_error_at(sp);
         errors.libc.fprintf(errors.libc.stderr,
-                            "unknown token: `%c`" as ^int8,
-                            self.pop_char());
+                            "unknown token: `%c`" as ^int8, ch);
         errors.end();
 
         # Return the error token.
@@ -235,7 +260,177 @@ implement Tokenizer {
     # float = {digit}({digit}|_)*\.{digit}({digit}|_)*{exp}?
     #       | {digit}({digit}|_)*{exp}?
     # -------------------------------------------------------------------------
-    def scan_numeric(&mut self) -> Token {
+    def scan_numeric(&mut self) -> Token
+    {
+        # Declare a local var to store the tag.
+        let tag: int = 0;
+
+        # Remember the current position.
+        let pos: span.Position = self.current_position();
+
+        # Clear the current buffer.
+        self.buffer.clear();
+
+        # Check for a possible base-prefixed numeric.
+        # If we are currently a zero ...
+        if self.peek_char(1) == "0"
+        {
+            # ... peek ahead and determine if we -are- a base-prefixed
+            #   numeric.
+            let ch: char = self.peek_char(2);
+            let nch: char = self.peek_char(3);
+            tag =
+                if (ch == "b" or ch == "B") and in_range(nch, "0", "1")
+                {
+                    tokens.TOK_BIN_INTEGER;
+                }
+                else if (ch == "x" or ch == "X")
+                    and libc.isxdigit(nch as int32) <> 0
+                {
+                    tokens.TOK_HEX_INTEGER;
+                }
+                else if (ch == "o" or ch == "O") and in_range(nch, "0", "7")
+                {
+                    tokens.TOK_OCT_INTEGER;
+                }
+                else
+                {
+                    # Not a base-prefixed integer.
+                    0;
+                };
+
+            if tag <> 0
+            {
+                # Pop the base-prefix.
+                self.pop_char();
+                self.pop_char();
+
+                # Continue according to -which- base-prefixed numeric we are.
+                # TODO: Once we can do something like partializing a function
+                #   we could replace the three loops with one.
+                if tag == tokens.TOK_BIN_INTEGER
+                {
+                    loop
+                    {
+                        let ch: char = self.peek_char(1);
+                        if in_range(ch, "0", "1")
+                        {
+                            self.pop_char();
+                            self.buffer.append(ch);
+                        }
+                        else if ch <> "_"
+                        {
+                            break;
+                        }
+                    }
+                }
+                else if tag == tokens.TOK_OCT_INTEGER
+                {
+                    loop
+                    {
+                        let ch: char = self.peek_char(1);
+                        if in_range(ch, "0", "7")
+                        {
+                            self.pop_char();
+                            self.buffer.append(ch);
+                        }
+                        else if ch <> "_"
+                        {
+                            break;
+                        }
+                    }
+                }
+                else if tag == tokens.TOK_HEX_INTEGER
+                {
+                    loop
+                    {
+                        let ch: char = self.peek_char(1);
+                        if libc.isxdigit(ch as int32) <> 0
+                        {
+                            self.pop_char();
+                            self.buffer.append(ch);
+                        }
+                        else if ch <> "_"
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                # Build and return our base-prefixed numeric token.
+                return token_new(
+                    tag,
+                    span.span_new(self.filename, pos, self.current_position()),
+                    self.buffer.data() as str);
+            }
+        }
+
+        # We could be a deicmal or floating numeric at this point.
+        tag = tokens.TOK_DEC_INTEGER;
+
+        # Scan for the remainder of the integral part of the numeric.
+        loop {
+            let ch: char = self.peek_char(1);
+            if is_numeric(ch) {
+                self.pop_char();
+                self.buffer.append(ch);
+            } else if ch <> "_" {
+                break;
+            }
+        }
+
+        # Check for a period followed by a numeric (which would indicate
+        # that we are a floating numeric)
+        if self.peek_char(1) == "." and is_numeric(self.peek_char(2))
+        {
+            # We are now a floating numeric.
+            tag = tokens.TOK_FLOAT;
+
+            # Push the period and bump to the next token.
+            self.buffer.append(self.pop_char());
+
+            # Scan the fractional part of the numeric.
+            loop {
+                let ch: char = self.peek_char(1);
+                if is_numeric(ch) {
+                    self.pop_char();
+                    self.buffer.append(ch);
+                } else if ch <> "_" {
+                    break;
+                }
+            }
+        }
+
+        # Check for a an "e" or "E" character that would indicate
+        # an exponent portion
+        if (self.peek_char(1) == "e" or self.peek_char(1) == "E")
+            and (is_numeric(self.peek_char(2))
+                or self.peek_char(2) == "+"
+                or self.peek_char(2) == "-")
+        {
+            # We are now a floating numeric.
+            tag = tokens.TOK_FLOAT;
+
+            # Push the `e` and the next character.
+            self.buffer.append(self.pop_char());
+            self.buffer.append(self.pop_char());
+
+            # Scan the fractional part of the numeric.
+            loop {
+                let ch: char = self.peek_char(1);
+                if is_numeric(ch) {
+                    self.pop_char();
+                    self.buffer.append(ch);
+                } else if ch <> "_" {
+                    break;
+                }
+            }
+        }
+
+        # Build and return our numeric.
+        return token_new(
+            tag, span.span_new(self.filename, pos, self.current_position()),
+            self.buffer.data() as str);
     }
 
 }
@@ -243,12 +438,22 @@ implement Tokenizer {
 # Helpers
 # =============================================================================
 
+# is_whitespace -- Test if the passed character constitutes whitespace.
+# -----------------------------------------------------------------------------
 def is_whitespace(c: char) -> bool {
     c == ' ' or c == '\n' or c == '\t' or c == '\r';
 }
 
+# is_numeric -- Test if the passed character is numeric.
+# -----------------------------------------------------------------------------
 def is_numeric(c: char) -> bool {
     libc.isdigit(c as int32) <> 0;
+}
+
+# Test if the char is in the passed range.
+# -----------------------------------------------------------------------------
+def in_range(c: char, s: char, e: char) -> bool {
+    (c as int8) >= (s as int8) and (c as int8) <= (e as int8);
 }
 
 # Driver (Test)
@@ -260,13 +465,20 @@ def main() {
 
     # Iterate through each token in the input stream.
     loop {
-        let tok: Token = tokenizer.next();
+        # Get current errors
+        let count: uint = errors.count;
 
-        # Print token if we're still error-free
-        if errors.count == 0 { tok.println(); }
+        # Get the next token
+        let mut tok: Token = tokenizer.next();
+
+        # Print token if we're error-free
+        if errors.count <= count { tok.println(); }
 
         # Stop if we reach the end.
         if tok.tag == tokens.TOK_END { break; }
+
+        # Dispose of the token.
+        tok.dispose();
     }
 
     # Dispose of the tokenizer.

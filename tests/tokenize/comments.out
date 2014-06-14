@@ -1,2 +1,2 @@
-<decimal integer> '32'
-<end>
+<stdin>:2:1-3: decimal integer '32'
+<stdin>:3:1-2: end

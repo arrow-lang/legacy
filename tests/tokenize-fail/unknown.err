@@ -1,1 +1,1 @@
-<stdin>:3:1-1: error: unknown token: `@`
+<stdin>:3:1-2: error: unknown token: `@`

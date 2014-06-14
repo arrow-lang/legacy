@@ -233,6 +233,18 @@ implement Tokenizer {
             }
         }
 
+        # Check for and attempt to consume punctuators (eg. "+").
+        let possible_token: Token = self.scan_punctuator();
+        if possible_token.tag <> 0 { return possible_token; }
+
+        # Check for an alphabetic or '_' character which signals the beginning
+        # of an identifier.
+        let ch: char = self.peek_char(1);
+        if is_alphabetic(ch) or ch == "_" {
+            # Scan for and match the identifier
+            return self.scan_identifier();
+        }
+
         # No idea what we have; print an error.
         let pos: span.Position = self.current_position();
         let ch: char = self.pop_char();
@@ -433,6 +445,91 @@ implement Tokenizer {
             self.buffer.data() as str);
     }
 
+    # scan_punctuator -- Scan for and match a punctuator token.
+    # -----------------------------------------------------------------------------
+    def scan_punctuator(&mut self) -> Token {
+        # First attempt to match those that are unambigious in that
+        # if the current character matches it is the token.
+        let ch: char = self.peek_char(1);
+        let tag: int = 0;
+        if      ch == "(" { tag = tokens.TOK_LPAREN; }
+        else if ch == ")" { tag = tokens.TOK_RPAREN; }
+        else if ch == "[" { tag = tokens.TOK_LBRACKET; }
+        else if ch == "]" { tag = tokens.TOK_RBRACKET; }
+    }
+
+
+
+    def scan_punctuator() -> int {
+        # First attempt to match those that are unambigious in that
+        # if the current character matches it is the token.
+        if      lchar == string.ord('(') { bump(); return tokens.TOK_LPAREN; }
+        else if lchar == string.ord(')') { bump(); return tokens.TOK_RPAREN; }
+        else if lchar == string.ord('[') { bump(); return tokens.TOK_LBRACKET; }
+        else if lchar == string.ord(']') { bump(); return tokens.TOK_RBRACKET; }
+        else if lchar == string.ord('{') { bump(); return tokens.TOK_LBRACE; }
+        else if lchar == string.ord('}') { bump(); return tokens.TOK_RBRACE; }
+        else if lchar == string.ord(';') { bump(); return tokens.TOK_SEMICOLON; }
+        else if lchar == string.ord(',') { bump(); return tokens.TOK_COMMA; }
+        else if lchar == string.ord('.') { bump(); return tokens.TOK_DOT; }
+        else if lchar == string.ord('^') { bump(); return tokens.TOK_HAT; }
+        else if lchar == string.ord('&') { bump(); return tokens.TOK_AMPERSAND; }
+        else if lchar == string.ord('|') { bump(); return tokens.TOK_PIPE; }
+
+        # Next take a peek at the next character and disambiguate the following
+        # punctuators.
+        if lchar == string.ord('+') {
+            bump();
+            if lchar == string.ord('=') { bump(); return tokens.TOK_PLUS_EQ; }
+            return tokens.TOK_PLUS;
+        } else if lchar == string.ord('-') {
+            bump();
+            if lchar == string.ord('=') { bump(); return tokens.TOK_MINUS_EQ; }
+            if lchar == string.ord('>') { bump(); return tokens.TOK_RARROW; }
+            return tokens.TOK_MINUS;
+        } else if lchar == string.ord('*') {
+            bump();
+            if lchar == string.ord('=') { bump(); return tokens.TOK_STAR_EQ; }
+            return tokens.TOK_STAR;
+        } else if lchar == string.ord('/') {
+            bump();
+            if lchar == string.ord('=') { bump(); return tokens.TOK_FSLASH_EQ; }
+            if lchar == string.ord('/') {
+                bump();
+                if lchar == string.ord('=') { bump(); return tokens.TOK_FSLASH_FSLASH_EQ; }
+                return tokens.TOK_FSLASH_FSLASH;
+            }
+            return tokens.TOK_FSLASH;
+        } else if lchar == string.ord('%') {
+            bump();
+            if lchar == string.ord('=') { bump(); return tokens.TOK_PERCENT_EQ; }
+            return tokens.TOK_PERCENT;
+        } else if lchar == string.ord('<') {
+            bump();
+            if lchar == string.ord('=') { bump(); return tokens.TOK_LCARET_EQ; }
+            if lchar == string.ord('>') { bump(); return tokens.TOK_BANG_EQ; }
+            return tokens.TOK_LCARET;
+        } else if lchar == string.ord('>') {
+            bump();
+            if lchar == string.ord('=') { bump(); return tokens.TOK_RCARET_EQ; }
+            return tokens.TOK_RCARET;
+        } else if lchar == string.ord('=') {
+            bump();
+            if lchar == string.ord('=') { bump(); return tokens.TOK_EQ_EQ; }
+            return tokens.TOK_EQ;
+        } else if lchar == string.ord(':') {
+            bump();
+            return tokens.TOK_COLON;
+        } else if lchar == string.ord('!') {
+            bump();
+            if lchar == string.ord("=") { bump(); return tokens.TOK_BANG_EQ; }
+            return tokens.TOK_BANG;
+        }
+
+        # Didn't match a punctuator token.
+        0;
+    }
+
 }
 
 # Helpers
@@ -465,14 +562,13 @@ def main() {
 
     # Iterate through each token in the input stream.
     loop {
-        # Get current errors
-        let count: uint = errors.count;
-
         # Get the next token
         let mut tok: Token = tokenizer.next();
 
         # Print token if we're error-free
-        if errors.count <= count { tok.println(); }
+        if errors.count == 0 {
+            tok.println();
+        }
 
         # Stop if we reach the end.
         if tok.tag == tokens.TOK_END { break; }

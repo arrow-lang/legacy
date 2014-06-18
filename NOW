@@ -1,12 +1,11 @@
 # [x] Parse import statements
 # [x] Tokenizer operates on "tokens" (not "integers")
 #     Fixes problem with "consecutive" identifiers or strings, etc.
-# [ ] Driver (getopt?)
-# [ ]   » arrow --version
-# [ ]   » arrow -V
+# [.] Driver (getopt?)
+# [x]   » arrow --version
 # [ ]   » arrow -o out
-# [ ]   » arrow < in.as
-# [ ]   » arrow in.as
+# [x]   » arrow < in.as
+# [x]   » arrow in.as
 # [ ] Module Import (from source)
 # [ ] Mutual recursion tests (circular imports)
 # [ ] Mutable parameters in "arrow" functions

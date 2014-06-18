@@ -18,7 +18,6 @@ def begin() {
     if isatty(2) <> 0 {
         libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);
     }
-    print_location();
 }
 
 # begin_error
@@ -35,7 +34,7 @@ def begin_error_at(s: span.Span) {
         libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);
     }
     s.fprint(libc.stderr);
-    libc.fprintf(libc.stderr, ":" as ^int8);
+    libc.fprintf(libc.stderr, ": " as ^int8);
     print_error();
 }
 
@@ -56,7 +55,7 @@ def print_error() {
     }
 
     count = count + 1;
-    libc.fprintf(libc.stderr, " error: " as ^int8);
+    libc.fprintf(libc.stderr, "error: " as ^int8);
 
     if isatty(2) <> 0 {
         libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);

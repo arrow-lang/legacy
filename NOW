@@ -1,5 +1,5 @@
 # [x] Parse import statements
-# [ ] Tokenizer operates on "tokens" (not "integers")
+# [x] Tokenizer operates on "tokens" (not "integers")
 #     Fixes problem with "consecutive" identifiers or strings, etc.
 # [ ] Driver (getopt?)
 # [ ]   » arrow --version

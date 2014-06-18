@@ -33,7 +33,7 @@ type Parser {
 
 def parser_new(name: str, tokenizer_: tokenizer.Tokenizer) -> Parser {
     let parser: Parser;
-    parser.tokenizer = tokenizer.tokenizer_new(name, libc.stdin);
+    parser.tokenizer = tokenizer_;
     parser.tokens = list.make_generic(tokenizer.TOKEN_SIZE);
     parser.stack = ast.make_nodes();
     parser.name = name;

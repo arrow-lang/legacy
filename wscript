@@ -115,6 +115,27 @@ def build(ctx):
         source="generator.o",
         target="generator")
 
+    # Compile the compiler to the llvm IL.
+    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
+        source="src/compiler.as",
+        target="compiler.ll")
+
+    # Optimize the compiler.
+    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
+        source="compiler.ll",
+        target="compiler.opt.ll")
+
+    # Compile the compiler from llvm IL into native object code.
+    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
+        source="compiler.opt.ll",
+        target="compiler.o")
+
+    # Link the compiler into a final executable.
+    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
+    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
+        source="compiler.o",
+        target="arrow")
+
 def test(ctx):
     print(ws.test._sep("test session starts", "="))
     print(ws.test._sep("tokenize", "-"))

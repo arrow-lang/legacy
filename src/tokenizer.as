@@ -1,582 +1,980 @@
 import libc;
 import string;
 import tokens;
+import list;
+import types;
+import errors;
+import span;
 
-# Todo
-# -----------------------------------------------------------------------------
-# [ ] Return location span along with token
-# [ ] Fully test both good and bad sets of data (eg. trigger all errors)
-# -----------------------------------------------------------------------------
+# Token
+# =============================================================================
 
-# Kinds of string literals.
-let STR_SINGLE: int = 1;
-let STR_DOUBLE: int = 2;
+type Token {
+    #! Tag (identifier) of the token type.
+    tag: int,
 
-# The last token read from input stream.
-let mut lchar: int = string.ord(' ');
+    #! Span in which the token occurs.
+    mut span: span.Span,
 
-# The 1-character look-ahead buffer.
-let mut nchar: int = string.ord(' ');
-
-# The 2-character look-ahead buffer.
-let mut nnchar: int = string.ord(' ');
-
-# The current buffer to play with by the tokenizer.
-let mut current_buf: string.String = string.make();
-
-# The current identifier being consumed by the tokenizer.
-let mut current_id: string.String = string.make();
-
-# The current number being consumed by the tokenizer.
-let mut current_num: string.String = string.make();
-
-# The current string being consumed by the tokenizer.
-let mut cur_str: string.String = string.make();
-
-# bump -- Advance the tokenizer by a single character.
-# -----------------------------------------------------------------------------
-def bump() -> int {
-    let temp: int = lchar;
-    lchar = nchar;
-    nchar = nnchar;
-    nnchar = libc.getchar();
-    temp;
+    #! Textual content of the token (if the tag indicates it should)
+    mut text: string.String
 }
 
+let TOKEN_SIZE: uint = ((0 as ^Token) + 1) - (0 as ^Token);
 
-# Test if the char is in the passed range.
-# -----------------------------------------------------------------------------
-def in_range(c: int, s: char, e: char) -> bool {
-    c >= (s as int8) and c <= (e as int8);
+implement Token {
+
+    def dispose(&mut self) {
+        # Dispose of contained resources.
+        self.span.dispose();
+        self.text.dispose();
+    }
+
+    def println(&self) {
+        # Print location span
+        self.span.print();
+        printf(": ");
+
+        # Print simple tokens
+        if      self.tag == tokens.TOK_END           { printf("end"); }
+        else if self.tag == tokens.TOK_ERROR         { printf("error"); }
+
+        # Print numeric tokens
+        else if self.tag == tokens.TOK_BIN_INTEGER
+        {
+            printf("binary integer '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_OCT_INTEGER
+        {
+            printf("octal integer '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_HEX_INTEGER
+        {
+            printf("hexadecimal integer '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_DEC_INTEGER
+        {
+            printf("decimal integer '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_FLOAT
+        {
+            printf("floating-point '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_STRING
+        {
+            printf("string '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_IDENTIFIER
+        {
+            printf("identifier '%s'", self.text.data());
+        }
+        else if self.tag > -2000 and self.tag < -1000 {
+            # TODO: Replace this with a map or something
+            printf("keyword: '");
+            if self.tag == tokens.TOK_DEF {
+                printf("def");
+            }
+            else if self.tag == tokens.TOK_LET {
+                printf("let");
+            }
+            else if self.tag == tokens.TOK_STATIC {
+                printf("static");
+            }
+            else if self.tag == tokens.TOK_MUT {
+                printf("mut");
+            }
+            else if self.tag == tokens.TOK_TRUE {
+                printf("true");
+            }
+            else if self.tag == tokens.TOK_FALSE {
+                printf("false");
+            }
+            else if self.tag == tokens.TOK_SELF {
+                printf("self");
+            }
+            else if self.tag == tokens.TOK_AS {
+                printf("as");
+            }
+            else if self.tag == tokens.TOK_AND {
+                printf("and");
+            }
+            else if self.tag == tokens.TOK_OR {
+                printf("or");
+            }
+            else if self.tag == tokens.TOK_NOT {
+                printf("not");
+            }
+            else if self.tag == tokens.TOK_IF {
+                printf("if");
+            }
+            else if self.tag == tokens.TOK_ELSE {
+                printf("else");
+            }
+            else if self.tag == tokens.TOK_WHILE {
+                printf("while");
+            }
+            else if self.tag == tokens.TOK_LOOP {
+                printf("loop");
+            }
+            else if self.tag == tokens.TOK_FOR {
+                printf("for");
+            }
+            else if self.tag == tokens.TOK_MATCH {
+                printf("match");
+            }
+            else if self.tag == tokens.TOK_BREAK {
+                printf("break");
+            }
+            else if self.tag == tokens.TOK_CONTINUE {
+                printf("continue");
+            }
+            else if self.tag == tokens.TOK_RETURN {
+                printf("return");
+            }
+            else if self.tag == tokens.TOK_TYPE {
+                printf("type");
+            }
+            else if self.tag == tokens.TOK_ENUM {
+                printf("enum");
+            }
+            else if self.tag == tokens.TOK_MODULE {
+                printf("module");
+            }
+            else if self.tag == tokens.TOK_IMPORT {
+                printf("import");
+            }
+            else if self.tag == tokens.TOK_USE {
+                printf("use");
+            }
+            else if self.tag == tokens.TOK_FOREIGN {
+                printf("foreign");
+            }
+            else if self.tag == tokens.TOK_UNSAFE {
+                printf("unsafe");
+            }
+            else if self.tag == tokens.TOK_GLOBAL {
+                printf("global");
+            }
+            else if self.tag == tokens.TOK_STRUCT {
+                printf("struct");
+            }
+            else if self.tag == tokens.TOK_IMPL {
+                printf("impl");
+            }
+            else if self.tag == tokens.TOK_EXTERN {
+                printf("extern");
+            }
+            printf("'");
+        }
+        else if self.tag > -3000 and self.tag < -2000 {
+            # TODO: Replace this with a map or something
+            printf("punctuator: '");
+            if self.tag == tokens.TOK_RARROW {
+                printf("->");
+            } else if self.tag == tokens.TOK_PLUS {
+                printf("+");
+            } else if self.tag == tokens.TOK_MINUS {
+                printf("-");
+            } else if self.tag == tokens.TOK_STAR {
+                printf("*");
+            } else if self.tag == tokens.TOK_FSLASH {
+                printf("/");
+            } else if self.tag == tokens.TOK_PERCENT {
+                printf("%");
+            } else if self.tag == tokens.TOK_HAT {
+                printf("^");
+            } else if self.tag == tokens.TOK_AMPERSAND {
+                printf("&");
+            } else if self.tag == tokens.TOK_LPAREN {
+                printf("(");
+            } else if self.tag == tokens.TOK_RPAREN {
+                printf(")");
+            } else if self.tag == tokens.TOK_LBRACKET {
+                printf("[");
+            } else if self.tag == tokens.TOK_RBRACKET {
+                printf("]");
+            } else if self.tag == tokens.TOK_LBRACE {
+                printf("{");
+            } else if self.tag == tokens.TOK_RBRACE {
+                printf("}");
+            } else if self.tag == tokens.TOK_SEMICOLON {
+                printf(";");
+            } else if self.tag == tokens.TOK_COLON {
+                printf(":");
+            } else if self.tag == tokens.TOK_COMMA {
+                printf(",");
+            } else if self.tag == tokens.TOK_DOT {
+                printf(".");
+            } else if self.tag == tokens.TOK_LCARET {
+                printf("<");
+            } else if self.tag == tokens.TOK_RCARET {
+                printf(">");
+            } else if self.tag == tokens.TOK_LCARET_EQ {
+                printf("<=");
+            } else if self.tag == tokens.TOK_RCARET_EQ {
+                printf(">=");
+            } else if self.tag == tokens.TOK_EQ_EQ {
+                printf("==");
+            } else if self.tag == tokens.TOK_BANG_EQ {
+                printf("!=");
+            } else if self.tag == tokens.TOK_EQ {
+                printf("=");
+            } else if self.tag == tokens.TOK_PLUS_EQ {
+                printf("+=");
+            } else if self.tag == tokens.TOK_MINUS_EQ {
+                printf("-=");
+            } else if self.tag == tokens.TOK_STAR_EQ {
+                printf("*=");
+            } else if self.tag == tokens.TOK_FSLASH_EQ {
+                printf("/=");
+            } else if self.tag == tokens.TOK_PERCENT_EQ {
+                printf("%=");
+            } else if self.tag == tokens.TOK_FSLASH_FSLASH {
+                printf("//");
+            } else if self.tag == tokens.TOK_FSLASH_FSLASH_EQ {
+                printf("//=");
+            } else if self.tag == tokens.TOK_BANG {
+                printf("!");
+            } else if self.tag == tokens.TOK_PIPE {
+                printf("|");
+            } else if self.tag == tokens.TOK_RFARROW {
+                printf("=>");
+            }
+            printf("'");
+        }
+
+        # Terminate with a newline
+        printf("\n");
+    }
+
 }
+
+# FIXME: Move to an "attached" function when possible.
+def token_new(tag: int, span_: span.Span, text: str) -> Token {
+    let tok: Token;
+    tok.tag = tag;
+    tok.span = span_;
+    tok.text = string.make();
+    tok.text.extend(text);
+    return tok;
+}
+
+# Tokenizer
+# =============================================================================
+
+type Tokenizer {
+    #! Filename that the stream is from.
+    filename: str,
+
+    #! Input stream to read the characters from.
+    stream: ^libc._IO_FILE,
+
+    #! Input buffer for the incoming character stream.
+    mut chars: list.List,
+
+    #! Text buffer for constructing tokens.
+    mut buffer: string.String,
+
+    #! Current row offset in the stream.
+    mut row: int,
+
+    #! Current column offset in the stream.
+    mut column: int
+}
+
+# FIXME: Move to an "attached" function when possible.
+def tokenizer_new(filename: str, stream: ^libc._IO_FILE) -> Tokenizer {
+    let tokenizer: Tokenizer;
+    tokenizer.filename = filename;
+    tokenizer.stream = stream;
+    tokenizer.chars = list.make(types.CHAR);
+    tokenizer.buffer = string.make();
+    tokenizer.row = 0;
+    tokenizer.column = 0;
+    return tokenizer;
+}
+
+implement Tokenizer {
+
+    def dispose(&mut self) {
+        # Dispose of contained resources.
+        # libc.fclose(self.stream);
+        self.chars.dispose();
+        self.buffer.dispose();
+    }
+
+    def current_position(&self) -> span.Position {
+        return span.position_new(self.column, self.row);
+    }
+
+    def push_chars(&mut self, count: uint) {
+        let mut n: uint = count;
+        while n > 0 {
+            # Attempt to read the next character from the input stream.
+            let next: int8;
+            let read: int64 = libc.fread(&next as ^void, 1, 1, self.stream);
+            if read == 0 {
+                # Nothing was read; push an EOF.
+                self.chars.push_char(-1 as char);
+            } else {
+                # Push the character read.
+                self.chars.push_char(next as char);
+            }
+
+            # Increment our count.
+            n = n - 1;
+        }
+    }
+
+    def peek_char(&mut self, count: uint) -> char {
+        # Request more characters if we need them.
+        if count > self.chars.size {
+            self.push_chars(count - self.chars.size);
+        }
+
+        # Return the requested token.
+        self.chars.at_char((count as int) - (self.chars.size as int) - 1);
+    }
+
+    def pop_char(&mut self) -> char {
+        # Get the requested char.
+        let ch: char = self.peek_char(1);
+
+        # Erase the top char.
+        self.chars.erase(0);
+
+        # Increment the current position in the stream.
+        # Normalize line ending styles.
+        self.column = self.column + 1;
+        if ch == "\n"
+        {
+            # UNIX
+            self.column = 0;
+            self.row = self.row + 1;
+        }
+        else if ch == "\r" and self.peek_char(1) == "\n"
+        {
+            # WINDOWS
+            ch = "\n";
+            self.chars.erase(0);
+            self.column = 0;
+            self.row = self.row + 1;
+        }
+        else if ch == "\r"
+        {
+            # MAC
+            ch = "\n";
+            self.column = 0;
+            self.row = self.row + 1;
+        }
+
+        # Return the erased char.
+        ch;
+    }
+
+    def consume_whitespace(&mut self) {
+        while is_whitespace(self.peek_char(1)) {
+            self.pop_char();
+        }
+    }
+
+    def next(&mut self) -> Token {
+        # Skip and consume any whitespace characters.
+        self.consume_whitespace();
+
+        # Check if we've reached the end of the stream ...
+        if self.peek_char(1) == -1 {
+            # ... and return the <end> token.
+            let pos: span.Position = self.current_position();
+            self.pop_char();
+            return token_new(
+                tokens.TOK_END,
+                span.span_new(
+                    self.filename,
+                    pos,
+                    self.current_position()), "");
+        }
+
+        # Check for a leading digit that would indicate the start of a
+        # numeric token.
+        if is_numeric(self.peek_char(1)) {
+            # Scan for and match the numeric token.
+            return self.scan_numeric();
+        }
+
+        # Check for and consume a string token.
+        if self.peek_char(1) == "'" or self.peek_char(1) == '"' {
+            # Scan the entire string token.
+            return self.scan_string();
+        }
+
+        # Consume and ignore line comments; returning the next token
+        # following the line comment.
+        if self.peek_char(1) == "#" {
+            loop {
+                # Pop (and the drop) the next character.
+                self.pop_char();
+
+                # Check if the single-line comment is done.
+                let ch: char = self.peek_char(1);
+                if ch == -1 or ch == "\r" or ch == "\n" {
+                    return self.next();
+                }
+            }
+        }
+
+        # Check for and attempt to consume punctuators (eg. "+").
+        let possible_token: Token = self.scan_punctuator();
+        if possible_token.tag <> 0 { return possible_token; }
+
+        # Check for an alphabetic or '_' character which signals the beginning
+        # of an identifier.
+        let ch: char = self.peek_char(1);
+        if is_alphabetic(ch) or ch == "_" {
+            # Scan for and match the identifier
+            return self.scan_identifier();
+        }
+
+        # No idea what we have; print an error.
+        let pos: span.Position = self.current_position();
+        let ch: char = self.pop_char();
+        let sp: span.Span = span.span_new(
+            self.filename, pos, self.current_position());
+        errors.begin_error_at(sp);
+        errors.libc.fprintf(errors.libc.stderr,
+                            "unknown token: `%c`" as ^int8, ch);
+        errors.end();
+
+        # Return the error token.
+        return token_new(tokens.TOK_ERROR, sp, "");
+    }
+
+    # scan_numeric -- Scan for and produce a numeric token.
+    # -------------------------------------------------------------------------
+    # numeric = integer | float
+    # digit = [0-9]
+    # integer = dec_integer | hex_integer | bin_integer | oct_integer
+    # dec_integer = {digit}({digit}|_)*
+    # bin_integer = 0[bB][0-1]([0-1]|_)*
+    # oct_integer = 0[oO][0-7]([0-7]|_)*
+    # hex_integer = 0[xX][0-9A-Fa-f]([0-9A-Fa-f]|_)*
+    # exp = [Ee][-+]?{digit}({digit}|_)*
+    # float = {digit}({digit}|_)*\.{digit}({digit}|_)*{exp}?
+    #       | {digit}({digit}|_)*{exp}?
+    # -------------------------------------------------------------------------
+    def scan_numeric(&mut self) -> Token
+    {
+        # Declare a local var to store the tag.
+        let tag: int = 0;
+
+        # Remember the current position.
+        let pos: span.Position = self.current_position();
+
+        # Clear the current buffer.
+        self.buffer.clear();
+
+        # Check for a possible base-prefixed numeric.
+        # If we are currently a zero ...
+        if self.peek_char(1) == "0"
+        {
+            # ... peek ahead and determine if we -are- a base-prefixed
+            #   numeric.
+            let ch: char = self.peek_char(2);
+            let nch: char = self.peek_char(3);
+            tag =
+                if (ch == "b" or ch == "B") and in_range(nch, "0", "1")
+                {
+                    tokens.TOK_BIN_INTEGER;
+                }
+                else if (ch == "x" or ch == "X")
+                    and libc.isxdigit(nch as int32) <> 0
+                {
+                    tokens.TOK_HEX_INTEGER;
+                }
+                else if (ch == "o" or ch == "O") and in_range(nch, "0", "7")
+                {
+                    tokens.TOK_OCT_INTEGER;
+                }
+                else
+                {
+                    # Not a base-prefixed integer.
+                    0;
+                };
+
+            if tag <> 0
+            {
+                # Pop the base-prefix.
+                self.pop_char();
+                self.pop_char();
+
+                # Continue according to -which- base-prefixed numeric we are.
+                # TODO: Once we can do something like partializing a function
+                #   we could replace the three loops with one.
+                if tag == tokens.TOK_BIN_INTEGER
+                {
+                    loop
+                    {
+                        let ch: char = self.peek_char(1);
+                        if in_range(ch, "0", "1")
+                        {
+                            self.buffer.append(ch);
+                        }
+                        else if ch <> "_"
+                        {
+                            break;
+                        }
+                        self.pop_char();
+                    }
+                }
+                else if tag == tokens.TOK_OCT_INTEGER
+                {
+                    loop
+                    {
+                        let ch: char = self.peek_char(1);
+                        if in_range(ch, "0", "7")
+                        {
+                            self.buffer.append(ch);
+                        }
+                        else if ch <> "_"
+                        {
+                            break;
+                        }
+                        self.pop_char();
+                    }
+                }
+                else if tag == tokens.TOK_HEX_INTEGER
+                {
+                    loop
+                    {
+                        let ch: char = self.peek_char(1);
+                        if libc.isxdigit(ch as int32) <> 0
+                        {
+                            self.buffer.append(ch);
+                        }
+                        else if ch <> "_"
+                        {
+                            break;
+                        }
+                        self.pop_char();
+                    }
+                }
+
+                # Build and return our base-prefixed numeric token.
+                return token_new(
+                    tag,
+                    span.span_new(self.filename, pos, self.current_position()),
+                    self.buffer.data() as str);
+            }
+        }
+
+        # We could be a deicmal or floating numeric at this point.
+        tag = tokens.TOK_DEC_INTEGER;
+
+        # Scan for the remainder of the integral part of the numeric.
+        loop {
+            let ch: char = self.peek_char(1);
+            if is_numeric(ch) {
+                self.buffer.append(ch);
+            } else if ch <> "_" {
+                break;
+            }
+            self.pop_char();
+        }
+
+        # Check for a period followed by a numeric (which would indicate
+        # that we are a floating numeric)
+        if self.peek_char(1) == "." and is_numeric(self.peek_char(2))
+        {
+            # We are now a floating numeric.
+            tag = tokens.TOK_FLOAT;
+
+            # Push the period and bump to the next token.
+            self.buffer.append(self.pop_char());
+
+            # Scan the fractional part of the numeric.
+            loop {
+                let ch: char = self.peek_char(1);
+                if is_numeric(ch) {
+                    self.buffer.append(ch);
+                } else if ch <> "_" {
+                    break;
+                }
+                self.pop_char();
+            }
+        }
+
+        # Check for a an "e" or "E" character that would indicate
+        # an exponent portion
+        if (self.peek_char(1) == "e" or self.peek_char(1) == "E")
+            and (is_numeric(self.peek_char(2))
+                or self.peek_char(2) == "+"
+                or self.peek_char(2) == "-")
+        {
+            # We are now a floating numeric.
+            tag = tokens.TOK_FLOAT;
+
+            # Push the `e` and the next character.
+            self.buffer.append(self.pop_char());
+            self.buffer.append(self.pop_char());
+
+            # Scan the fractional part of the numeric.
+            loop {
+                let ch: char = self.peek_char(1);
+                if is_numeric(ch) {
+                    self.buffer.append(ch);
+                } else if ch <> "_" {
+                    break;
+                }
+                self.pop_char();
+            }
+        }
+
+        # Build and return our numeric.
+        return token_new(
+            tag, span.span_new(self.filename, pos, self.current_position()),
+            self.buffer.data() as str);
+    }
+
+    # scan_identifier -- Scan for and match an identifier or keyword.
+    # -------------------------------------------------------------------------
+    # identifier = [A-Za-z_][A-Za-z_0-9]*
+    # -------------------------------------------------------------------------
+    def scan_identifier(&mut self) -> Token {
+        # Remember the current position.
+        let pos: span.Position = self.current_position();
+
+        # Clear the buffer.
+        self.buffer.clear();
+
+        # Continue through the input stream until we are no longer part
+        # of a possible identifier.
+        loop {
+            self.buffer.append(self.pop_char());
+            if not is_alphanumeric(self.peek_char(1)) and
+                    not self.peek_char(1) == "_" {
+                break;
+            }
+        }
+
+        # Check for and return keyword tokens instead of the identifier.
+        # TODO: A hash-table would better serve this.
+        let tag: int = 0;
+             if self.buffer.eq_str("def")       { tag = tokens.TOK_DEF; }
+        else if self.buffer.eq_str("let")       { tag = tokens.TOK_LET; }
+        else if self.buffer.eq_str("static")    { tag = tokens.TOK_STATIC; }
+        else if self.buffer.eq_str("mut")       { tag = tokens.TOK_MUT; }
+        else if self.buffer.eq_str("true")      { tag = tokens.TOK_TRUE; }
+        else if self.buffer.eq_str("false")     { tag = tokens.TOK_FALSE; }
+        else if self.buffer.eq_str("self")      { tag = tokens.TOK_SELF; }
+        else if self.buffer.eq_str("as")        { tag = tokens.TOK_AS; }
+        else if self.buffer.eq_str("and")       { tag = tokens.TOK_AND; }
+        else if self.buffer.eq_str("or")        { tag = tokens.TOK_OR; }
+        else if self.buffer.eq_str("not")       { tag = tokens.TOK_NOT; }
+        else if self.buffer.eq_str("if")        { tag = tokens.TOK_IF; }
+        else if self.buffer.eq_str("else")      { tag = tokens.TOK_ELSE; }
+        else if self.buffer.eq_str("for")       { tag = tokens.TOK_FOR; }
+        else if self.buffer.eq_str("while")     { tag = tokens.TOK_WHILE; }
+        else if self.buffer.eq_str("loop")      { tag = tokens.TOK_LOOP; }
+        else if self.buffer.eq_str("match")     { tag = tokens.TOK_MATCH; }
+        else if self.buffer.eq_str("break")     { tag = tokens.TOK_BREAK; }
+        else if self.buffer.eq_str("continue")  { tag = tokens.TOK_CONTINUE; }
+        else if self.buffer.eq_str("return")    { tag = tokens.TOK_RETURN; }
+        else if self.buffer.eq_str("type")      { tag = tokens.TOK_TYPE; }
+        else if self.buffer.eq_str("enum")      { tag = tokens.TOK_ENUM; }
+        else if self.buffer.eq_str("module")    { tag = tokens.TOK_MODULE; }
+        else if self.buffer.eq_str("import")    { tag = tokens.TOK_IMPORT; }
+        else if self.buffer.eq_str("use")       { tag = tokens.TOK_USE; }
+        else if self.buffer.eq_str("foreign")   { tag = tokens.TOK_FOREIGN; }
+        else if self.buffer.eq_str("unsafe")    { tag = tokens.TOK_UNSAFE; }
+        else if self.buffer.eq_str("global")    { tag = tokens.TOK_GLOBAL; }
+        else if self.buffer.eq_str("struct")    { tag = tokens.TOK_STRUCT; }
+        else if self.buffer.eq_str("implement") { tag = tokens.TOK_IMPL; }
+        else if self.buffer.eq_str("extern")    { tag = tokens.TOK_EXTERN; }
+
+
+        # Return the token.
+        if tag == 0 {
+            # Scanned identifier does not match any defined keyword.
+            # Update the current_id.
+            token_new(
+                tokens.TOK_IDENTIFIER,
+                span.span_new(self.filename, pos, self.current_position()),
+                self.buffer.data() as str);
+        } else {
+            # Return the keyword token.
+            token_new(
+                tag,
+                span.span_new(self.filename, pos, self.current_position()),
+                "");
+        }
+    }
+
+    # scan_punctuator -- Scan for and match a punctuator token.
+    # -------------------------------------------------------------------------
+    def scan_punctuator(&mut self) -> Token {
+        # TODO: This scanning could probably be replaced by something
+        #   creative in a declarative manner.
+
+        # First attempt to match those that are unambigious in that
+        # if the current character matches it is the token.
+        let pos: span.Position = self.current_position();
+        let ch: char = self.peek_char(1);
+        let tag: int = 0;
+        if      ch == "(" { tag = tokens.TOK_LPAREN; }
+        else if ch == ")" { tag = tokens.TOK_RPAREN; }
+        else if ch == "[" { tag = tokens.TOK_LBRACKET; }
+        else if ch == "]" { tag = tokens.TOK_RBRACKET; }
+        else if ch == "{" { tag = tokens.TOK_LBRACE; }
+        else if ch == "}" { tag = tokens.TOK_RBRACE; }
+        else if ch == ";" { tag = tokens.TOK_SEMICOLON; }
+        else if ch == "," { tag = tokens.TOK_COMMA; }
+        else if ch == "." { tag = tokens.TOK_DOT; }
+        else if ch == "^" { tag = tokens.TOK_HAT; }
+        else if ch == "&" { tag = tokens.TOK_AMPERSAND; }
+        else if ch == "|" { tag = tokens.TOK_PIPE; }
+        else if ch == ":" { tag = tokens.TOK_COLON; }
+
+        # If we still need to continue ...
+        if tag <> 0 { self.pop_char(); }
+        else
+        {
+            # Start looking forward and attempt to disambiguate the
+            # following punctuators.
+            if ch == "+" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_PLUS_EQ;
+                } else {
+                    tag = tokens.TOK_PLUS;
+                }
+            } else if ch == "-" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_MINUS_EQ;
+                } else if self.peek_char(1) == ">" {
+                    self.pop_char();
+                    tag = tokens.TOK_RARROW;
+                } else {
+                    tag = tokens.TOK_MINUS;
+                }
+            } else if ch == "*" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_STAR_EQ;
+                } else {
+                    tag = tokens.TOK_STAR;
+                }
+            } else if ch == "/" {
+                self.pop_char();
+                if self.peek_char(1) == "/" {
+                    self.pop_char();
+                    if self.peek_char(1) == "=" {
+                        self.pop_char();
+                        tag = tokens.TOK_FSLASH_FSLASH_EQ;
+                    } else {
+                        tag = tokens.TOK_FSLASH_FSLASH;
+                    }
+                } else if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_FSLASH_EQ;
+                } else {
+                    tag = tokens.TOK_FSLASH;
+                }
+            } else if ch == "%" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_PERCENT_EQ;
+                } else {
+                    tag = tokens.TOK_PERCENT;
+                }
+            } else if ch == "<" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_LCARET_EQ;
+                } else {
+                    tag = tokens.TOK_LCARET;
+                }
+            } else if ch == ">" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_RCARET_EQ;
+                } else {
+                    tag = tokens.TOK_RCARET;
+                }
+            } else if ch == "=" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_EQ_EQ;
+                } else if self.peek_char(1) == ">" {
+                    self.pop_char();
+                    tag = tokens.TOK_RFARROW;
+                } else {
+                    tag = tokens.TOK_EQ;
+                }
+            } else if ch == "!" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_BANG_EQ;
+                } else {
+                    tag = tokens.TOK_BANG;
+                }
+            }
+        }
+
+        # If we matched a token, return it; else, return nil.
+        if tag <> 0 {
+            token_new(
+                tag,
+                span.span_new(self.filename, pos, self.current_position()),
+                "");
+        } else {
+            token_new(0, span.span_null(), "");
+        }
+    }
+
+    # scan_string -- Scan for and produce a string token.
+    # -------------------------------------------------------------------------
+    # xdigit = [0-9a-fa-F]
+    # str = \'([^'\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\'
+    #     | \"([^"\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\"
+    # -------------------------------------------------------------------------
+    def scan_string(&mut self) -> Token {
+        # Remember the current position.
+        let pos: span.Position = self.current_position();
+
+        # What kind of string are we dealing with here; we're either
+        # single-quoted or double-quoted.
+        let current_tok: int = tokens.TOK_STRING;
+        let quotes: int =
+            if self.peek_char(1) == '"' {
+                2;
+            } else {
+                1;
+            };
+
+        # Bump past the quote character.
+        self.pop_char();
+
+        # Clear the string buffer.
+        self.buffer.clear();
+
+        # Loop and consume the string token.
+        let in_escape: bool = false;
+        let in_byte_escape: bool = false;
+        loop {
+            if in_escape {
+                # Bump the character onto the buffer.
+                self.buffer.append(self.pop_char());
+
+                # Check if we have an extension control character.
+                if self.peek_char(1) == 'x' or self.peek_char(1) == 'X' {
+                    in_byte_escape = true;
+                }
+
+                # No longer in an escape sequence.
+                in_escape = false;
+            } else if in_byte_escape {
+                # Bump two characters.
+                self.buffer.append(self.pop_char());
+                self.buffer.append(self.pop_char());
+
+                # No longer in a byte-escape sequence.
+                in_byte_escape = false;
+            } else {
+                if self.peek_char(1) == '\\' {
+                    # Mark that we're now in an escape sequence.
+                    in_escape = true;
+
+                    # Bump the character onto the buffer.
+                    self.buffer.append(self.pop_char());
+                } else if (quotes == 1 and self.peek_char(1) == "'") or
+                          (quotes == 2 and self.peek_char(1) == '"') {
+                    # Found the closing quote; we're done.
+                    self.pop_char();
+                    break;
+                } else {
+                    # Bump the character onto the buffer.
+                    self.buffer.append(self.pop_char());
+                }
+            }
+        }
+
+        # Matched the string token.
+        return token_new(
+            tokens.TOK_STRING,
+            span.span_new(self.filename, pos, self.current_position()),
+            self.buffer.data() as str);
+    }
+}
+
+# Helpers
+# =============================================================================
 
 # is_whitespace -- Test if the passed character constitutes whitespace.
 # -----------------------------------------------------------------------------
-def is_whitespace(c: int) -> bool {
-    c == string.ord(' ') or
-    c == string.ord('\n') or
-    c == string.ord('\t') or
-    c == string.ord('\r');
+def is_whitespace(c: char) -> bool {
+    c == ' ' or c == '\n' or c == '\t' or c == '\r';
+}
+
+# is_numeric -- Test if the passed character is numeric.
+# -----------------------------------------------------------------------------
+def is_numeric(c: char) -> bool {
+    libc.isdigit(c as int32) <> 0;
+}
+
+# Test if the char is in the passed range.
+# -----------------------------------------------------------------------------
+def in_range(c: char, s: char, e: char) -> bool {
+    (c as int8) >= (s as int8) and (c as int8) <= (e as int8);
 }
 
 # is_alphabetic -- Test if the passed character is alphabetic.
 # -----------------------------------------------------------------------------
-def is_alphabetic(c: int) -> bool {
+def is_alphabetic(c: char) -> bool {
     libc.isalpha(c as int32) <> 0;
 }
 
 # is_alphanumeric -- Test if the passed character is alphanumeric.
 # -----------------------------------------------------------------------------
-def is_alphanumeric(c: int) -> bool {
+def is_alphanumeric(c: char) -> bool {
     libc.isalnum(c as int32) <> 0;
 }
 
-# is_numeric -- Test if the passed character is numeric.
-# -----------------------------------------------------------------------------
-def is_numeric(c: int) -> bool {
-    libc.isdigit(c as int32) <> 0;
-}
-
-# consume_whitespace -- Eat whitespace.
-# -----------------------------------------------------------------------------
-def consume_whitespace() { while is_whitespace(lchar) { bump(); } }
-
-# scan_identifier -- Scan for and match an identifier or keyword.
-# -----------------------------------------------------------------------------
-# identifier = [A-Za-z_][A-Za-z_0-9]*
-# -----------------------------------------------------------------------------
-def scan_identifier() -> int {
-    # Clear the buffer.
-    current_buf.clear();
-
-    # Continue through the input stream until we are no longer part
-    # of a possible identifier.
-    loop {
-        current_buf.append(bump() as char);
-        if not is_alphanumeric(lchar) and
-                not lchar == string.ord('_') {
-            break;
-        }
-    }
-
-    # Check for and return keyword tokens instead of the identifier.
-    # TODO: A hash-table would better serve this.
-    if current_buf.eq_str("def")       { return tokens.TOK_DEF; }
-    if current_buf.eq_str("let")       { return tokens.TOK_LET; }
-    if current_buf.eq_str("static")    { return tokens.TOK_STATIC; }
-    if current_buf.eq_str("mut")       { return tokens.TOK_MUT; }
-    if current_buf.eq_str("true")      { return tokens.TOK_TRUE; }
-    if current_buf.eq_str("false")     { return tokens.TOK_FALSE; }
-    if current_buf.eq_str("self")      { return tokens.TOK_SELF; }
-    if current_buf.eq_str("as")        { return tokens.TOK_AS; }
-    if current_buf.eq_str("and")       { return tokens.TOK_AND; }
-    if current_buf.eq_str("or")        { return tokens.TOK_OR; }
-    if current_buf.eq_str("not")       { return tokens.TOK_NOT; }
-    if current_buf.eq_str("if")        { return tokens.TOK_IF; }
-    if current_buf.eq_str("else")      { return tokens.TOK_ELSE; }
-    if current_buf.eq_str("for")       { return tokens.TOK_FOR; }
-    if current_buf.eq_str("while")     { return tokens.TOK_WHILE; }
-    if current_buf.eq_str("loop")      { return tokens.TOK_LOOP; }
-    if current_buf.eq_str("match")     { return tokens.TOK_MATCH; }
-    if current_buf.eq_str("break")     { return tokens.TOK_BREAK; }
-    if current_buf.eq_str("continue")  { return tokens.TOK_CONTINUE; }
-    if current_buf.eq_str("return")    { return tokens.TOK_RETURN; }
-    if current_buf.eq_str("type")      { return tokens.TOK_TYPE; }
-    if current_buf.eq_str("enum")      { return tokens.TOK_ENUM; }
-    if current_buf.eq_str("module")    { return tokens.TOK_MODULE; }
-    if current_buf.eq_str("import")    { return tokens.TOK_IMPORT; }
-    if current_buf.eq_str("use")       { return tokens.TOK_USE; }
-    if current_buf.eq_str("foreign")   { return tokens.TOK_FOREIGN; }
-    if current_buf.eq_str("unsafe")    { return tokens.TOK_UNSAFE; }
-    if current_buf.eq_str("global")    { return tokens.TOK_GLOBAL; }
-    if current_buf.eq_str("struct")    { return tokens.TOK_STRUCT; }
-    if current_buf.eq_str("implement") { return tokens.TOK_IMPL; }
-    if current_buf.eq_str("extern")    { return tokens.TOK_EXTERN; }
-
-    # Scanned identifier does not match any defined keyword.
-    # Update the current_id.
-    current_id.clear();
-    current_id.extend(current_buf.data() as str);
-
-    # Return the id label.
-    return tokens.TOK_IDENTIFIER;
-}
-
-# scan_numeric -- Scan for and produce a numeric token.
-# -----------------------------------------------------------------------------
-# numeric = integer | float
-# digit = [0-9]
-# integer = dec_integer | hex_integer | bin_integer | oct_integer
-# dec_integer = {digit}({digit}|_)*
-# bin_integer = 0[bB][0-1]([0-1]|_)*
-# oct_integer = 0[oO][0-7]([0-7]|_)*
-# hex_integer = 0[xX][0-9A-Fa-f]([0-9A-Fa-f]|_)*
-# exp = [Ee][-+]?{digit}({digit}|_)*
-# float = {digit}({digit}|_)*\.{digit}({digit}|_)*{exp}?
-#       | {digit}({digit}|_)*{exp}?
-# -----------------------------------------------------------------------------
-def scan_numeric() -> int {
-    # Declare our expected token; we don't know yet.
-    let current_tok: int = 0;
-
-    # Clear the current_num buffer for user.
-    current_num.clear();
-
-    # If we are currently a zero ...
-    if lchar == string.ord('0') {
-        # ... Peek ahead and check if we are a base-prefixed numeric.
-        current_tok =
-            if (nchar == string.ord('b') or nchar == string.ord('B')) and
-                    in_range(nnchar, '0', '1') {
-                bump();
-                tokens.TOK_BIN_INTEGER;
-            } else if (nchar == string.ord('x') or nchar == string.ord('X'))
-                    and libc.isxdigit(nnchar as int32) <> 0 {
-                bump();
-                tokens.TOK_HEX_INTEGER;
-            } else if (nchar == string.ord('o') or nchar == string.ord('O'))
-                    and in_range(nnchar, '0', '7') {
-                bump();
-                tokens.TOK_OCT_INTEGER;
-            } else {
-                # We are not a base-prefixed integer.
-                0;
-            };
-
-        if current_tok == tokens.TOK_BIN_INTEGER {
-            # Scan for the remainder of this binary numeric.
-            # TODO: This could probably be reduced into a single
-            #   loop that uses a function pointer taken from an anon function
-            #   to make the check.
-            loop {
-                bump();
-                if in_range(lchar, '0', '1') {
-                    current_num.append(lchar as char);
-                } else if lchar <> string.ord('_') {
-                    break;
-                }
-            }
-            return current_tok;
-        } else if current_tok == tokens.TOK_HEX_INTEGER {
-            # Scan for the remainder of this hexadecimal numeric.
-            loop {
-                bump();
-                if libc.isxdigit(lchar as int32) <> 0 {
-                    current_num.append(lchar as char);
-                } else if lchar <> string.ord('_') {
-                    break;
-                }
-            }
-            return current_tok;
-        } else if current_tok == tokens.TOK_OCT_INTEGER {
-            # Scan for the remainder of this octal numeric.
-            loop {
-                bump();
-                if in_range(lchar, '0', '7') {
-                    current_num.append(lchar as char);
-                } else if lchar <> string.ord('_') {
-                    break;
-                }
-            }
-            return current_tok;
-        }
-    }
-
-    # We are at least a decimal numeric.
-    current_tok = tokens.TOK_DEC_INTEGER;
-
-    # Scan for the remainder of the integral part of the numeric.
-    loop {
-        if is_numeric(lchar) {
-            current_num.append(lchar as char);
-        } else if lchar <> string.ord('_') {
-            break;
-        }
-        bump();
-    }
-
-    # Check for a period (which could indicate the continuation into a
-    # floating-point token or
-    if lchar == string.ord('.') {
-        # Peek a character ahead and ensure it is a digit (we need at
-        # least one digit to count this as a valid floating-point token).
-        if not is_numeric(nchar) {
-            # We are just a plain numeric token.
-            return current_tok;
-        }
-
-        # We are now a floating point token.
-        current_tok = tokens.TOK_FLOAT;
-
-        # Push the period and bump to the next token.
-        current_num.append(bump() as char);
-
-        # Scan the fractional part of the numeric.
-        while is_numeric(lchar) {
-            current_num.append(lchar as char);
-            bump();
-        }
-    }
-
-    # Check for an 'e' or 'E' character that could indicate an exponent on
-    # this numeric constant.
-    if lchar == string.ord('e') or lchar == string.ord('E') {
-        # Ensure that we are followed by an optinally-prefixed digit (
-        # otherwise this e is just an e).
-        if not is_numeric(nchar) and not (
-                (nchar == string.ord('+') or nchar == string.ord('-'))
-                    and is_numeric(nnchar)) {
-            # We are just an e.
-            return current_tok;
-        }
-
-        # We are now a floating point token (if we weren't one before).
-        current_tok = tokens.TOK_FLOAT;
-
-        # Push the 'e' or 'E' and the next character onto the buffer.
-        current_num.append(bump() as char);
-        current_num.append(bump() as char);
-
-        # Scan the exponent part of the numeric.
-        while is_numeric(lchar) {
-            current_num.append(lchar as char);
-            bump();
-        }
-    }
-
-    # We've matched a numeric; return the token.
-    return current_tok;
-}
-
-# scan_string -- Scan for and produce a string token.
-# -----------------------------------------------------------------------------
-# xdigit = [0-9a-fa-F]
-# str = \'([^'\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\'
-#     | \"([^"\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\"
-# -----------------------------------------------------------------------------
-def scan_string() -> int {
-    # What kind of string are we dealing with here; we're either single-quoted
-    # or double-quoted.
-    let current_tok: int = tokens.TOK_STRING;
-    let kind: int =
-        if lchar == string.ord('"') {
-            STR_DOUBLE;
-        } else {
-            STR_SINGLE;
-        };
-
-    # Bump past the quote character.
-    bump();
-
-    # Clear the string buffer.
-    cur_str.clear();
-
-    # Loop and consume the string token.
-    let in_escape: bool = false;
-    let in_byte_escape: bool = false;
-    loop {
-        if in_escape {
-            # Bump the character onto the buffer.
-            cur_str.append(bump() as char);
-
-            # Check if we have an extension control character.
-            if lchar == string.ord('x') or lchar == string.ord('X') {
-                in_byte_escape = true;
-            }
-
-            # No longer in an escape sequence.
-            in_escape = false;
-        } else if in_byte_escape {
-            # Bump two characters.
-            cur_str.append(bump() as char);
-            cur_str.append(bump() as char);
-
-            # No longer in a byte-escape sequence.
-            in_byte_escape = false;
-        } else {
-            if lchar == string.ord('\\') {
-                # Mark that we're now in an escape sequence.
-                in_escape = true;
-
-                # Bump the character onto the buffer.
-                cur_str.append(bump() as char);
-            } else if (kind == STR_SINGLE and lchar == string.ord("'")) or
-                      (kind == STR_DOUBLE and lchar == string.ord('"')) {
-                # Found the closing quote; we're done.
-                bump();
-                break;
-            } else {
-                # Bump the character onto the buffer.
-                cur_str.append(bump() as char);
-            }
-        }
-    }
-
-    # Matched the string token.
-    current_tok;
-}
-
-# scan_punctuator -- Scan for and match a punctuator token.
-# -----------------------------------------------------------------------------
-def scan_punctuator() -> int {
-    # First attempt to match those that are unambigious in that
-    # if the current character matches it is the token.
-    if      lchar == string.ord('(') { bump(); return tokens.TOK_LPAREN; }
-    else if lchar == string.ord(')') { bump(); return tokens.TOK_RPAREN; }
-    else if lchar == string.ord('[') { bump(); return tokens.TOK_LBRACKET; }
-    else if lchar == string.ord(']') { bump(); return tokens.TOK_RBRACKET; }
-    else if lchar == string.ord('{') { bump(); return tokens.TOK_LBRACE; }
-    else if lchar == string.ord('}') { bump(); return tokens.TOK_RBRACE; }
-    else if lchar == string.ord(';') { bump(); return tokens.TOK_SEMICOLON; }
-    else if lchar == string.ord(',') { bump(); return tokens.TOK_COMMA; }
-    else if lchar == string.ord('.') { bump(); return tokens.TOK_DOT; }
-    else if lchar == string.ord('^') { bump(); return tokens.TOK_HAT; }
-    else if lchar == string.ord('&') { bump(); return tokens.TOK_AMPERSAND; }
-    else if lchar == string.ord('|') { bump(); return tokens.TOK_PIPE; }
-
-    # Next take a peek at the next character and disambiguate the following
-    # punctuators.
-    if lchar == string.ord('+') {
-        bump();
-        if lchar == string.ord('=') { bump(); return tokens.TOK_PLUS_EQ; }
-        return tokens.TOK_PLUS;
-    } else if lchar == string.ord('-') {
-        bump();
-        if lchar == string.ord('=') { bump(); return tokens.TOK_MINUS_EQ; }
-        if lchar == string.ord('>') { bump(); return tokens.TOK_RARROW; }
-        return tokens.TOK_MINUS;
-    } else if lchar == string.ord('*') {
-        bump();
-        if lchar == string.ord('=') { bump(); return tokens.TOK_STAR_EQ; }
-        return tokens.TOK_STAR;
-    } else if lchar == string.ord('/') {
-        bump();
-        if lchar == string.ord('=') { bump(); return tokens.TOK_FSLASH_EQ; }
-        if lchar == string.ord('/') {
-            bump();
-            if lchar == string.ord('=') { bump(); return tokens.TOK_FSLASH_FSLASH_EQ; }
-            return tokens.TOK_FSLASH_FSLASH;
-        }
-        return tokens.TOK_FSLASH;
-    } else if lchar == string.ord('%') {
-        bump();
-        if lchar == string.ord('=') { bump(); return tokens.TOK_PERCENT_EQ; }
-        return tokens.TOK_PERCENT;
-    } else if lchar == string.ord('<') {
-        bump();
-        if lchar == string.ord('=') { bump(); return tokens.TOK_LCARET_EQ; }
-        if lchar == string.ord('>') { bump(); return tokens.TOK_BANG_EQ; }
-        return tokens.TOK_LCARET;
-    } else if lchar == string.ord('>') {
-        bump();
-        if lchar == string.ord('=') { bump(); return tokens.TOK_RCARET_EQ; }
-        return tokens.TOK_RCARET;
-    } else if lchar == string.ord('=') {
-        bump();
-        if lchar == string.ord('=') { bump(); return tokens.TOK_EQ_EQ; }
-        return tokens.TOK_EQ;
-    } else if lchar == string.ord(':') {
-        bump();
-        return tokens.TOK_COLON;
-    } else if lchar == string.ord('!') {
-        bump();
-        if lchar == string.ord("=") { bump(); return tokens.TOK_BANG_EQ; }
-        return tokens.TOK_BANG;
-    }
-
-    # Didn't match a punctuator token.
-    0;
-}
-
-# get_next_token -- Return the next token from stdin.
-# -----------------------------------------------------------------------------
-def get_next_token() -> int {
-    # Skip any whitespace.
-    consume_whitespace();
-
-    # Check if we've reached the end of the stream and the send the END token.
-    if lchar == -1 { return tokens.TOK_END; }
-
-    # Check for an alphabetic or '_' character which signals the beginning
-    # of an identifier.
-    if is_alphabetic(lchar) or lchar == string.ord('_') {
-        # Scan for and match the identifier
-        return scan_identifier();
-    }
-
-    # Check for a leading digit that would indicate the start of a
-    # numeric token.
-    if is_numeric(lchar) {
-        # Scan for and match the numeric token.
-        return scan_numeric();
-    }
-
-    # Check for and consume a string token.
-    if lchar == string.ord("'") or lchar == string.ord('"') {
-        # Scan the entire string token.
-        return scan_string();
-    }
-
-    # Check for and attempt to consume punctuators (eg. "+").
-    let possible_token: int = scan_punctuator();
-    if possible_token <> 0 { return possible_token; }
-
-    # Consume and ignore line comments; returning the next token
-    # following the line comment.
-    if lchar == string.ord('#') {
-        loop {
-            bump();
-            if lchar == -1 { break; }
-            else if lchar == 0x0A or lchar == 0x0D {
-                return get_next_token();
-            }
-        }
-    }
-
-    # No idea what we have; return a poison token.
-    printf("error: unknown token: '%c'\n", lchar);
-    lchar = libc.getchar();
-    return tokens.TOK_ERROR;
-}
-
-# println_token -- Print the token representation.
-# -----------------------------------------------------------------------------
-def println_token(token: int) {
-    if token == tokens.TOK_ERROR {
-        printf("<error>\n");
-    } else if token == tokens.TOK_END {
-        printf("<end>\n");
-    } else if token == tokens.TOK_LINE {
-        printf("<line>\n");
-    } else if token <= -1000 and token > -2000 {
-        printf("<keyword> '%s'\n", current_buf.data());
-    } else if token == tokens.TOK_IDENTIFIER {
-        printf("<identifier> '%s'\n", current_id.data());
-    } else if token == tokens.TOK_DEC_INTEGER {
-        printf("<decimal integer> '%s'\n", current_num.data());
-    } else if token == tokens.TOK_BIN_INTEGER {
-        printf("<binary integer> '%s'\n", current_num.data());
-    } else if token == tokens.TOK_OCT_INTEGER {
-        printf("<octal integer> '%s'\n", current_num.data());
-    } else if token == tokens.TOK_HEX_INTEGER {
-        printf("<hexadecimal integer> '%s'\n", current_num.data());
-    } else if token == tokens.TOK_FLOAT {
-        printf("<floating-point> '%s'\n", current_num.data());
-    } else if token == tokens.TOK_STRING  {
-        printf("<string> '%s'\n", cur_str.data());
-    } else if token == tokens.TOK_RARROW {
-        printf("<punctuator> '->'\n");
-    } else if token == tokens.TOK_PLUS {
-        printf("<punctuator> '+'\n");
-    } else if token == tokens.TOK_MINUS {
-        printf("<punctuator> '-'\n");
-    } else if token == tokens.TOK_STAR {
-        printf("<punctuator> '*'\n");
-    } else if token == tokens.TOK_FSLASH {
-        printf("<punctuator> '/'\n");
-    } else if token == tokens.TOK_PERCENT {
-        printf("<punctuator> '%'\n");
-    } else if token == tokens.TOK_HAT {
-        printf("<punctuator> '^'\n");
-    } else if token == tokens.TOK_AMPERSAND {
-        printf("<punctuator> '&'\n");
-    } else if token == tokens.TOK_LPAREN {
-        printf("<punctuator> '('\n");
-    } else if token == tokens.TOK_RPAREN {
-        printf("<punctuator> ')'\n");
-    } else if token == tokens.TOK_LBRACKET {
-        printf("<punctuator> '['\n");
-    } else if token == tokens.TOK_RBRACKET {
-        printf("<punctuator> ']'\n");
-    } else if token == tokens.TOK_LBRACE {
-        printf("<punctuator> '{'\n");
-    } else if token == tokens.TOK_RBRACE {
-        printf("<punctuator> '}'\n");
-    } else if token == tokens.TOK_SEMICOLON {
-        printf("<punctuator> ';'\n");
-    } else if token == tokens.TOK_COLON {
-        printf("<punctuator> ':'\n");
-    } else if token == tokens.TOK_COMMA {
-        printf("<punctuator> ','\n");
-    } else if token == tokens.TOK_DOT {
-        printf("<punctuator> '.'\n");
-    } else if token == tokens.TOK_LCARET {
-        printf("<punctuator> '<'\n");
-    } else if token == tokens.TOK_RCARET {
-        printf("<punctuator> '>'\n");
-    } else if token == tokens.TOK_LCARET_EQ {
-        printf("<punctuator> '<='\n");
-    } else if token == tokens.TOK_RCARET_EQ {
-        printf("<punctuator> '>='\n");
-    } else if token == tokens.TOK_EQ_EQ {
-        printf("<punctuator> '=='\n");
-    } else if token == tokens.TOK_BANG_EQ {
-        printf("<punctuator> '<>'\n");
-    } else if token == tokens.TOK_EQ {
-        printf("<punctuator> '='\n");
-    } else if token == tokens.TOK_PLUS_EQ {
-        printf("<punctuator> '+='\n");
-    } else if token == tokens.TOK_MINUS_EQ {
-        printf("<punctuator> '-='\n");
-    } else if token == tokens.TOK_STAR_EQ {
-        printf("<punctuator> '*='\n");
-    } else if token == tokens.TOK_FSLASH_EQ {
-        printf("<punctuator> '/='\n");
-    } else if token == tokens.TOK_PERCENT_EQ {
-        printf("<punctuator> '%='\n");
-    } else if token == tokens.TOK_FSLASH_FSLASH {
-        printf("<punctuator> '//'\n");
-    } else if token == tokens.TOK_FSLASH_FSLASH_EQ {
-        printf("<punctuator> '//='\n");
-    }
-}
+# Driver (Test)
+# =============================================================================
 
 def main() {
-    let tok: int;
+    # Construct a new tokenizer.
+    let mut tokenizer: Tokenizer = tokenizer_new("-", libc.stdin);
+
+    # Iterate through each token in the input stream.
     loop {
-        tok = get_next_token();
-        println_token(tok);
-        if tok == tokens.TOK_END { break; }
+        # Get the next token
+        let mut tok: Token = tokenizer.next();
+
+        # Print token if we're error-free
+        if errors.count == 0 {
+            tok.println();
+        }
+
+        # Stop if we reach the end.
+        if tok.tag == tokens.TOK_END { break; }
+
+        # Dispose of the token.
+        tok.dispose();
     }
-    libc.exit(0);
+
+    # Dispose of the tokenizer.
+    tokenizer.dispose();
+
+    # Return to the environment.
+    libc.exit(0 if errors.count == 0 else -1);
 }

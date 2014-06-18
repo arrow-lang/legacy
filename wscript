@@ -92,7 +92,6 @@ def _build_part(ctx, name):
 def build(ctx):
     # Build the simple parts
     _build_part(ctx, "tokenizer")
-    _build_part(ctx, "tokenizer_")
     _build_part(ctx, "parser")
 
     # Compile the generator to the llvm IL.

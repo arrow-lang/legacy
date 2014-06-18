@@ -1,5 +1,5 @@
 def factorial(n: int64): int64 {
-    n * factorial(n - 1) if n <> 0 else 1;
+    n * factorial(n - 1) if n != 0 else 1;
 }
 
 def main() {

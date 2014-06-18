@@ -8,6 +8,7 @@ import dict;
 import list;
 import types;
 import code;
+import tokenizer;
 import generator_;
 import generator_util;
 import generator_extract;
@@ -287,11 +288,15 @@ def declare_main(&mut g: generator_.Generator) {
 # Test driver using `stdin`.
 # =============================================================================
 def main() {
+    # Declare the tokenizer.
+    let mut t: tokenizer.Tokenizer = tokenizer.tokenizer_new(
+        "-", libc.stdin);
+
     # Declare the parser.
-    let mut p: parser.Parser;
+    let mut p: parser.Parser = parser.parser_new("_", t);
 
     # Parse the AST from the standard input.
-    let unit: ast.Node = p.parse("_");
+    let unit: ast.Node = p.parse();
     if errors.count > 0 { libc.exit(-1); }
 
     # Declare the generator.

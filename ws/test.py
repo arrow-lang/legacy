@@ -71,7 +71,7 @@ def _report(filename, status):
 def _test_tokenizer(ctx):
     for fixture in sorted(glob("tests/tokenize/*.as")):
         # Run the tokenizer over our fixture.
-        returncode, stdout, stderr = _run(fixture, 'tokenizer_', [])
+        returncode, stdout, stderr = _run(fixture, 'tokenizer', [])
 
         # Check the output against the expected.
         # FIXME: Check the returncode
@@ -85,7 +85,7 @@ def _test_tokenizer(ctx):
 def _test_tokenizer_fail(ctx):
     for fixture in sorted(glob("tests/tokenize-fail/*.as")):
         # Run the tokenizer over our fixture.
-        returncode, stdout, stderr = _run(fixture, 'tokenizer_', [])
+        returncode, stdout, stderr = _run(fixture, 'tokenizer', [])
 
         # Check the output against the expected.
         status = True

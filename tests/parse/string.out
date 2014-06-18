@@ -2,7 +2,7 @@ ModuleDecl <?> _
   Nodes <?> 
     StringExpr <?> Hello World
     StringExpr <?> Goodbye
-    StringExpr <?> someone in the world; someone in the world; should hopefully read this, sometime
+    StringExpr <?> Hello, someone in the world; should hopefully read this, sometime
     StringExpr <?> A
     StringExpr <?> b
     StringExpr <?> \\

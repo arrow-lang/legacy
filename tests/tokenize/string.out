@@ -1,9 +1,9 @@
-<string> 'Hello World'
-<string> 'Hi \x32 \n\?'
-<string> 'SH'
-<string> '''
-<string> '\"'
-<string> '\''
-<string> '"'
-<string> '''
-<end>
+<stdin>:1:1-14: string 'Hello World'
+<stdin>:2:1-15: string 'Hi \x32 \n\?'
+<stdin>:3:1-5: string 'SH'
+<stdin>:4:1-4: string '''
+<stdin>:5:1-5: string '\"'
+<stdin>:6:1-5: string '\''
+<stdin>:7:1-4: string '"'
+<stdin>:8:1-4: string '''
+<stdin>:9:1-2: end

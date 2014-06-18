@@ -58,6 +58,188 @@ implement Token {
         {
             printf("floating-point '%s'", self.text.data());
         }
+        else if self.tag == tokens.TOK_STRING
+        {
+            printf("string '%s'", self.text.data());
+        }
+        else if self.tag == tokens.TOK_IDENTIFIER
+        {
+            printf("identifier '%s'", self.text.data());
+        }
+        else if self.tag > -2000 and self.tag < -1000 {
+            # TODO: Replace this with a map or something
+            printf("keyword: '");
+            if self.tag == tokens.TOK_DEF {
+                printf("def");
+            }
+            else if self.tag == tokens.TOK_LET {
+                printf("let");
+            }
+            else if self.tag == tokens.TOK_STATIC {
+                printf("static");
+            }
+            else if self.tag == tokens.TOK_MUT {
+                printf("mut");
+            }
+            else if self.tag == tokens.TOK_TRUE {
+                printf("true");
+            }
+            else if self.tag == tokens.TOK_FALSE {
+                printf("false");
+            }
+            else if self.tag == tokens.TOK_SELF {
+                printf("self");
+            }
+            else if self.tag == tokens.TOK_AS {
+                printf("as");
+            }
+            else if self.tag == tokens.TOK_AND {
+                printf("and");
+            }
+            else if self.tag == tokens.TOK_OR {
+                printf("or");
+            }
+            else if self.tag == tokens.TOK_NOT {
+                printf("not");
+            }
+            else if self.tag == tokens.TOK_IF {
+                printf("if");
+            }
+            else if self.tag == tokens.TOK_ELSE {
+                printf("else");
+            }
+            else if self.tag == tokens.TOK_WHILE {
+                printf("while");
+            }
+            else if self.tag == tokens.TOK_LOOP {
+                printf("loop");
+            }
+            else if self.tag == tokens.TOK_FOR {
+                printf("for");
+            }
+            else if self.tag == tokens.TOK_MATCH {
+                printf("match");
+            }
+            else if self.tag == tokens.TOK_BREAK {
+                printf("break");
+            }
+            else if self.tag == tokens.TOK_CONTINUE {
+                printf("continue");
+            }
+            else if self.tag == tokens.TOK_RETURN {
+                printf("return");
+            }
+            else if self.tag == tokens.TOK_TYPE {
+                printf("type");
+            }
+            else if self.tag == tokens.TOK_ENUM {
+                printf("enum");
+            }
+            else if self.tag == tokens.TOK_MODULE {
+                printf("module");
+            }
+            else if self.tag == tokens.TOK_IMPORT {
+                printf("import");
+            }
+            else if self.tag == tokens.TOK_USE {
+                printf("use");
+            }
+            else if self.tag == tokens.TOK_FOREIGN {
+                printf("foreign");
+            }
+            else if self.tag == tokens.TOK_UNSAFE {
+                printf("unsafe");
+            }
+            else if self.tag == tokens.TOK_GLOBAL {
+                printf("global");
+            }
+            else if self.tag == tokens.TOK_STRUCT {
+                printf("struct");
+            }
+            else if self.tag == tokens.TOK_IMPL {
+                printf("impl");
+            }
+            else if self.tag == tokens.TOK_EXTERN {
+                printf("extern");
+            }
+            printf("'");
+        }
+        else if self.tag > -3000 and self.tag < -2000 {
+            # TODO: Replace this with a map or something
+            printf("punctuator: '");
+            if self.tag == tokens.TOK_RARROW {
+                printf("->");
+            } else if self.tag == tokens.TOK_PLUS {
+                printf("+");
+            } else if self.tag == tokens.TOK_MINUS {
+                printf("-");
+            } else if self.tag == tokens.TOK_STAR {
+                printf("*");
+            } else if self.tag == tokens.TOK_FSLASH {
+                printf("/");
+            } else if self.tag == tokens.TOK_PERCENT {
+                printf("%");
+            } else if self.tag == tokens.TOK_HAT {
+                printf("^");
+            } else if self.tag == tokens.TOK_AMPERSAND {
+                printf("&");
+            } else if self.tag == tokens.TOK_LPAREN {
+                printf("(");
+            } else if self.tag == tokens.TOK_RPAREN {
+                printf(")");
+            } else if self.tag == tokens.TOK_LBRACKET {
+                printf("[");
+            } else if self.tag == tokens.TOK_RBRACKET {
+                printf("]");
+            } else if self.tag == tokens.TOK_LBRACE {
+                printf("{");
+            } else if self.tag == tokens.TOK_RBRACE {
+                printf("}");
+            } else if self.tag == tokens.TOK_SEMICOLON {
+                printf(";");
+            } else if self.tag == tokens.TOK_COLON {
+                printf(":");
+            } else if self.tag == tokens.TOK_COMMA {
+                printf(",");
+            } else if self.tag == tokens.TOK_DOT {
+                printf(".");
+            } else if self.tag == tokens.TOK_LCARET {
+                printf("<");
+            } else if self.tag == tokens.TOK_RCARET {
+                printf(">");
+            } else if self.tag == tokens.TOK_LCARET_EQ {
+                printf("<=");
+            } else if self.tag == tokens.TOK_RCARET_EQ {
+                printf(">=");
+            } else if self.tag == tokens.TOK_EQ_EQ {
+                printf("==");
+            } else if self.tag == tokens.TOK_BANG_EQ {
+                printf("!=");
+            } else if self.tag == tokens.TOK_EQ {
+                printf("=");
+            } else if self.tag == tokens.TOK_PLUS_EQ {
+                printf("+=");
+            } else if self.tag == tokens.TOK_MINUS_EQ {
+                printf("-=");
+            } else if self.tag == tokens.TOK_STAR_EQ {
+                printf("*=");
+            } else if self.tag == tokens.TOK_FSLASH_EQ {
+                printf("/=");
+            } else if self.tag == tokens.TOK_PERCENT_EQ {
+                printf("%=");
+            } else if self.tag == tokens.TOK_FSLASH_FSLASH {
+                printf("//");
+            } else if self.tag == tokens.TOK_FSLASH_FSLASH_EQ {
+                printf("//=");
+            } else if self.tag == tokens.TOK_BANG {
+                printf("!");
+            } else if self.tag == tokens.TOK_PIPE {
+                printf("|");
+            } else if self.tag == tokens.TOK_RFARROW {
+                printf("=>");
+            }
+            printf("'");
+        }
 
         # Terminate with a newline
         printf("\n");
@@ -216,6 +398,12 @@ implement Tokenizer {
         if is_numeric(self.peek_char(1)) {
             # Scan for and match the numeric token.
             return self.scan_numeric();
+        }
+
+        # Check for and consume a string token.
+        if self.peek_char(1) == "'" or self.peek_char(1) == '"' {
+            # Scan the entire string token.
+            return self.scan_string();
         }
 
         # Consume and ignore line comments; returning the next token
@@ -445,91 +633,284 @@ implement Tokenizer {
             self.buffer.data() as str);
     }
 
+    # scan_identifier -- Scan for and match an identifier or keyword.
+    # -------------------------------------------------------------------------
+    # identifier = [A-Za-z_][A-Za-z_0-9]*
+    # -------------------------------------------------------------------------
+    def scan_identifier(&mut self) -> Token {
+        # Remember the current position.
+        let pos: span.Position = self.current_position();
+
+        # Clear the buffer.
+        self.buffer.clear();
+
+        # Continue through the input stream until we are no longer part
+        # of a possible identifier.
+        loop {
+            self.buffer.append(self.pop_char());
+            if not is_alphanumeric(self.peek_char(1)) and
+                    not self.peek_char(1) == "_" {
+                break;
+            }
+        }
+
+        # Check for and return keyword tokens instead of the identifier.
+        # TODO: A hash-table would better serve this.
+        let tag: int = 0;
+             if self.buffer.eq_str("def")       { tag = tokens.TOK_DEF; }
+        else if self.buffer.eq_str("let")       { tag = tokens.TOK_LET; }
+        else if self.buffer.eq_str("static")    { tag = tokens.TOK_STATIC; }
+        else if self.buffer.eq_str("mut")       { tag = tokens.TOK_MUT; }
+        else if self.buffer.eq_str("true")      { tag = tokens.TOK_TRUE; }
+        else if self.buffer.eq_str("false")     { tag = tokens.TOK_FALSE; }
+        else if self.buffer.eq_str("self")      { tag = tokens.TOK_SELF; }
+        else if self.buffer.eq_str("as")        { tag = tokens.TOK_AS; }
+        else if self.buffer.eq_str("and")       { tag = tokens.TOK_AND; }
+        else if self.buffer.eq_str("or")        { tag = tokens.TOK_OR; }
+        else if self.buffer.eq_str("not")       { tag = tokens.TOK_NOT; }
+        else if self.buffer.eq_str("if")        { tag = tokens.TOK_IF; }
+        else if self.buffer.eq_str("else")      { tag = tokens.TOK_ELSE; }
+        else if self.buffer.eq_str("for")       { tag = tokens.TOK_FOR; }
+        else if self.buffer.eq_str("while")     { tag = tokens.TOK_WHILE; }
+        else if self.buffer.eq_str("loop")      { tag = tokens.TOK_LOOP; }
+        else if self.buffer.eq_str("match")     { tag = tokens.TOK_MATCH; }
+        else if self.buffer.eq_str("break")     { tag = tokens.TOK_BREAK; }
+        else if self.buffer.eq_str("continue")  { tag = tokens.TOK_CONTINUE; }
+        else if self.buffer.eq_str("return")    { tag = tokens.TOK_RETURN; }
+        else if self.buffer.eq_str("type")      { tag = tokens.TOK_TYPE; }
+        else if self.buffer.eq_str("enum")      { tag = tokens.TOK_ENUM; }
+        else if self.buffer.eq_str("module")    { tag = tokens.TOK_MODULE; }
+        else if self.buffer.eq_str("import")    { tag = tokens.TOK_IMPORT; }
+        else if self.buffer.eq_str("use")       { tag = tokens.TOK_USE; }
+        else if self.buffer.eq_str("foreign")   { tag = tokens.TOK_FOREIGN; }
+        else if self.buffer.eq_str("unsafe")    { tag = tokens.TOK_UNSAFE; }
+        else if self.buffer.eq_str("global")    { tag = tokens.TOK_GLOBAL; }
+        else if self.buffer.eq_str("struct")    { tag = tokens.TOK_STRUCT; }
+        else if self.buffer.eq_str("implement") { tag = tokens.TOK_IMPL; }
+        else if self.buffer.eq_str("extern")    { tag = tokens.TOK_EXTERN; }
+
+
+        # Return the token.
+        if tag == 0 {
+            # Scanned identifier does not match any defined keyword.
+            # Update the current_id.
+            token_new(
+                tokens.TOK_IDENTIFIER,
+                span.span_new(self.filename, pos, self.current_position()),
+                self.buffer.data() as str);
+        } else {
+            # Return the keyword token.
+            token_new(
+                tag,
+                span.span_new(self.filename, pos, self.current_position()),
+                "");
+        }
+    }
+
     # scan_punctuator -- Scan for and match a punctuator token.
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def scan_punctuator(&mut self) -> Token {
+        # TODO: This scanning could probably be replaced by something
+        #   creative in a declarative manner.
+
         # First attempt to match those that are unambigious in that
         # if the current character matches it is the token.
+        let pos: span.Position = self.current_position();
         let ch: char = self.peek_char(1);
         let tag: int = 0;
         if      ch == "(" { tag = tokens.TOK_LPAREN; }
         else if ch == ")" { tag = tokens.TOK_RPAREN; }
         else if ch == "[" { tag = tokens.TOK_LBRACKET; }
         else if ch == "]" { tag = tokens.TOK_RBRACKET; }
-    }
+        else if ch == "{" { tag = tokens.TOK_LBRACE; }
+        else if ch == "}" { tag = tokens.TOK_RBRACE; }
+        else if ch == ";" { tag = tokens.TOK_SEMICOLON; }
+        else if ch == "," { tag = tokens.TOK_COMMA; }
+        else if ch == "." { tag = tokens.TOK_DOT; }
+        else if ch == "^" { tag = tokens.TOK_HAT; }
+        else if ch == "&" { tag = tokens.TOK_AMPERSAND; }
+        else if ch == "|" { tag = tokens.TOK_PIPE; }
+        else if ch == ":" { tag = tokens.TOK_COLON; }
 
-
-
-    def scan_punctuator() -> int {
-        # First attempt to match those that are unambigious in that
-        # if the current character matches it is the token.
-        if      lchar == string.ord('(') { bump(); return tokens.TOK_LPAREN; }
-        else if lchar == string.ord(')') { bump(); return tokens.TOK_RPAREN; }
-        else if lchar == string.ord('[') { bump(); return tokens.TOK_LBRACKET; }
-        else if lchar == string.ord(']') { bump(); return tokens.TOK_RBRACKET; }
-        else if lchar == string.ord('{') { bump(); return tokens.TOK_LBRACE; }
-        else if lchar == string.ord('}') { bump(); return tokens.TOK_RBRACE; }
-        else if lchar == string.ord(';') { bump(); return tokens.TOK_SEMICOLON; }
-        else if lchar == string.ord(',') { bump(); return tokens.TOK_COMMA; }
-        else if lchar == string.ord('.') { bump(); return tokens.TOK_DOT; }
-        else if lchar == string.ord('^') { bump(); return tokens.TOK_HAT; }
-        else if lchar == string.ord('&') { bump(); return tokens.TOK_AMPERSAND; }
-        else if lchar == string.ord('|') { bump(); return tokens.TOK_PIPE; }
-
-        # Next take a peek at the next character and disambiguate the following
-        # punctuators.
-        if lchar == string.ord('+') {
-            bump();
-            if lchar == string.ord('=') { bump(); return tokens.TOK_PLUS_EQ; }
-            return tokens.TOK_PLUS;
-        } else if lchar == string.ord('-') {
-            bump();
-            if lchar == string.ord('=') { bump(); return tokens.TOK_MINUS_EQ; }
-            if lchar == string.ord('>') { bump(); return tokens.TOK_RARROW; }
-            return tokens.TOK_MINUS;
-        } else if lchar == string.ord('*') {
-            bump();
-            if lchar == string.ord('=') { bump(); return tokens.TOK_STAR_EQ; }
-            return tokens.TOK_STAR;
-        } else if lchar == string.ord('/') {
-            bump();
-            if lchar == string.ord('=') { bump(); return tokens.TOK_FSLASH_EQ; }
-            if lchar == string.ord('/') {
-                bump();
-                if lchar == string.ord('=') { bump(); return tokens.TOK_FSLASH_FSLASH_EQ; }
-                return tokens.TOK_FSLASH_FSLASH;
+        # If we still need to continue ...
+        if tag <> 0 { self.pop_char(); }
+        else
+        {
+            # Start looking forward and attempt to disambiguate the
+            # following punctuators.
+            if ch == "+" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_PLUS_EQ;
+                } else {
+                    tag = tokens.TOK_PLUS;
+                }
+            } else if ch == "-" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_MINUS_EQ;
+                } else if self.peek_char(1) == ">" {
+                    self.pop_char();
+                    tag = tokens.TOK_RARROW;
+                } else {
+                    tag = tokens.TOK_MINUS;
+                }
+            } else if ch == "*" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_STAR_EQ;
+                } else {
+                    tag = tokens.TOK_STAR;
+                }
+            } else if ch == "/" {
+                self.pop_char();
+                if self.peek_char(1) == "/" {
+                    self.pop_char();
+                    if self.peek_char(1) == "=" {
+                        self.pop_char();
+                        tag = tokens.TOK_FSLASH_FSLASH_EQ;
+                    } else {
+                        tag = tokens.TOK_FSLASH_FSLASH;
+                    }
+                } else if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_FSLASH_EQ;
+                } else {
+                    tag = tokens.TOK_FSLASH;
+                }
+            } else if ch == "%" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_PERCENT_EQ;
+                } else {
+                    tag = tokens.TOK_PERCENT;
+                }
+            } else if ch == "<" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_LCARET_EQ;
+                } else {
+                    tag = tokens.TOK_LCARET;
+                }
+            } else if ch == ">" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_RCARET_EQ;
+                } else {
+                    tag = tokens.TOK_RCARET;
+                }
+            } else if ch == "=" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_EQ_EQ;
+                } else if self.peek_char(1) == ">" {
+                    self.pop_char();
+                    tag = tokens.TOK_RFARROW;
+                } else {
+                    tag = tokens.TOK_EQ;
+                }
+            } else if ch == "!" {
+                self.pop_char();
+                if self.peek_char(1) == "=" {
+                    self.pop_char();
+                    tag = tokens.TOK_BANG_EQ;
+                } else {
+                    tag = tokens.TOK_BANG;
+                }
             }
-            return tokens.TOK_FSLASH;
-        } else if lchar == string.ord('%') {
-            bump();
-            if lchar == string.ord('=') { bump(); return tokens.TOK_PERCENT_EQ; }
-            return tokens.TOK_PERCENT;
-        } else if lchar == string.ord('<') {
-            bump();
-            if lchar == string.ord('=') { bump(); return tokens.TOK_LCARET_EQ; }
-            if lchar == string.ord('>') { bump(); return tokens.TOK_BANG_EQ; }
-            return tokens.TOK_LCARET;
-        } else if lchar == string.ord('>') {
-            bump();
-            if lchar == string.ord('=') { bump(); return tokens.TOK_RCARET_EQ; }
-            return tokens.TOK_RCARET;
-        } else if lchar == string.ord('=') {
-            bump();
-            if lchar == string.ord('=') { bump(); return tokens.TOK_EQ_EQ; }
-            return tokens.TOK_EQ;
-        } else if lchar == string.ord(':') {
-            bump();
-            return tokens.TOK_COLON;
-        } else if lchar == string.ord('!') {
-            bump();
-            if lchar == string.ord("=") { bump(); return tokens.TOK_BANG_EQ; }
-            return tokens.TOK_BANG;
         }
 
-        # Didn't match a punctuator token.
-        0;
+        # If we matched a token, return it; else, return nil.
+        if tag <> 0 {
+            token_new(
+                tag,
+                span.span_new(self.filename, pos, self.current_position()),
+                "");
+        } else {
+            token_new(0, span.span_null(), "");
+        }
     }
 
+    # scan_string -- Scan for and produce a string token.
+    # -------------------------------------------------------------------------
+    # xdigit = [0-9a-fa-F]
+    # str = \'([^'\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\'
+    #     | \"([^"\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\"
+    # -------------------------------------------------------------------------
+    def scan_string(&mut self) -> Token {
+        # Remember the current position.
+        let pos: span.Position = self.current_position();
+
+        # What kind of string are we dealing with here; we're either
+        # single-quoted or double-quoted.
+        let current_tok: int = tokens.TOK_STRING;
+        let quotes: int =
+            if self.peek_char(1) == '"' {
+                2;
+            } else {
+                1;
+            };
+
+        # Bump past the quote character.
+        self.pop_char();
+
+        # Clear the string buffer.
+        self.buffer.clear();
+
+        # Loop and consume the string token.
+        let in_escape: bool = false;
+        let in_byte_escape: bool = false;
+        loop {
+            if in_escape {
+                # Bump the character onto the buffer.
+                self.buffer.append(self.pop_char());
+
+                # Check if we have an extension control character.
+                if self.peek_char(1) == 'x' or self.peek_char(1) == 'X' {
+                    in_byte_escape = true;
+                }
+
+                # No longer in an escape sequence.
+                in_escape = false;
+            } else if in_byte_escape {
+                # Bump two characters.
+                self.buffer.append(self.pop_char());
+                self.buffer.append(self.pop_char());
+
+                # No longer in a byte-escape sequence.
+                in_byte_escape = false;
+            } else {
+                if self.peek_char(1) == '\\' {
+                    # Mark that we're now in an escape sequence.
+                    in_escape = true;
+
+                    # Bump the character onto the buffer.
+                    self.buffer.append(self.pop_char());
+                } else if (quotes == 1 and self.peek_char(1) == "'") or
+                          (quotes == 2 and self.peek_char(1) == '"') {
+                    # Found the closing quote; we're done.
+                    self.pop_char();
+                    break;
+                } else {
+                    # Bump the character onto the buffer.
+                    self.buffer.append(self.pop_char());
+                }
+            }
+        }
+
+        # Matched the string token.
+        return token_new(
+            tokens.TOK_STRING,
+            span.span_new(self.filename, pos, self.current_position()),
+            self.buffer.data() as str);
+    }
 }
 
 # Helpers
@@ -551,6 +932,18 @@ def is_numeric(c: char) -> bool {
 # -----------------------------------------------------------------------------
 def in_range(c: char, s: char, e: char) -> bool {
     (c as int8) >= (s as int8) and (c as int8) <= (e as int8);
+}
+
+# is_alphabetic -- Test if the passed character is alphabetic.
+# -----------------------------------------------------------------------------
+def is_alphabetic(c: char) -> bool {
+    libc.isalpha(c as int32) <> 0;
+}
+
+# is_alphanumeric -- Test if the passed character is alphanumeric.
+# -----------------------------------------------------------------------------
+def is_alphanumeric(c: char) -> bool {
+    libc.isalnum(c as int32) <> 0;
 }
 
 # Driver (Test)

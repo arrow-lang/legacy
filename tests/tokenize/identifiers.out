@@ -1,5 +1,5 @@
-<identifier> 'abcd32'
-<identifier> 'asfs'
-<identifier> '__sfs'
-<identifier> 'x'
-<end>
+<stdin>:1:1-7: identifier 'abcd32'
+<stdin>:2:1-5: identifier 'asfs'
+<stdin>:3:1-6: identifier '__sfs'
+<stdin>:4:1-2: identifier 'x'
+<stdin>:5:1-2: end

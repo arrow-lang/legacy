@@ -208,6 +208,9 @@ let TOK_BANG: int = -2033;
 # "|" -- Pipe
 let TOK_PIPE: int = -2034;
 
+# "=>" -- Fat arrow
+let TOK_RFARROW: int = -2035;
+
 # "identifier" -- Lexical identifier
 let TOK_IDENTIFIER: int = -3001;
 

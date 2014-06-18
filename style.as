@@ -29,24 +29,24 @@ number = 1.2 if opposite
 
 # Declare a named function item that takes no parameters
 # and returns unit (with an empty function body).
-main() -> { }
+let main() -> { }
 
 # Declares a named function item that takes no parameters
 # and returns `int` (with an empty function body).
-main(): int -> { }
+let main(): int -> { }
 
 # Declares a named function item that takes a single parameter `x` of type
 # `int` that returns the expression `x * x`.
-square(x: int) -> x * x
-square(x: int): int -> { x * x }
-square(x: int) -> { x * x }
-square(x: int) -> { return x *  }
+let square(x: int) -> x * x
+let square(x: int): int -> { x * x }
+let square(x: int) -> { x * x }
+let square(x: int) -> { return x *  }
 
 # Additional functions
-cube(x) -> square(x) * x
+let cube(x): int -> square(x) * x
 
 # Function that returns a function that ..
-some(x) -> (y) -> x ** y;
+let some(x) -> (y) -> x ** y;
 
 # Anonymous function declaration
 # -----------------------------------------------------------------------------
@@ -126,9 +126,9 @@ enum Option<T> {
 
 # Function types
 # -----------------------------------------------------------------------------
-call(fn: (int, bool): int) -> { }   # takes a 2 param fn that returns int
-call(fn: (int, bool): ()) -> { }    # takes a 2 param fn
-call(fn: (): ()) -> { }             # takes a 0 param fn that returns unit
-ret(): (): () -> { }                # returns a 0 param fn that returns unit
-ret(): (int, bool): bool -> { }     # returns a 2 param fn that returns bool
-ret(): (int, bool): () -> { }       # returns a 2 param fn that returns unit
+let call(fn: (int, bool): int) -> { }   # takes a 2 param fn that returns int
+let call(fn: (int, bool): ()) -> { }    # takes a 2 param fn
+let call(fn: (): ()) -> { }             # takes a 0 param fn that returns unit
+let ret(): (): () -> { }                # returns a 0 param fn that returns unit
+let ret(): (int, bool): bool -> { }     # returns a 2 param fn that returns bool
+let ret(): (int, bool): () -> { }       # returns a 2 param fn that returns unit

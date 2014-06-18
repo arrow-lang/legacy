@@ -11,7 +11,7 @@ import generator_;
 def main(argc: int, argv: ^^int8) {
 
     # Build options "description"
-    let desc: libc.option[1];
+    let desc: libc.option[3];
     let opt: libc.option;
 
     # <filename>
@@ -23,7 +23,14 @@ def main(argc: int, argv: ^^int8) {
     opt.has_arg = 0;
     opt.flag = &show_version as ^int32;
     opt.val = 1;
-    desc[0] = opt;
+    desc[1] = opt;
+
+    # ..end
+    opt.name = 0 as ^int8;
+    opt.has_arg = 0;
+    opt.flag = 0 as ^int32;
+    opt.val = 0;
+    desc[1] = opt;
 
     while libc.optind < argc {
         # Initate the option parsing

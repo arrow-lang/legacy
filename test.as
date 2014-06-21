@@ -1,2 +1,9 @@
-extern def puts(str);
-def main() { puts("djghfio"); }
+import lib;
+
+def endl() {
+    lib.echo("\n");
+}
+
+def main() {
+    lib.print("Hello");
+}

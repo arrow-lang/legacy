@@ -23,7 +23,7 @@ def main(argc: int, argv: ^^int8) {
     opt.has_arg = 0;
     opt.flag = &show_version as ^int32;
     opt.val = 1;
-    desc[1] = opt;
+    desc[0] = opt;
 
     # ..end
     opt.name = 0 as ^int8;

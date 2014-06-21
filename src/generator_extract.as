@@ -1,11 +1,15 @@
 import string;
 import types;
+import errors;
+import libc;
 import llvm;
 import code;
 import ast;
 import list;
 import generator_;
 import generator_util;
+import tokenizer;
+import parser;
 
 # Extract declaration "items" from the AST and build our list of namespaced
 # items.
@@ -37,6 +41,10 @@ def extract(&mut g: generator_.Generator, node: ast.Node) -> bool
     else if node.tag == ast.TAG_EXTERN_STATIC
     {
         extract_extern_static(g, node.unwrap() as ^ast.ExternStaticSlot);
+    }
+    else if node.tag == ast.TAG_IMPORT
+    {
+        extract_import(g, node.unwrap() as ^ast.Import);
     }
     else { return false; }
 
@@ -199,4 +207,56 @@ def extract_extern_static(&mut g: generator_.Generator, x: ^ast.ExternStaticSlot
     errors.begin_error();
     errors.libc.fprintf(errors.libc.stderr, "not implemented: extract_extern_static" as ^int8);
     errors.end();
+}
+
+# Extract "import"
+# -----------------------------------------------------------------------------
+def extract_import(&mut g: generator_.Generator, x: ^ast.Import)
+{
+    # Build the filename to import.
+    # TODO: Handle importing folders and ./index.as, etc.
+    # TODO: Implement a "PATH" system like PYTHON
+    let mut filename: string.String = string.make();
+    let id0_node: ast.Node = x.ids.get(0);
+    let id0: ^ast.Ident = id0_node.unwrap() as ^ast.Ident;
+    filename.extend(id0.name.data() as str);
+    filename.extend(".as");
+
+    # Check if the filename exists.
+    if libc.access(filename.data(), 0) <> 0
+    {
+        errors.begin_error();
+        errors.libc.fprintf(errors.libc.stderr,
+                            "cannot find module for '%s'" as ^int8,
+                            filename.data());
+        errors.end();
+    }
+
+    # Open a stream to the file.
+    let stream: ^libc._IO_FILE = libc.fopen(filename.data(), "r" as ^int8);
+
+    # NOTE: There should be a "Compiler" class or module.
+    # Declare the tokenizer.
+    let fn: ^int8 = filename.data() as ^int8;
+    let mut t: tokenizer.Tokenizer = tokenizer.tokenizer_new(
+        fn as str, stream);
+
+    # Determine the "module name"
+    # HACK: HACK: HACK: nuff said
+    (fn + libc.strlen(fn) - 3)^ = 0;
+    let module_name: str = fn as str;
+
+    # Declare the parser.
+    let mut p: parser.Parser = parser.parser_new(module_name, t);
+
+    # Parse the AST from the standard input.
+    let unit: ast.Node = p.parse();
+
+    # Dispose.
+    filename.dispose();
+    t.dispose();
+    p.dispose();
+
+    # Pass us on to the module extractor.
+    extract_module(g, unit.unwrap() as ^ast.ModuleDecl);
 }

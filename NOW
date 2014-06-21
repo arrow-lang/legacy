@@ -6,7 +6,8 @@
 # [ ]   » arrow -o out
 # [x]   » arrow < in.as
 # [x]   » arrow in.as
-# [ ] Module Import (from source)
+# [x] Module Import (from source)
+# [ ] "Imported" module should not share scope with the "importing" module.
 # [ ] Mutual recursion tests (circular imports)
 # [ ] Mutable parameters in "arrow" functions
 # [ ] Implement (attached methods)

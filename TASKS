@@ -3,7 +3,7 @@
 # [x] Fix issues in open tabs
 # [ ] `char`
 # [ ] location-aware error reporting
-# [ ] module import `import` (source-based only)
+# [x] module import `import` (source-based only)
 # [ ] "arrow" calling convention
 # [ ]   aggregate by-reference parameters
 # [ ]   mutable parameters

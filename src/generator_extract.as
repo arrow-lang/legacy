@@ -257,6 +257,17 @@ def extract_import(&mut g: generator_.Generator, x: ^ast.Import)
     t.dispose();
     p.dispose();
 
+    # Isolate the module in its own empty namespace block.
+    let mut ns: list.List = list.make(types.STR);
+    let mut old_ns: list.List = g.ns;
+    g.ns = ns;
+
     # Pass us on to the module extractor.
     extract_module(g, unit.unwrap() as ^ast.ModuleDecl);
+
+    # Put the old ns back.
+    g.ns = old_ns;
+
+    # Dispose.
+    ns.dispose();
 }

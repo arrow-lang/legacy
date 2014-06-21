@@ -7,8 +7,10 @@
 # [x]   » arrow < in.as
 # [x]   » arrow in.as
 # [x] Module Import (from source)
-# [ ] "Imported" module should not share scope with the "importing" module.
-# [ ] Mutual recursion tests (circular imports)
+# [x] "Imported" module should not share scope with the "importing" module.
+# [ ] Top-level modules (files) should not be able to be referred to by module name.
+# [ ] Module import "set" (re-importing modules just extends its referencable scope)
+# [ ] Mutual recursion tests with importing (circular imports)
 # [ ] Mutable parameters in "arrow" functions
 # [ ] Implement (attached methods)
 # [ ] Implement (instance methods)
@@ -22,3 +24,7 @@
 # [ ] function types
 # [ ] assign named functions to slots (`to_value`)
 # [ ] function expressions
+# [ ] remove "static", module-scoped "let" bindings get promoted to what "static" was
+# [ ] Name hoisting and extraction done for "let" bindings
+# [ ] Name hoisting and extraction done on each block
+# [ ] change "def" to "let" for functions -- let main(): int -> { }

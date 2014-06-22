@@ -1,8 +1,14 @@
-# module name {
+# # module name {
+# # }
+# import lib;
+
+# def main() {
+#     lib.th();
+#     let x: at.Point;
 # }
-import lib;
+
 
 def main() {
-    lib.th();
-    let x: at.Point;
+    let x = 10;
+    let y: int128 = x;
 }

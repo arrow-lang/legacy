@@ -29,9 +29,11 @@
 # [ ] Name hoisting and extraction done on each block
 # [ ] change "def" to "let" for functions -- let main(): int -> { }
 # [ ] Remove "def" in extern bindings
-# [ ] Variadic parameter support on extern functions
-# [ ] "static" context is not preserved through arithmetic
 # [x] cast integer to pointer of struct dies as the initializer for static slots
 # [x] allow "." in typename
+# [ ] Variadic parameter support on extern functions
+# [ ] "static" context is not preserved through arithmetic
 # [ ] allow "constant" expressions inside of [..]
 # [ ] local or relative imports
+# [ ] character type
+# [ ]

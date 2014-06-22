@@ -32,6 +32,8 @@ let TAG_POINTER_TYPE: int = 17;
 let TAG_ARRAY_TYPE: int = 18;
 let TAG_EXTERN_FUNC: int = 19;
 let TAG_EXTERN_STATIC: int = 20;
+let TAG_CHAR_TYPE: int = 21;
+let TAG_STR_TYPE: int = 21;
 
 # Value categories
 # -----------------------------------------------------------------------------
@@ -205,6 +207,26 @@ def make_bool_type(handle: ^LLVMOpaqueType) -> ^Handle {
     make(TAG_BOOL_TYPE, ty as ^void);
 }
 
+def make_char_type() -> ^Handle {
+    # Build the module.
+    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
+    ty.handle = llvm.LLVMInt32Type();
+    ty.bits = 0;  # FIXME: Get the size of this type using sizeof.
+
+    # Wrap in a handle.
+    make(TAG_CHAR_TYPE, ty as ^void);
+}
+
+def make_str_type() -> ^Handle {
+    # Build the module.
+    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
+    ty.handle = llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0);
+    ty.bits = 0;  # FIXME: Get the size of this type using sizeof.
+
+    # Wrap in a handle.
+    make(TAG_STR_TYPE, ty as ^void);
+}
+
 def make_int_type(handle: ^LLVMOpaqueType, signed: bool,
                   bits: uint) -> ^Handle {
     # Build the module.
@@ -226,6 +248,8 @@ def typename(handle: ^Handle) -> string.String {
     # Figure out what we are.
     if      handle._tag == TAG_VOID_TYPE { name.extend("nothing"); }
     else if handle._tag == TAG_BOOL_TYPE { name.extend("bool"); }
+    else if handle._tag == TAG_CHAR_TYPE { name.extend("char"); }
+    else if handle._tag == TAG_STR_TYPE { name.extend("str"); }
     else if handle._tag == TAG_INT_TYPE {
         let int_ty: ^IntegerType = handle._object as ^IntegerType;
         if not int_ty.signed { name.append('u'); }
@@ -477,6 +501,8 @@ def make_tuple_type(
 def is_type(handle: ^Handle) -> bool {
     handle._tag == TAG_TYPE or
     handle._tag == TAG_BOOL_TYPE or
+    handle._tag == TAG_CHAR_TYPE or
+    handle._tag == TAG_STR_TYPE or
     handle._tag == TAG_FUNCTION_TYPE or
     handle._tag == TAG_INT_TYPE or
     handle._tag == TAG_TUPLE_TYPE or

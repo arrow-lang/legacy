@@ -38,6 +38,8 @@ def generate(&mut g: generator_.Generator) {
                 or val._tag == code.TAG_VOID_TYPE
                 or val._tag == code.TAG_LOCAL_SLOT
                 or val._tag == code.TAG_BOOL_TYPE
+                or val._tag == code.TAG_CHAR_TYPE
+                or val._tag == code.TAG_STR_TYPE
                 or val._tag == code.TAG_MODULE
                 or val._tag == code.TAG_STRUCT
                 or val._tag == code.TAG_EXTERN_STATIC

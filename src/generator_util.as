@@ -59,17 +59,20 @@ def declare_basic_types(&mut g: generator_.Generator) {
     # Unsigned machine-dependent integer
     let ptr_type: ^llvm.LLVMOpaqueType =
         llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0);
-    let ptr_size: uint = sizeof(g, ptr_type);
-    declare_int_type(g,  "uint",  llvm.LLVMInt64Type(), false, ptr_size * 8);
+    let ptr_size: uint32 = (sizeof(g, ptr_type) * 8) as uint32;
+    declare_int_type(g, "uint",  llvm.LLVMIntType(ptr_size), false, 0);
 
     # Signed machine-dependent integer
-    declare_int_type(g,  "int",  llvm.LLVMInt64Type(), true, ptr_size * 8);
+    declare_int_type(g, "int",  llvm.LLVMIntType(ptr_size), true, 0);
 
-    # TODO: UTF-32 Character
+    # UTF-32 Character
+    let mut han: ^code.Handle = code.make_char_type();
+    g.items.set_ptr("char", han as ^void);
 
     # TODO: UTF-8 String
     # ASCII String
-    declare_type(g, "str", ptr_type);
+    han = code.make_str_type();
+    g.items.set_ptr("str", han as ^void);
 }
 
 # Declare `assert` built-in function
@@ -375,6 +378,10 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
         val = llvm.LLVMBuildIntToPtr(
             g.irb, src_val.handle, dst.handle, "" as ^int8);
     }
+    # else if src_han._tag == code.TAG_INT_TYPE
+    #       and type_._tag == code.TAG_POINTER_TYPE
+    # {
+    # }
 
     # Wrap and return.
     code.make_value(type_, code.VC_RVALUE, val);
@@ -399,7 +406,12 @@ def type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
     # If these are the `same` then were okay.
     if is_same_type(d, s) { return true; }
     else if s_ty.handle == d_ty.handle { return true; }
-    else if s._tag == code.TAG_INT_TYPE and d._tag == code.TAG_INT_TYPE {
+    else if s._tag == code.TAG_INT_TYPE and d._tag == code.TAG_INT_TYPE
+    {
+        return true;
+    }
+    else if d._tag == code.TAG_CHAR_TYPE and s._tag == code.TAG_INT_TYPE
+    {
         return true;
     }
 

@@ -348,9 +348,10 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         }
 
         # Resolve the type of the argument expression.
+        let param_typ: ^code.Handle = code.type_of(
+            type_.parameters.at_ptr(param_idx as int) as ^code.Handle);
         let typ: ^code.Handle = resolver.resolve_st(
-            g, &a.expression, scope,
-            code.type_of(type_.parameters.at_ptr(param_idx as int) as ^code.Handle));
+            g, &a.expression, scope, param_typ);
         if code.isnil(typ) { return code.make_nil(); }
 
         # Build the argument expression node.
@@ -362,7 +363,8 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             g^, han, code.VC_RVALUE, false);
 
         # Cast the value to the target type.
-        let cast_han: ^code.Handle = generator_util.cast(g^, val_han, typ);
+        let cast_han: ^code.Handle = generator_util.cast(
+            g^, val_han, param_typ);
         let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
         # Emplace in the argument list.
@@ -485,9 +487,10 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         }
 
         # Resolve the type of the argument expression.
+        let param_typ: ^code.Handle = code.type_of(
+            type_.members.at_ptr(param_idx as int) as ^code.Handle);
         let typ: ^code.Handle = resolver.resolve_st(
-            g, &a.expression, scope,
-            code.type_of(type_.members.at_ptr(param_idx as int) as ^code.Handle));
+            g, &a.expression, scope, param_typ);
         if code.isnil(typ) { return code.make_nil(); }
 
         # Build the argument expression node.
@@ -499,7 +502,8 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             g^, han, code.VC_RVALUE, false);
 
         # Cast the value to the target type.
-        let cast_han: ^code.Handle = generator_util.cast(g^, val_han, typ);
+        let cast_han: ^code.Handle = generator_util.cast(
+            g^, val_han, param_typ);
         let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
         # Emplace in the argument list.
@@ -1656,8 +1660,6 @@ def dereference(g: ^mut generator_.Generator, node: ^ast.Node,
 def cast(g: ^mut generator_.Generator, node: ^ast.Node,
          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
-    printf("cast:begin\n");
-
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
@@ -1687,10 +1689,9 @@ def cast(g: ^mut generator_.Generator, node: ^ast.Node,
     han = code.make_value(target, code.VC_RVALUE, operand_val.handle);
 
     # Dispose.
-    # code.dispose(operand_val_han);
-    # code.dispose(cast_han);
+    code.dispose(operand_val_han);
+    code.dispose(cast_han);
 
-    printf("cast:end\n");
     # Return our wrapped result.
     han;
 }

@@ -14,10 +14,13 @@ def main(argc: int, argv: ^^int8) {
     let desc: libc.option[3];
     let opt: libc.option;
 
+    # -o <output_filename>
+    let output_filename: ^int8 = 0 as ^int8;
+
     # <filename>
     let filename: ^int8 = 0 as ^int8;
 
-    # --version, -V
+    # --version
     let show_version: bool = false;
     opt.name = "version" as ^int8;
     opt.has_arg = 0;
@@ -35,8 +38,10 @@ def main(argc: int, argv: ^^int8) {
     while libc.optind < argc {
         # Initate the option parsing
         let option_index: int32 = 0;
-        let c: int = libc.getopt_long(argc as int32, argv, "" as ^int8,
-                                      &desc[0], &option_index);
+        let c: int = libc.getopt_long(
+            argc as int32, argv,
+            "Vo:" as ^int8,
+            &desc[0], &option_index);
 
         # Detect the end of the options.
         if c == -1 {
@@ -47,9 +52,18 @@ def main(argc: int, argv: ^^int8) {
 
             # Move along.
             libc.optind = libc.optind + 1;
+
+            # HACK!
             void;
         } else {
             # Handle "option" arguments.
+            if c as char == "V" {
+                show_version = true;
+            } else if c as char == "o" {
+                output_filename = libc.optarg;
+            }
+
+            # HACK!
             void;
         }
     }
@@ -121,7 +135,16 @@ def main(argc: int, argv: ^^int8) {
 
     # Output the generated LLVM IR.
     let data: ^int8 = llvm.LLVMPrintModuleToString(g.mod);
-    printf("%s", data);
+
+    if output_filename == 0 as ^int8 {
+        printf("%s", data);
+    } else {
+        let outstream: ^libc._IO_FILE =
+            libc.fopen(output_filename, "w" as ^int8);
+        libc.fprintf(outstream, "%s" as ^int8, data);
+        libc.fclose(outstream);
+    }
+
     llvm.LLVMDisposeMessage(data);
 
     # Dispose of the resources used.

@@ -504,6 +504,9 @@ def type_of(handle: ^Handle) -> ^Handle {
     } else if handle._tag == TAG_STRUCT {
         let val: ^Struct = handle._object as ^Struct;
         val.type_;
+    } else if handle._tag == TAG_MEMBER {
+        let mem: ^Member = handle._object as ^Member;
+        mem.type_;
     } else {
         make_nil();
     }

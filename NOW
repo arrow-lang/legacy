@@ -33,3 +33,5 @@
 # [ ] "static" context is not preserved through arithmetic
 # [x] cast integer to pointer of struct dies as the initializer for static slots
 # [x] allow "." in typename
+# [ ] allow "constant" expressions inside of [..]
+# [ ] local or relative imports

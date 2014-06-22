@@ -444,7 +444,7 @@ def parse_function(&mut self) -> bool
     }
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident_expr() { return false; }
+    if not self.parse_ident() { return false; }
     decl.id = self.stack.pop();
 
     # Check for and parse type type parameters.
@@ -531,7 +531,7 @@ def parse_function_param(&mut self, require_name: bool) -> bool
         }
 
         # Parse and set the identifier (this shouldn't fail).
-        if not self.parse_ident_expr() { return false; }
+        if not self.parse_ident() { return false; }
         param.id = self.stack.pop();
 
         # Check for a type annotation which would be preceeded by a `:` token.
@@ -552,7 +552,7 @@ def parse_function_param(&mut self, require_name: bool) -> bool
                 self.peek_token_tag(2) == tokens.TOK_COLON
         {
             # Parse and set the identifier (this shouldn't fail).
-            if not self.parse_ident_expr() { return false; }
+            if not self.parse_ident() { return false; }
             param.id = self.stack.pop();
 
             # Pop the `:` token.
@@ -1163,7 +1163,7 @@ def parse_paren_type(&mut self) -> bool
         let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
 
         # Parse an identifier.
-        if not self.parse_ident_expr() { return false; }
+        if not self.parse_ident() { return false; }
         mem.id = self.stack.pop();
 
         # Pop the `:` token.
@@ -1189,7 +1189,7 @@ def parse_paren_type(&mut self) -> bool
         self.pop_token();
 
         # Parse an identifier.
-        if not self.parse_ident_expr() { return false; }
+        if not self.parse_ident() { return false; }
         mem.id = self.stack.pop();
 
         # Push the identifier as the expression.
@@ -1446,7 +1446,7 @@ def parse_primary_expr(&mut self) -> bool
     }
     else if tok.tag == tokens.TOK_IDENTIFIER
     {
-        self.parse_ident_expr();
+        self.parse_ident();
     }
     else if tok.tag == tokens.TOK_TYPE
     {
@@ -1586,9 +1586,9 @@ def parse_string_expr(&mut self) -> bool
     true;
 }
 
-# Identifier expression
+# Identifier
 # -----------------------------------------------------------------------------
-def parse_ident_expr(&mut self) -> bool
+def parse_ident(&mut self) -> bool
 {
     # Ensure we are at an `ident` token.
     let tok: tokenizer.Token = self.peek_token(1);
@@ -1603,6 +1603,34 @@ def parse_ident_expr(&mut self) -> bool
 
     # Push our node on the stack.
     self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Identifier expression
+# -----------------------------------------------------------------------------
+def parse_ident_expr(&mut self) -> bool
+{
+    # Attempt to parse an identifier.
+    if not self.parse_ident() { return false; }
+
+    # Try to consume a member expression into the identifier (eg. ".Point")
+    while self.peek_token_tag(1) == tokens.TOK_DOT
+            and self.peek_token_tag(2) == tokens.TOK_IDENTIFIER {
+        # Pop the `.` token.
+        self.pop_token();
+
+        # Parse the next identifier.
+        if not self.parse_ident() { return false; }
+
+        # Construct and push a member expression.
+        let node: ast.Node = ast.make(ast.TAG_MEMBER);
+        let expr: ^ast.BinaryExpr = node.unwrap() as ^ast.BinaryExpr;
+        expr.rhs = self.stack.pop();
+        expr.lhs = self.stack.pop();
+        self.stack.push(node);
+    }
 
     # Return success.
     true;
@@ -1642,7 +1670,7 @@ def parse_paren_expr(&mut self) -> bool
         let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
 
         # Parse an identifier.
-        if not self.parse_ident_expr() { return false; }
+        if not self.parse_ident() { return false; }
         mem.id = self.stack.pop();
 
         # Pop the `:` token.
@@ -1668,7 +1696,7 @@ def parse_paren_expr(&mut self) -> bool
         self.pop_token();
 
         # Parse an identifier.
-        if not self.parse_ident_expr() { return false; }
+        if not self.parse_ident() { return false; }
         mem.id = self.stack.pop();
 
         # Push the identifier as the expression.
@@ -1729,7 +1757,7 @@ def parse_paren_expr(&mut self) -> bool
                     and self.peek_token_tag(2) == tokens.TOK_COLON
                 {
                     # Parse an identifier.
-                    if not self.parse_ident_expr() { return false; }
+                    if not self.parse_ident() { return false; }
                     mem.id = self.stack.pop();
 
                     # Pop the `:` token.
@@ -1748,7 +1776,7 @@ def parse_paren_expr(&mut self) -> bool
                     self.pop_token();
 
                     # Parse an identifier.
-                    if not self.parse_ident_expr() { return false; }
+                    if not self.parse_ident() { return false; }
                     mem.id = self.stack.pop();
                     mem.expression = mem.id;
                 }
@@ -2035,7 +2063,7 @@ def parse_struct(&mut self) -> bool {
     }
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident_expr() { return false; }
+    if not self.parse_ident() { return false; }
     struct_.id = self.stack.pop();
 
     # Check for and parse type type parameters.
@@ -2059,7 +2087,7 @@ def parse_struct(&mut self) -> bool {
             return false;
         }
 
-        if not self.parse_ident_expr() { return false; }
+        if not self.parse_ident() { return false; }
 
         # We got an identifier!
         struct_mem.id = self.stack.pop();
@@ -2140,7 +2168,7 @@ def parse_slot(&mut self) -> bool
     }
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident_expr() { return false; }
+    if not self.parse_ident() { return false; }
     slot.id = self.stack.pop();
 
     # Check for a type annotation which would be preceeded by a `:` token.
@@ -2193,7 +2221,7 @@ def parse_import(&mut self) -> bool
     # Iterate and push each identifier.
     while self.peek_token_tag(1) <> tokens.TOK_SEMICOLON {
         # Expect and consume an identifier.
-        if not self.parse_ident_expr() {
+        if not self.parse_ident() {
             self.consume_until(tokens.TOK_SEMICOLON);
             return false;
         }
@@ -2277,7 +2305,7 @@ def parse_extern_static(&mut self) -> bool
     }
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident_expr() { return false; }
+    if not self.parse_ident() { return false; }
     slot.id = self.stack.pop();
 
     # Check for a type annotation which would be preceeded by a `:` token.
@@ -2316,7 +2344,7 @@ def parse_extern_function(&mut self) -> bool
     }
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident_expr() { return false; }
+    if not self.parse_ident() { return false; }
     decl.id = self.stack.pop();
 
     # Parse the parameter list.
@@ -2377,7 +2405,7 @@ def _expect_parse_ident(&mut self) -> bool
     }
 
     # Parse the identifier.
-    if not self.parse_ident_expr() { return false; }
+    if not self.parse_ident() { return false; }
 
     # Return success.
     true;

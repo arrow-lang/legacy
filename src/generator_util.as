@@ -197,6 +197,9 @@ def get_scoped_item_in(&mut g: generator_.Generator, s: str,
         }
     }
 
+    # Dispose.
+    ns.dispose();
+
     # If we matched; return the item.
     if matched {
         g.items.get_ptr(qname.data() as str) as ^code.Handle;

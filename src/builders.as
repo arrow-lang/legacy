@@ -1656,6 +1656,8 @@ def dereference(g: ^mut generator_.Generator, node: ^ast.Node,
 def cast(g: ^mut generator_.Generator, node: ^ast.Node,
          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
+    printf("cast:begin\n");
+
     # Unwrap the node to its proper type.
     let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
 
@@ -1685,9 +1687,10 @@ def cast(g: ^mut generator_.Generator, node: ^ast.Node,
     han = code.make_value(target, code.VC_RVALUE, operand_val.handle);
 
     # Dispose.
-    code.dispose(operand_val_han);
-    code.dispose(cast_han);
+    # code.dispose(operand_val_han);
+    # code.dispose(cast_han);
 
+    printf("cast:end\n");
     # Return our wrapped result.
     han;
 }

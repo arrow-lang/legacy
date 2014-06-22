@@ -2127,6 +2127,9 @@ def parse_struct(&mut self) -> bool {
         return false;
     }
 
+    # Expect and parse the `}` token.
+    if not self.expect(tokens.TOK_RBRACE) { return false; }
+
     # Push our node on the stack.
     self.stack.push(struct_node);
 

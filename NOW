@@ -8,7 +8,7 @@
 # [x]   » arrow in.as
 # [x] Module Import (from source)
 # [x] "Imported" module should not share scope with the "importing" module.
-# [ ] Top-level modules (files) should not be able to be referred to by module name.
+# [x] Top-level modules (files) should not be able to be referred to by module name.
 # [ ] Module import "set" (re-importing modules just extends its referencable scope)
 # [ ] Mutual recursion tests with importing (circular imports)
 # [ ] Mutable parameters in "arrow" functions

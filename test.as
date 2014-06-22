@@ -1,9 +1,8 @@
+# module name {
+# }
 import lib;
 
-def endl() {
-    lib.echo("\n");
-}
-
 def main() {
-    lib.print("Hello");
+    lib.th();
+    let x: at.Point;
 }

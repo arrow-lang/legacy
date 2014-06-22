@@ -190,7 +190,21 @@ def get_scoped_item_in(&mut g: generator_.Generator, s: str,
 
         # Do we have any namespaces left.
         if ns.size > 0 {
-            ns.erase(-1);
+            # Ensure that we cannot refer to the resolving namespace
+            # if we are a module.
+            if libc.strcmp(ns.at_str(-1) as ^int8, s as ^int8) == 0 {
+                ns.erase(-1);
+                qname.dispose();
+                qname = qualify_name_in(s, ns);
+                let han: ^code.Handle =
+                    g.items.get_ptr(qname.data() as str) as ^code.Handle;
+                if han._tag == code.TAG_MODULE {
+                    break;
+                }
+            } else {
+                # Pop off the namespace.
+                ns.erase(-1);
+            }
         } else {
             # Out of namespaces to pop.
             break;
@@ -200,12 +214,15 @@ def get_scoped_item_in(&mut g: generator_.Generator, s: str,
     # Dispose.
     ns.dispose();
 
-    # If we matched; return the item.
-    if matched {
+    # If we didn't matched; return nil.
+    if not matched { return code.make_nil(); }
+
+    # Get the matched handle.
+    let matched_han: ^code.Handle =
         g.items.get_ptr(qname.data() as str) as ^code.Handle;
-    } else {
-        code.make_nil();
-    }
+
+    # Return the matched handle.
+    matched_han;
 }
 
 # Check if two types are the same.

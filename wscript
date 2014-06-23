@@ -67,54 +67,7 @@ def configure(ctx):
     ctx.check_cfg(path=ctx.options.llvm_config, package='',
                   args='--ldflags --libs all', uselib_store='LLVM')
 
-def _build_part(ctx, name):
-    # Compile to the llvm IL.
-    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
-        source="src/%s.as" % name,
-        target="%s.ll" % name)
-
-    # Optimize.
-    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
-        source="%s.ll" % name,
-        target="%s.opt.ll" % name)
-
-    # Compile from llvm IL into native object code.
-    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
-        source="%s.opt.ll" % name,
-        target="%s.o" % name)
-
-    # Link into a final executable.
-    ctx(rule="${GCC} -o${TGT} ${SRC}",
-        source="%s.o" % name,
-        target="%s" % name)
-
-
 def build(ctx):
-    # Build the simple parts
-    _build_part(ctx, "tokenizer")
-    _build_part(ctx, "parser")
-
-    # Compile the generator to the llvm IL.
-    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
-        source="src/generator.as",
-        target="generator.ll")
-
-    # Optimize the generator.
-    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
-        source="generator.ll",
-        target="generator.opt.ll")
-
-    # Compile the generator from llvm IL into native object code.
-    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
-        source="generator.opt.ll",
-        target="generator.o")
-
-    # Link the generator into a final executable.
-    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
-    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
-        source="generator.o",
-        target="generator")
-
     # Compile the compiler to the llvm IL.
     ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
         source="src/compiler.as",

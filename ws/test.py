@@ -71,7 +71,7 @@ def _report(filename, status):
 def _test_tokenizer(ctx):
     for fixture in sorted(glob("tests/tokenize/*.as")):
         # Run the tokenizer over our fixture.
-        returncode, stdout, stderr = _run(fixture, 'tokenizer', [])
+        returncode, stdout, stderr = _run(fixture, 'arrow', ["--tokenize"])
 
         # Check the output against the expected.
         # FIXME: Check the returncode
@@ -85,7 +85,7 @@ def _test_tokenizer(ctx):
 def _test_tokenizer_fail(ctx):
     for fixture in sorted(glob("tests/tokenize-fail/*.as")):
         # Run the tokenizer over our fixture.
-        returncode, stdout, stderr = _run(fixture, 'tokenizer', [])
+        returncode, stdout, stderr = _run(fixture, 'arrow', ["--tokenize"])
 
         # Check the output against the expected.
         status = True
@@ -98,7 +98,7 @@ def _test_tokenizer_fail(ctx):
 def _test_parser(ctx):
     for fixture in sorted(glob("tests/parse/*.as")):
         # Run the parser over our fixture.
-        returncode, stdout, stderr = _run(fixture, 'parser', [])
+        returncode, stdout, stderr = _run(fixture, 'arrow', ["--parse"])
 
         # Check the output against the expected.
         status = True
@@ -111,7 +111,7 @@ def _test_parser(ctx):
 def _test_parser_fail(ctx):
     for fixture in sorted(glob("tests/parse-fail/*.as")):
         # Run the parser over our fixture.
-        returncode, stdout, stderr = _run(fixture, 'parser', [])
+        returncode, stdout, stderr = _run(fixture, 'arrow', ["--parse"])
 
         # Check the output against the expected.
         status = True
@@ -126,7 +126,7 @@ def _test_run(ctx):
         # Run the generator over our fixture.
         with open(fixture) as stream:
             # Execute and run the test case.
-            p = Popen([path.join(out, 'generator')],
+            p = Popen([path.join(out, 'arrow')],
                       stdin=stream, stdout=PIPE, stderr=PIPE)
             p2 = Popen(["lli"], stdin=p.stdout, stdout=PIPE, stderr=PIPE)
             stdout, stderr = p2.communicate()
@@ -150,7 +150,7 @@ def _test_run_fail(ctx):
         # Run the generator over our fixture.
         with open(fixture) as stream:
             # Execute and run the test case.
-            p = Popen([path.join(out, 'generator')],
+            p = Popen([path.join(out, 'arrow')],
                       stdin=stream, stdout=PIPE, stderr=PIPE)
             stdout, stderr = p.communicate()
 

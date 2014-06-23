@@ -151,18 +151,19 @@ implement Scope {
 
 type Type {
     handle: ^LLVMOpaqueType,
-    bits: uint
+    bits: int64
 }
 
 type IntegerType {
     handle: ^LLVMOpaqueType,
-    bits: uint,
-    signed: bool
+    bits: int64,
+    signed: bool,
+    machine: bool
 }
 
 type FloatType {
     handle: ^LLVMOpaqueType,
-    bits: uint
+    bits: int64
 }
 
 let TYPE_SIZE: uint = ((0 as ^Type) + 1) - (0 as ^Type);
@@ -187,7 +188,7 @@ def make_void_type(handle: ^LLVMOpaqueType) -> ^Handle {
     make(TAG_VOID_TYPE, ty as ^void);
 }
 
-def make_float_type(handle: ^LLVMOpaqueType, bits: uint) -> ^Handle {
+def make_float_type(handle: ^LLVMOpaqueType, bits: int64) -> ^Handle {
     # Build the module.
     let ty: ^FloatType = libc.malloc(FLOAT_TYPE_SIZE as int64) as ^FloatType;
     ty.handle = handle;
@@ -228,12 +229,13 @@ def make_str_type() -> ^Handle {
 }
 
 def make_int_type(handle: ^LLVMOpaqueType, signed: bool,
-                  bits: uint) -> ^Handle {
+                  bits: int64, machine: bool) -> ^Handle {
     # Build the module.
     let ty: ^IntegerType = libc.malloc(INT_TYPE_SIZE as int64) as ^IntegerType;
     ty.handle = handle;
     ty.signed = signed;
     ty.bits = bits;
+    ty.machine = machine;
 
     # Wrap in a handle.
     make(TAG_INT_TYPE, ty as ^void);
@@ -254,11 +256,14 @@ def typename(handle: ^Handle) -> string.String {
         let int_ty: ^IntegerType = handle._object as ^IntegerType;
         if not int_ty.signed { name.append('u'); }
         name.extend("int");
-        if      int_ty.bits ==   8 { name.extend(  "8"); }
-        else if int_ty.bits ==  16 { name.extend( "16"); }
-        else if int_ty.bits ==  32 { name.extend( "32"); }
-        else if int_ty.bits ==  64 { name.extend( "64"); }
-        else if int_ty.bits == 128 { name.extend("128"); }
+        if not int_ty.machine
+        {
+            if      int_ty.bits ==   8 { name.extend(  "8"); }
+            else if int_ty.bits ==  16 { name.extend( "16"); }
+            else if int_ty.bits ==  32 { name.extend( "32"); }
+            else if int_ty.bits ==  64 { name.extend( "64"); }
+            else if int_ty.bits == 128 { name.extend("128"); }
+        }
     } else if handle._tag == TAG_FLOAT_TYPE {
         let f_ty: ^FloatType = handle._object as ^FloatType;
         name.extend("float");
@@ -298,7 +303,7 @@ def typename(handle: ^Handle) -> string.String {
 
 type PointerType {
     handle: ^LLVMOpaqueType,
-    bits: uint,
+    bits: int64,
     mutable: bool,
     mut pointee: ^Handle
 }
@@ -322,7 +327,7 @@ def make_pointer_type(pointee: ^Handle, mutable: bool, handle: ^LLVMOpaqueType) 
 
 type ArrayType {
     handle: ^LLVMOpaqueType,
-    bits: uint,
+    bits: int64,
     mut element: ^Handle,
     size: uint
 }
@@ -353,7 +358,7 @@ type Parameter {
 
 type FunctionType {
     handle: ^LLVMOpaqueType,
-    bits: uint,
+    bits: int64,
     mut name: string.String,
     mut unqualified_name: string.String,
     mut namespace: list.List,
@@ -429,7 +434,7 @@ type Member {
 
 type StructType {
     handle: ^LLVMOpaqueType,
-    bits: uint,
+    bits: int64,
     context: ^ast.Struct,
     mut name: string.String,
     mut namespace: list.List,
@@ -477,7 +482,7 @@ def make_struct_type(name: str,
 
 type TupleType {
     handle: ^LLVMOpaqueType,
-    bits: uint,
+    bits: int64,
     mut elements: list.List
 }
 

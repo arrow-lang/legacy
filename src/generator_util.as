@@ -18,8 +18,8 @@ def declare_type(&mut g: generator_.Generator, name: str,
 # -----------------------------------------------------------------------------
 def declare_int_type(&mut g: generator_.Generator, name: str,
                      val: ^llvm.LLVMOpaqueType,
-                     signed: bool, bits: uint) {
-    let han: ^code.Handle = code.make_int_type(val, signed, bits);
+                     signed: bool, bits: int, machine: bool) {
+    let han: ^code.Handle = code.make_int_type(val, signed, bits, machine);
     g.items.set_ptr(name, han as ^void);
 }
 
@@ -27,7 +27,7 @@ def declare_int_type(&mut g: generator_.Generator, name: str,
 # -----------------------------------------------------------------------------
 def declare_float_type(&mut g: generator_.Generator, name: str,
                        val: ^llvm.LLVMOpaqueType,
-                       bits: uint) {
+                       bits: int) {
     let han: ^code.Handle = code.make_float_type(val, bits);
     g.items.set_ptr(name, han as ^void);
 }
@@ -39,18 +39,18 @@ def declare_basic_types(&mut g: generator_.Generator) {
     g.items.set_ptr("bool", code.make_bool_type(llvm.LLVMInt1Type()) as ^void);
 
     # Signed machine-independent integers
-    declare_int_type(g,   "int8",   llvm.LLVMInt8Type(), true,   8);
-    declare_int_type(g,  "int16",  llvm.LLVMInt16Type(), true,  16);
-    declare_int_type(g,  "int32",  llvm.LLVMInt32Type(), true,  32);
-    declare_int_type(g,  "int64",  llvm.LLVMInt64Type(), true,  64);
-    declare_int_type(g, "int128", llvm.LLVMIntType(128), true, 128);
+    declare_int_type(g,   "int8",   llvm.LLVMInt8Type(), true,   8, false);
+    declare_int_type(g,  "int16",  llvm.LLVMInt16Type(), true,  16, false);
+    declare_int_type(g,  "int32",  llvm.LLVMInt32Type(), true,  32, false);
+    declare_int_type(g,  "int64",  llvm.LLVMInt64Type(), true,  64, false);
+    declare_int_type(g, "int128", llvm.LLVMIntType(128), true, 128, false);
 
     # Unsigned machine-independent integers
-    declare_int_type(g,   "uint8",   llvm.LLVMInt8Type(), false,   8);
-    declare_int_type(g,  "uint16",  llvm.LLVMInt16Type(), false,  16);
-    declare_int_type(g,  "uint32",  llvm.LLVMInt32Type(), false,  32);
-    declare_int_type(g,  "uint64",  llvm.LLVMInt64Type(), false,  64);
-    declare_int_type(g, "uint128", llvm.LLVMIntType(128), false, 128);
+    declare_int_type(g,   "uint8",   llvm.LLVMInt8Type(), false,   8, false);
+    declare_int_type(g,  "uint16",  llvm.LLVMInt16Type(), false,  16, false);
+    declare_int_type(g,  "uint32",  llvm.LLVMInt32Type(), false,  32, false);
+    declare_int_type(g,  "uint64",  llvm.LLVMInt64Type(), false,  64, false);
+    declare_int_type(g, "uint128", llvm.LLVMIntType(128), false, 128, false);
 
     # Floating-points
     declare_float_type(g, "float32", llvm.LLVMFloatType(), 32);
@@ -60,10 +60,12 @@ def declare_basic_types(&mut g: generator_.Generator) {
     let ptr_type: ^llvm.LLVMOpaqueType =
         llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0);
     let ptr_size: uint32 = (sizeof(g, ptr_type) * 8) as uint32;
-    declare_int_type(g, "uint",  llvm.LLVMIntType(ptr_size), false, 0);
+    declare_int_type(g, "uint",  llvm.LLVMIntType(ptr_size), false, ptr_size,
+                     true);
 
     # Signed machine-dependent integer
-    declare_int_type(g, "int",  llvm.LLVMIntType(ptr_size), true, 0);
+    declare_int_type(g, "int",  llvm.LLVMIntType(ptr_size), true, ptr_size,
+                     true);
 
     # UTF-32 Character
     let mut han: ^code.Handle = code.make_char_type();
@@ -278,7 +280,7 @@ def sizeof(&mut g: generator_.Generator, typ: ^llvm.LLVMOpaqueType) -> uint
 # Create a cast from a value to a type.
 # -----------------------------------------------------------------------------
 def cast(&mut g: generator_.Generator, handle: ^code.Handle,
-         type_: ^code.Handle) -> ^code.Handle
+         type_: ^code.Handle, mut explicit: bool) -> ^code.Handle
 {
     # Get the value of the handle.
     let src_val: ^code.Value = handle._object as ^code.Value;
@@ -296,26 +298,44 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
         return code.make_value(type_, src_val.category, src_val.handle);
     }
 
+    # Get typenames ready.
+    let mut s_typename: string.String = code.typename(src_han);
+    let mut d_typename: string.String = code.typename(type_);
+
     # Build the cast.
-    let val: ^llvm.LLVMOpaqueValue;
+    let val: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
     if src_han._tag == code.TAG_INT_TYPE and src_han._tag == type_._tag {
         # Get the int_ty out.
         let src_int: ^code.IntegerType = src as ^code.IntegerType;
         let dst_int: ^code.IntegerType = dst as ^code.IntegerType;
 
-        if dst_int.bits > src_int.bits {
-            # Create a ZExt or SExt.
-            if src_int.signed {
-                val = llvm.LLVMBuildSExt(g.irb, src_val.handle, dst.handle,
-                                         "" as ^int8);
-            } else {
-                val = llvm.LLVMBuildZExt(g.irb, src_val.handle, dst.handle,
-                                         "" as ^int8);
+        # If our source value is a "constant expression" then just
+        # infer us to be an explicit cast
+        llvm.LLVMDumpValue(src_val.handle);
+        printf("\n----------\n");
+        if llvm.LLVMIsConstant(src_val.handle) <> 0 { explicit = true; }
+
+        if (not dst_int.machine and not src_int.machine) or explicit
+        {
+            if dst_int.bits > src_int.bits
+            {
+                # Create a ZExt or SExt.
+                if src_int.signed {
+                    val = llvm.LLVMBuildSExt(g.irb, src_val.handle, dst.handle,
+                                             "" as ^int8);
+                } else {
+                    val = llvm.LLVMBuildZExt(g.irb, src_val.handle, dst.handle,
+                                             "" as ^int8);
+                }
+                void; # HACK
             }
-        } else {
-            # Create a Trunc
-            val = llvm.LLVMBuildTrunc(g.irb, src_val.handle, dst.handle,
-                                      "" as ^int8);
+            else if explicit
+            {
+                # Create a Trunc
+                val = llvm.LLVMBuildTrunc(g.irb, src_val.handle, dst.handle,
+                                          "" as ^int8);
+                void; # HACK
+            }
         }
     } else if src_han._tag == code.TAG_FLOAT_TYPE
             and src_han._tag == type_._tag {
@@ -378,10 +398,23 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
         val = llvm.LLVMBuildIntToPtr(
             g.irb, src_val.handle, dst.handle, "" as ^int8);
     }
-    # else if src_han._tag == code.TAG_INT_TYPE
-    #       and type_._tag == code.TAG_POINTER_TYPE
-    # {
-    # }
+
+    # If we got nothing, return nothing
+    if val == 0 as ^llvm.LLVMOpaqueValue {
+        errors.begin_error();
+        errors.libc.fprintf(
+            errors.libc.stderr,
+            "no %s conversion from '%s' to '%s'" as ^int8,
+            ("explicit" if explicit else "implicit"),
+            s_typename.data(), d_typename.data());
+        errors.end();
+
+        return code.make_nil();
+    }
+
+    # Dispose.
+    s_typename.dispose();
+    d_typename.dispose();
 
     # Wrap and return.
     code.make_value(type_, code.VC_RVALUE, val);

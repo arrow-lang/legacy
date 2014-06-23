@@ -31,220 +31,224 @@ implement Token {
     }
 
     def println(&self) {
+        self.fprintln(libc.stdout);
+    }
+
+    def fprintln(&self, stream: ^libc._IO_FILE) {
         # Print location span
-        self.span.print();
-        printf(": ");
+        self.span.fprint(stream);
+        libc.fprintf(stream, ": " as ^int8);
 
         # Print simple tokens
-        if      self.tag == tokens.TOK_END           { printf("end"); }
-        else if self.tag == tokens.TOK_ERROR         { printf("error"); }
+        if      self.tag == tokens.TOK_END      { libc.fprintf(stream, "end" as ^int8); }
+        else if self.tag == tokens.TOK_ERROR    { libc.fprintf(stream, "error" as ^int8); }
 
         # Print numeric tokens
         else if self.tag == tokens.TOK_BIN_INTEGER
         {
-            printf("binary integer '%s'", self.text.data());
+            libc.fprintf(stream, "binary integer '%s'" as ^int8, self.text.data());
         }
         else if self.tag == tokens.TOK_OCT_INTEGER
         {
-            printf("octal integer '%s'", self.text.data());
+            libc.fprintf(stream, "octal integer '%s'" as ^int8, self.text.data());
         }
         else if self.tag == tokens.TOK_HEX_INTEGER
         {
-            printf("hexadecimal integer '%s'", self.text.data());
+            libc.fprintf(stream, "hexadecimal integer '%s'" as ^int8, self.text.data());
         }
         else if self.tag == tokens.TOK_DEC_INTEGER
         {
-            printf("decimal integer '%s'", self.text.data());
+            libc.fprintf(stream, "decimal integer '%s'" as ^int8, self.text.data());
         }
         else if self.tag == tokens.TOK_FLOAT
         {
-            printf("floating-point '%s'", self.text.data());
+            libc.fprintf(stream, "floating-point '%s'" as ^int8, self.text.data());
         }
         else if self.tag == tokens.TOK_STRING
         {
-            printf("string '%s'", self.text.data());
+            libc.fprintf(stream, "string '%s'" as ^int8, self.text.data());
         }
         else if self.tag == tokens.TOK_IDENTIFIER
         {
-            printf("identifier '%s'", self.text.data());
+            libc.fprintf(stream, "identifier '%s'" as ^int8, self.text.data());
         }
         else if self.tag > -2000 and self.tag < -1000 {
             # TODO: Replace this with a map or something
-            printf("keyword: '");
+            libc.fprintf(stream, "keyword: '" as ^int8);
             if self.tag == tokens.TOK_DEF {
-                printf("def");
+                libc.fprintf(stream, "def" as ^int8);
             }
             else if self.tag == tokens.TOK_LET {
-                printf("let");
+                libc.fprintf(stream, "let" as ^int8);
             }
             else if self.tag == tokens.TOK_STATIC {
-                printf("static");
+                libc.fprintf(stream, "static" as ^int8);
             }
             else if self.tag == tokens.TOK_MUT {
-                printf("mut");
+                libc.fprintf(stream, "mut" as ^int8);
             }
             else if self.tag == tokens.TOK_TRUE {
-                printf("true");
+                libc.fprintf(stream, "true" as ^int8);
             }
             else if self.tag == tokens.TOK_FALSE {
-                printf("false");
+                libc.fprintf(stream, "false" as ^int8);
             }
             else if self.tag == tokens.TOK_SELF {
-                printf("self");
+                libc.fprintf(stream, "self" as ^int8);
             }
             else if self.tag == tokens.TOK_AS {
-                printf("as");
+                libc.fprintf(stream, "as" as ^int8);
             }
             else if self.tag == tokens.TOK_AND {
-                printf("and");
+                libc.fprintf(stream, "and" as ^int8);
             }
             else if self.tag == tokens.TOK_OR {
-                printf("or");
+                libc.fprintf(stream, "or" as ^int8);
             }
             else if self.tag == tokens.TOK_NOT {
-                printf("not");
+                libc.fprintf(stream, "not" as ^int8);
             }
             else if self.tag == tokens.TOK_IF {
-                printf("if");
+                libc.fprintf(stream, "if" as ^int8);
             }
             else if self.tag == tokens.TOK_ELSE {
-                printf("else");
+                libc.fprintf(stream, "else" as ^int8);
             }
             else if self.tag == tokens.TOK_WHILE {
-                printf("while");
+                libc.fprintf(stream, "while" as ^int8);
             }
             else if self.tag == tokens.TOK_LOOP {
-                printf("loop");
+                libc.fprintf(stream, "loop" as ^int8);
             }
             else if self.tag == tokens.TOK_FOR {
-                printf("for");
+                libc.fprintf(stream, "for" as ^int8);
             }
             else if self.tag == tokens.TOK_MATCH {
-                printf("match");
+                libc.fprintf(stream, "match" as ^int8);
             }
             else if self.tag == tokens.TOK_BREAK {
-                printf("break");
+                libc.fprintf(stream, "break" as ^int8);
             }
             else if self.tag == tokens.TOK_CONTINUE {
-                printf("continue");
+                libc.fprintf(stream, "continue" as ^int8);
             }
             else if self.tag == tokens.TOK_RETURN {
-                printf("return");
+                libc.fprintf(stream, "return" as ^int8);
             }
             else if self.tag == tokens.TOK_TYPE {
-                printf("type");
+                libc.fprintf(stream, "type" as ^int8);
             }
             else if self.tag == tokens.TOK_ENUM {
-                printf("enum");
+                libc.fprintf(stream, "enum" as ^int8);
             }
             else if self.tag == tokens.TOK_MODULE {
-                printf("module");
+                libc.fprintf(stream, "module" as ^int8);
             }
             else if self.tag == tokens.TOK_IMPORT {
-                printf("import");
+                libc.fprintf(stream, "import" as ^int8);
             }
             else if self.tag == tokens.TOK_USE {
-                printf("use");
+                libc.fprintf(stream, "use" as ^int8);
             }
             else if self.tag == tokens.TOK_FOREIGN {
-                printf("foreign");
+                libc.fprintf(stream, "foreign" as ^int8);
             }
             else if self.tag == tokens.TOK_UNSAFE {
-                printf("unsafe");
+                libc.fprintf(stream, "unsafe" as ^int8);
             }
             else if self.tag == tokens.TOK_GLOBAL {
-                printf("global");
+                libc.fprintf(stream, "global" as ^int8);
             }
             else if self.tag == tokens.TOK_STRUCT {
-                printf("struct");
+                libc.fprintf(stream, "struct" as ^int8);
             }
             else if self.tag == tokens.TOK_IMPL {
-                printf("impl");
+                libc.fprintf(stream, "impl" as ^int8);
             }
             else if self.tag == tokens.TOK_EXTERN {
-                printf("extern");
+                libc.fprintf(stream, "extern" as ^int8);
             }
-            printf("'");
+            libc.fprintf(stream, "'" as ^int8);
         }
         else if self.tag > -3000 and self.tag < -2000 {
             # TODO: Replace this with a map or something
-            printf("punctuator: '");
+            libc.fprintf(stream, "punctuator: '" as ^int8);
             if self.tag == tokens.TOK_RARROW {
-                printf("->");
+                libc.fprintf(stream, "->" as ^int8);
             } else if self.tag == tokens.TOK_PLUS {
-                printf("+");
+                libc.fprintf(stream, "+" as ^int8);
             } else if self.tag == tokens.TOK_MINUS {
-                printf("-");
+                libc.fprintf(stream, "-" as ^int8);
             } else if self.tag == tokens.TOK_STAR {
-                printf("*");
+                libc.fprintf(stream, "*" as ^int8);
             } else if self.tag == tokens.TOK_FSLASH {
-                printf("/");
+                libc.fprintf(stream, "/" as ^int8);
             } else if self.tag == tokens.TOK_PERCENT {
-                printf("%");
+                libc.fprintf(stream, "%%" as ^int8);
             } else if self.tag == tokens.TOK_HAT {
-                printf("^");
+                libc.fprintf(stream, "^" as ^int8);
             } else if self.tag == tokens.TOK_AMPERSAND {
-                printf("&");
+                libc.fprintf(stream, "&" as ^int8);
             } else if self.tag == tokens.TOK_LPAREN {
-                printf("(");
+                libc.fprintf(stream, "(" as ^int8);
             } else if self.tag == tokens.TOK_RPAREN {
-                printf(")");
+                libc.fprintf(stream, ")" as ^int8);
             } else if self.tag == tokens.TOK_LBRACKET {
-                printf("[");
+                libc.fprintf(stream, "[" as ^int8);
             } else if self.tag == tokens.TOK_RBRACKET {
-                printf("]");
+                libc.fprintf(stream, "]" as ^int8);
             } else if self.tag == tokens.TOK_LBRACE {
-                printf("{");
+                libc.fprintf(stream, "{" as ^int8);
             } else if self.tag == tokens.TOK_RBRACE {
-                printf("}");
+                libc.fprintf(stream, "}" as ^int8);
             } else if self.tag == tokens.TOK_SEMICOLON {
-                printf(";");
+                libc.fprintf(stream, ";" as ^int8);
             } else if self.tag == tokens.TOK_COLON {
-                printf(":");
+                libc.fprintf(stream, ":" as ^int8);
             } else if self.tag == tokens.TOK_COMMA {
-                printf(",");
+                libc.fprintf(stream, "," as ^int8);
             } else if self.tag == tokens.TOK_DOT {
-                printf(".");
+                libc.fprintf(stream, "." as ^int8);
             } else if self.tag == tokens.TOK_LCARET {
-                printf("<");
+                libc.fprintf(stream, "<" as ^int8);
             } else if self.tag == tokens.TOK_RCARET {
-                printf(">");
+                libc.fprintf(stream, ">" as ^int8);
             } else if self.tag == tokens.TOK_LCARET_EQ {
-                printf("<=");
+                libc.fprintf(stream, "<=" as ^int8);
             } else if self.tag == tokens.TOK_RCARET_EQ {
-                printf(">=");
+                libc.fprintf(stream, ">=" as ^int8);
             } else if self.tag == tokens.TOK_EQ_EQ {
-                printf("==");
+                libc.fprintf(stream, "==" as ^int8);
             } else if self.tag == tokens.TOK_BANG_EQ {
-                printf("!=");
+                libc.fprintf(stream, "!=" as ^int8);
             } else if self.tag == tokens.TOK_EQ {
-                printf("=");
+                libc.fprintf(stream, "=" as ^int8);
             } else if self.tag == tokens.TOK_PLUS_EQ {
-                printf("+=");
+                libc.fprintf(stream, "+=" as ^int8);
             } else if self.tag == tokens.TOK_MINUS_EQ {
-                printf("-=");
+                libc.fprintf(stream, "-=" as ^int8);
             } else if self.tag == tokens.TOK_STAR_EQ {
-                printf("*=");
+                libc.fprintf(stream, "*=" as ^int8);
             } else if self.tag == tokens.TOK_FSLASH_EQ {
-                printf("/=");
+                libc.fprintf(stream, "/=" as ^int8);
             } else if self.tag == tokens.TOK_PERCENT_EQ {
-                printf("%=");
+                libc.fprintf(stream, "%=" as ^int8);
             } else if self.tag == tokens.TOK_FSLASH_FSLASH {
-                printf("//");
+                libc.fprintf(stream, "//" as ^int8);
             } else if self.tag == tokens.TOK_FSLASH_FSLASH_EQ {
-                printf("//=");
+                libc.fprintf(stream, "//=" as ^int8);
             } else if self.tag == tokens.TOK_BANG {
-                printf("!");
+                libc.fprintf(stream, "!" as ^int8);
             } else if self.tag == tokens.TOK_PIPE {
-                printf("|");
+                libc.fprintf(stream, "|" as ^int8);
             } else if self.tag == tokens.TOK_RFARROW {
-                printf("=>");
+                libc.fprintf(stream, "=>" as ^int8);
             }
-            printf("'");
+            libc.fprintf(stream, "'" as ^int8);
         }
 
         # Terminate with a newline
-        printf("\n");
+        libc.fprintf(stream, "\n" as ^int8);
     }
 
 }

@@ -262,7 +262,7 @@ def declare_main(&mut g: generator_.Generator) {
 
         # Build the cast.
         let cast_han: ^code.Handle = generator_util.cast(
-            g, val, g.items.get_ptr("int32") as ^code.Handle);
+            g, val, g.items.get_ptr("int32") as ^code.Handle, false);
         if code.isnil(cast_han) { return; }
 
         # Get the value.

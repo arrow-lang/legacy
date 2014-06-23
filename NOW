@@ -1,16 +1,20 @@
 # [x] Parse import statements
 # [x] Tokenizer operates on "tokens" (not "integers")
 #     Fixes problem with "consecutive" identifiers or strings, etc.
-# [.] Driver (getopt?)
+# [x] Driver (getopt?)
 # [x]   » arrow --version
-# [ ]   » arrow -o out
+# [x]   » arrow -o out
 # [x]   » arrow < in.as
 # [x]   » arrow in.as
+# [x] Driver (additional options)
+# [x]   » `arrow --parse` parse only
+# [x]   » `arrow --tokenize` tokenize only
 # [x] Module Import (from source)
 # [x] "Imported" module should not share scope with the "importing" module.
 # [x] Top-level modules (files) should not be able to be referred to by module name.
 # [ ] Module import "set" (re-importing modules just extends its referencable scope)
 # [ ] Mutual recursion tests with importing (circular imports)
+# [ ] local or relative imports
 # [ ] Mutable parameters in "arrow" functions
 # [ ] Implement (attached methods)
 # [ ] Implement (instance methods)
@@ -34,6 +38,13 @@
 # [ ] Variadic parameter support on extern functions
 # [ ] "static" context is not preserved through arithmetic
 # [ ] allow "constant" expressions inside of [..]
-# [ ] local or relative imports
 # [ ] character type
-# [ ]
+# [ ] move common type resolution to the `build` step
+#     this allows for a critical piece of information (is_constant) as
+#     [1, val] would be resolved to type(val) if val is integral rather
+#     than 1 (as constants fold into their neihboring types).
+# [ ] create failing run tests
+# [ ]   - assign a non-constant <int> to a <int8>
+# [ ]   - assign a non-constant <int> to a <int128>
+# [ ]   - compare a non-constant <int> to a <int8>
+# [ ]   - compare a non-constant <int> to a <int128>

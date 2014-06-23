@@ -1,14 +1,5 @@
-# # module name {
-# # }
-# import lib;
-
-# def main() {
-#     lib.th();
-#     let x: at.Point;
-# }
-
-
 def main() {
-    let x = 10;
-    let y: int128 = x;
+    let y: int8 = 10;
+    # assert(y == 50);
+    assert(y * (y - 1) == 90);
 }

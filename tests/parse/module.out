@@ -9,24 +9,24 @@ ModuleDecl <?> _
               Ident <?> int
             StructMem <?> y
               Ident <?> int
-    StaticSlotDecl <?> a
-      Ident <?> int
-      IntegerExpr <?> 23 (10)
-    LocalSlotDecl <?> b
-      Ident <?> float64
-      FloatExpr <?> 42.2
-    LocalSlotDecl <?> mut o
-      Ident <?> Point
-    FuncDecl <?> pow
-      Ident <?> float64
-      Type Parameters <?> 
-      Parameters <?> 
-        FuncParam <?> a
+        StaticSlotDecl <?> a
+          Ident <?> int
+          IntegerExpr <?> 23 (10)
+        LocalSlotDecl <?> b
           Ident <?> float64
-        FuncParam <?> mut i
-          Ident <?> uint
-      Block <?>
-        Nodes <?> 
+          FloatExpr <?> 42.2
+        LocalSlotDecl <?> mut o
+          Ident <?> Point
+        FuncDecl <?> pow
+          Ident <?> float64
+          Type Parameters <?> 
+          Parameters <?> 
+            FuncParam <?> a
+              Ident <?> float64
+            FuncParam <?> mut i
+              Ident <?> uint
+          Block <?>
+            Nodes <?> 
     FuncDecl <?> main
       Type Parameters <?> 
       Parameters <?> 

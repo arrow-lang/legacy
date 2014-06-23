@@ -160,7 +160,9 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
             g^, han, code.VC_RVALUE, false);
 
         # Cast it to the target value.
-        let cast_han: ^code.Handle = generator_util.cast(g^, val_han, type_han);
+        let cast_han: ^code.Handle = generator_util.cast(
+            g^, val_han, type_han, false);
+        if code.isnil(cast_han) { return code.make_nil(); }
         let cast_val: ^code.Value = cast_han._object as ^code.Value;
         init = cast_val.handle;
     }
@@ -364,7 +366,8 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
 
         # Cast the value to the target type.
         let cast_han: ^code.Handle = generator_util.cast(
-            g^, val_han, param_typ);
+            g^, val_han, param_typ, false);
+        if code.isnil(cast_han) { return code.make_nil(); }
         let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
         # Emplace in the argument list.
@@ -503,7 +506,8 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
 
         # Cast the value to the target type.
         let cast_han: ^code.Handle = generator_util.cast(
-            g^, val_han, param_typ);
+            g^, val_han, param_typ, false);
+        if code.isnil(cast_han) { return code.make_nil(); }
         let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
         # Emplace in the argument list.
@@ -699,8 +703,12 @@ def relational(g: ^mut generator_.Generator, node: ^ast.Node,
     }
 
     # Cast each operand to the target type.
-    let lhs_han: ^code.Handle = generator_util.cast(g^, lhs_val_han, type_);
-    let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, type_);
+    let lhs_han: ^code.Handle = generator_util.cast(
+        g^, lhs_val_han, type_, false);
+    let rhs_han: ^code.Handle = generator_util.cast(
+        g^, rhs_val_han, type_, false);
+    if code.isnil(lhs_han) { return code.make_nil(); }
+    if code.isnil(rhs_han) { return code.make_nil(); }
 
     # Cast to values.
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -923,9 +931,11 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
         {
             # Cast each operand to the target type.
             let lhs_han: ^code.Handle = generator_util.cast(
-                g^, lhs_val_han, target);
+                g^, lhs_val_han, target, false);
             let rhs_han: ^code.Handle = generator_util.cast(
-                g^, rhs_val_han, target);
+                g^, rhs_val_han, target, false);
+            if code.isnil(lhs_han) { return code.make_nil(); }
+            if code.isnil(rhs_han) { return code.make_nil(); }
 
             # Cast to values.
             let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -998,8 +1008,12 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
     else if target._tag == code.TAG_FLOAT_TYPE
     {
         # Cast each operand to the target type.
-        let lhs_han: ^code.Handle = generator_util.cast(g^, lhs_val_han, target);
-        let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, target);
+        let lhs_han: ^code.Handle = generator_util.cast(
+            g^, lhs_val_han, target, false);
+        let rhs_han: ^code.Handle = generator_util.cast(
+            g^, rhs_val_han, target, false);
+        if code.isnil(lhs_han) { return code.make_nil(); }
+        if code.isnil(rhs_han) { return code.make_nil(); }
 
         # Cast to values.
         let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
@@ -1193,7 +1207,9 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
     if code.isnil(rhs_val_han) { return code.make_nil(); }
 
     # Cast the operand to the target type.
-    let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, target);
+    let rhs_han: ^code.Handle = generator_util.cast(
+        g^, rhs_val_han, target, false);
+    if code.isnil(rhs_han) { return code.make_nil(); }
 
     # Cast to a value.
     let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
@@ -1298,7 +1314,9 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
     let lhs_val_han: ^code.Handle = generator_def.to_value(
         g^, lhs, 0, false);
     if code.isnil(lhs_val_han) { return code.make_nil(); }
-    let lhs_han: ^code.Handle = generator_util.cast(g^, lhs_val_han, target);
+    let lhs_han: ^code.Handle = generator_util.cast(
+        g^, lhs_val_han, target, false);
+    if code.isnil(lhs_han) { return code.make_nil(); }
     let lhs_val: ^code.Value = lhs_han._object as ^code.Value;
 
     # Add an unconditional branch to the `merge` block.
@@ -1315,7 +1333,8 @@ def conditional(g: ^mut generator_.Generator, node: ^ast.Node,
         code.VC_RVALUE if lhs_val.category == code.VC_RVALUE else 0,
         false);
     if code.isnil(rhs_val_han) { return code.make_nil(); }
-    let rhs_han: ^code.Handle = generator_util.cast(g^, rhs_val_han, target);
+    let rhs_han: ^code.Handle = generator_util.cast(
+        g^, rhs_val_han, target, false);
     let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
 
     # Add an unconditional branch to the `merge` block.
@@ -1457,7 +1476,8 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
                 let val_han: ^code.Handle = generator_def.to_value(
                     g^, blk_val_han, code.VC_RVALUE, false);
                 let cast_han: ^code.Handle = generator_util.cast(
-                    g^, val_han, type_target);
+                    g^, val_han, type_target, false);
+                if code.isnil(cast_han) { return code.make_nil(); }
                 let val: ^code.Value = cast_han._object as ^code.Value;
 
                 # Update our value list.
@@ -1504,7 +1524,8 @@ def select(g: ^mut generator_.Generator, node: ^ast.Node,
                 let val_han: ^code.Handle = generator_def.to_value(
                     g^, blk_val_han, code.VC_RVALUE, false);
                 let cast_han: ^code.Handle = generator_util.cast(
-                    g^, val_han, type_target);
+                    g^, val_han, type_target, false);
+                if code.isnil(cast_han) { return code.make_nil(); }
                 let val: ^code.Value = cast_han._object as ^code.Value;
 
                 # Update our value list.
@@ -1679,7 +1700,8 @@ def cast(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Perform the cast.
     let cast_han: ^code.Handle = generator_util.cast(
-        g^, operand_val_han, target);
+        g^, operand_val_han, target, true);
+    if code.isnil(cast_han) { return code.make_nil(); }
 
     # Get the value.
     let operand_val: ^code.Value = cast_han._object as ^code.Value;
@@ -1931,7 +1953,8 @@ def array(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Cast the value to the target type.
         let cast_han: ^code.Handle = generator_util.cast(
-            g^, val_han, array_type.element);
+            g^, val_han, array_type.element, false);
+        if code.isnil(cast_han) { return code.make_nil(); }
         let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
         # Emplace in the argument list.

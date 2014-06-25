@@ -1,3 +1,3 @@
-_: error: expected `identifier` but found `;`
-_: error: expected `;` but found `identifier`
-_: error: expected `;` but found `identifier`
+error: expected `identifier` but found `;`
+error: expected `;` but found `identifier`
+error: expected `;` but found `identifier`

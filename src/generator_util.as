@@ -56,16 +56,9 @@ def declare_basic_types(&mut g: generator_.Generator) {
     declare_float_type(g, "float32", llvm.LLVMFloatType(), 32);
     declare_float_type(g, "float64", llvm.LLVMDoubleType(), 64);
 
-    # Unsigned machine-dependent integer
-    let ptr_type: ^llvm.LLVMOpaqueType =
-        llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0);
-    let ptr_size: uint32 = (sizeof(g, ptr_type) * 8) as uint32;
-    declare_int_type(g, "uint",  llvm.LLVMIntType(ptr_size), false, ptr_size,
-                     true);
-
-    # Signed machine-dependent integer
-    declare_int_type(g, "int",  llvm.LLVMIntType(ptr_size), true, ptr_size,
-                     true);
+    # TODO: Machine-dependent integers
+    declare_int_type(g, "uint",  llvm.LLVMIntType(64), false, 64, false);
+    declare_int_type(g, "int",  llvm.LLVMIntType(64), true, 64, false);
 
     # UTF-32 Character
     let mut han: ^code.Handle = code.make_char_type();
@@ -311,13 +304,11 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
 
         # If our source value is a "constant expression" then just
         # infer us to be an explicit cast
-        llvm.LLVMDumpValue(src_val.handle);
-        printf("\n----------\n");
         if llvm.LLVMIsConstant(src_val.handle) <> 0 { explicit = true; }
 
         if (not dst_int.machine and not src_int.machine) or explicit
         {
-            if dst_int.bits > src_int.bits
+            if dst_int.bits >= src_int.bits
             {
                 # Create a ZExt or SExt.
                 if src_int.signed {
@@ -329,7 +320,7 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
                 }
                 void; # HACK
             }
-            else if explicit
+            else # if explicit
             {
                 # Create a Trunc
                 val = llvm.LLVMBuildTrunc(g.irb, src_val.handle, dst.handle,

@@ -1,5 +1,5 @@
-_: error: expected `;` but found `identifier`
-_: error: expected `;` but found `identifier`
-_: error: expected `;` but found `identifier`
-_: error: expected `;` but found `identifier`
-_: error: expected `;` but found `identifier`
+error: expected `;` but found `identifier`
+error: expected `;` but found `identifier`
+error: expected `;` but found `identifier`
+error: expected `;` but found `identifier`
+error: expected `;` but found `identifier`

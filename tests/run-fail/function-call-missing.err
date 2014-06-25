@@ -1,4 +1,4 @@
-_: error: missing required parameter 'a'
-_: error: missing required parameter 'a'
-_: error: missing required parameter 'a'
-_: error: missing required parameter 'b'
+error: missing required parameter 'a'
+error: missing required parameter 'a'
+error: missing required parameter 'a'
+error: missing required parameter 'b'

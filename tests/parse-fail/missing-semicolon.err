@@ -1,1 +1,1 @@
-_: error: expected `;` but found `true`
+error: expected `;` but found `true`

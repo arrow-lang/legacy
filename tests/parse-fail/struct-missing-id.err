@@ -1,1 +1,1 @@
-_: error: expected `identifier` but found `{`
+error: expected `identifier` but found `{`

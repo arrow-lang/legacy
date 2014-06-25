@@ -1,1 +1,1 @@
-_: error: cannot assign to immutable static item
+error: cannot assign to immutable static item

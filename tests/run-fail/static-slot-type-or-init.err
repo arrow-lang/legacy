@@ -1,2 +1,2 @@
-_: error: static slots require either an an initializer or a type
-_: error: static slots require either an an initializer or a type
+error: static slots require either an an initializer or a type
+error: static slots require either an an initializer or a type

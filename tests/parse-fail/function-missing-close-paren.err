@@ -1,1 +1,1 @@
-_: error: expected `,` or `)` but found `{`
+error: expected `,` or `)` but found `{`

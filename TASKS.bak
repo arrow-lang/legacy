@@ -1,0 +1,61 @@
+# Fun =========================================================================
+# [x] static strings
+# [x] Fix issues in open tabs
+# [ ] `char`
+# [ ] location-aware error reporting
+# [x] module import `import` (source-based only)
+# [ ] "arrow" calling convention
+# [ ]   aggregate by-reference parameters
+# [ ]   mutable parameters
+# [ ] implement
+# [ ]   "instance" methods
+# [ ]   "attached" methods
+# [ ] divergence in the type system; a divergent expression is one that
+#     does not continue. `return ..` is divergent -- `exit(0)` is divergent
+# [ ] promote aggregates to `sret` parameters (function body and call builders)
+# [ ] integral expressions don't carry the target type through
+# [ ] refactor selection statements so that they do not require ";" afterwords
+# [ ] rethink conditional expression parsing so that `x if c else y = 30` works without parens
+
+# Self Hosting ================================================================
+# [ ] functions
+# [ ]   types
+# [ ]   expressions
+# [x] array
+# [x]   expressions
+# [ ] pointer
+# [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
+# [x] external functions
+# [x] external function result
+# [ ] external statics
+# [.] tuple
+# [.]   type (missing named members)
+# [ ]   expression (pack)
+# [ ]   destructure
+# [ ] driver
+
+# Issues ======================================================================
+# [ ] shorthand name reference for function calls (prefixed ":")
+# [ ] type expressions should allow for paths
+# [ ] type expressions should allow for `type(..)`
+# [ ] type expressions should require returning a typename
+# [ ] structure member resolution should be in the namespace of the structure
+# [ ] mutally recursive function parameter type resolution
+# [x] `uint` and `int` should be given the same bits as a ptr has
+# [x] tuple types need to be given a proper path in the parser
+# [x] types slots and parameters need to built now across the board (
+#       to be able to accept expressions in them [for array types mainly])
+
+# Future ======================================================================
+# [ ] array (advanced)
+# [ ]   variable length arrays with heap storage and scoped destructors
+# [ ]   using a platform-dependent heuristic; push even a constant-sized array
+#           into heap storage (for large N arrays).
+# [ ] infer the return type from the function body
+# [ ] usage-based type inference
+# [ ] various tests for blocks and ensuring lifetime
+# [ ] traits
+# [ ] generics
+# [ ] patterns
+# [ ] enumeration
+# [ ] local import

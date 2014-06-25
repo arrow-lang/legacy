@@ -1,61 +1,40 @@
-# Fun =========================================================================
-# [x] static strings
-# [x] Fix issues in open tabs
-# [ ] `char`
-# [ ] location-aware error reporting
-# [x] module import `import` (source-based only)
-# [ ] "arrow" calling convention
-# [ ]   aggregate by-reference parameters
-# [ ]   mutable parameters
-# [ ] implement
-# [ ]   "instance" methods
-# [ ]   "attached" methods
-# [ ] divergence in the type system; a divergent expression is one that
-#     does not continue. `return ..` is divergent -- `exit(0)` is divergent
-# [ ] promote aggregates to `sret` parameters (function body and call builders)
-# [ ] integral expressions don't carry the target type through
-# [ ] refactor selection statements so that they do not require ";" afterwords
-# [ ] rethink conditional expression parsing so that `x if c else y = 30` works without parens
-
-# Self Hosting ================================================================
-# [ ] functions
-# [ ]   types
-# [ ]   expressions
-# [x] array
-# [x]   expressions
-# [ ] pointer
-# [ ]   auto dereference (when `[]`, `()`, or `.` are applied)
-# [x] external functions
-# [x] external function result
-# [ ] external statics
-# [.] tuple
-# [.]   type (missing named members)
-# [ ]   expression (pack)
-# [ ]   destructure
-# [ ] driver
-
-# Issues ======================================================================
-# [ ] shorthand name reference for function calls (prefixed ":")
-# [ ] type expressions should allow for paths
-# [ ] type expressions should allow for `type(..)`
-# [ ] type expressions should require returning a typename
-# [ ] structure member resolution should be in the namespace of the structure
-# [ ] mutally recursive function parameter type resolution
-# [x] `uint` and `int` should be given the same bits as a ptr has
-# [x] tuple types need to be given a proper path in the parser
-# [x] types slots and parameters need to built now across the board (
-#       to be able to accept expressions in them [for array types mainly])
-
-# Future ======================================================================
-# [ ] array (advanced)
-# [ ]   variable length arrays with heap storage and scoped destructors
-# [ ]   using a platform-dependent heuristic; push even a constant-sized array
-#           into heap storage (for large N arrays).
-# [ ] infer the return type from the function body
-# [ ] usage-based type inference
-# [ ] various tests for blocks and ensuring lifetime
-# [ ] traits
-# [ ] generics
-# [ ] patterns
-# [ ] enumeration
-# [ ] local import
+ ☐ absolute module import
+   ☐ add `-L path` option to driver to record possible import directories
+   ☐ only resolve modules from the possible import directory list
+ ☐ module "set" (ensure that we simply extend the reference if a module is re-imported)
+ ☐ local module import
+   use name;
+ ☐ directory (package) import
+   import sdl2
+   check "<dir>/sdl2.as", "<dirs>/sdl2/index.as", "<dirs>/sdl2"
+   in the last case we then extract each "*.as" module found in the directory
+   such that "sdl2.name" would resolve to reference "sdl2/name.as"
+ ☐ traversal with module import
+   use a.b.c;
+   check "./a.as", "./a/index.as",
+         "./a/b.as", "./a/b/index.as",
+         "./a/b/c.as", "./a/b/c", "./a/b/c/index.as"
+   in the first 4 we need to further resolve within the extracted module
+   to traverse farther (.b.c) or (.c)
+ ☐ pass non-primitive parameter types by-reference
+ ☐ allow parameters to be declared as "mut"
+   a "mut" parameter is passed by-reference and the function body is allowed
+   use the parameter as if it were a mutable slot
+ ☐ promote non-primitive return types to a final "sret" parameter
+ ☐ variadic parameter support for external functions only
+   extern printf(str, ...)
+ ☐ resolve selection parsing so that a selection "statement" does not need a trailing ";"
+ ☐ Implement (attached methods)
+   implement int { new(): int -> { return 0; } }
+   int.new() == 0
+ ☐ Implement (instance methods)
+   implement int { slap(self): Self -> { return -self; } }
+   5.slap() == -5
+ ☐ automatic derefence when "using" a raw pointer (`[]`, `()`, and `.`)
+ ☐ Logical operations: `and`, `or`
+ ☐ function types
+ ☐ assign named functions to slots (`to_value`)
+ ☐ function expressions
+ ☐ change "def" to "let" for functions -- let main(): int -> { }
+ ☐ Remove "def" in extern bindings
+ ☐ remove "static", module-scoped "let" bindings get promoted to what "static" was

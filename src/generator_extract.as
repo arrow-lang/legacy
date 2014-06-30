@@ -46,6 +46,10 @@ def extract(&mut g: generator_.Generator, node: ast.Node) -> bool
     {
         extract_import(g, node.unwrap() as ^ast.Import);
     }
+    else if node.tag == ast.TAG_IMPLEMENT
+    {
+        extract_implement(g, node.unwrap() as ^ast.Implement);
+    }
     else { return false; }
 
     # Return success.

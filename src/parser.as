@@ -314,7 +314,7 @@ def parse_common_statement(&mut self) -> bool {
     if tok.tag == tokens.TOK_STRUCT { return self.parse_struct(); }
     # if tok.tag == tokens.TOK_ENUM   { return self.parse_enum(); }
     # if tok.tag == tokens.TOK_USE    { return self.parse_use(); }
-    # if tok.tag == tokens.TOK_IMPL   { return self.parse_impl(); }
+    if tok.tag == tokens.TOK_IMPL     { return self.parse_impl(); }
     if tok.tag == tokens.TOK_RETURN   { return self.parse_return(); }
     if tok.tag == tokens.TOK_BREAK    { return self.parse_break(); }
     if tok.tag == tokens.TOK_CONTINUE { return self.parse_continue(); }
@@ -2195,6 +2195,103 @@ def parse_slot(&mut self) -> bool
         if not self.parse_expr(false) { return false; }
         slot.initializer = self.stack.pop();
     }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Implement
+# -----------------------------------------------------------------------------
+def parse_impl(&mut self) -> bool
+{
+    # Allocate space for the node.
+    let node: ast.Node = ast.make(ast.TAG_IMPLEMENT);
+    let impl: ^ast.Implement =  node.unwrap() as ^ast.Implement;
+
+    # Pop the `implement` token.
+    self.pop_token();
+
+    # Parse and set the type.
+    if not self.parse_type() { return false; }
+    impl.type_ = self.stack.pop();
+
+    # Expect and parse the initial `{` token.
+    if not self.expect(tokens.TOK_LBRACE) {
+        self.consume_until(tokens.TOK_RBRACE);
+        return false;
+    }
+
+    # Enumerate until we reach the `}` token.
+    while self.peek_token_tag(1) <> tokens.TOK_RBRACE {
+        # Expect an `identifier` token to start the member function
+        # declaration.
+        if not self.peek_token_tag(1) == tokens.TOK_IDENTIFIER {
+            let tok: int = self.peek_token_tag(1);
+            self.consume_until(tokens.TOK_RBRACE);
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+               "expected %s but found %s" as ^int8,
+               tokens.to_str(tokens.TOK_IDENTIFIER),
+               tokens.to_str(tok));
+            errors.end();
+            return false;
+        }
+
+        # Declare the function decl node.
+        let fnnode: ast.Node = ast.make(ast.TAG_FUNC_DECL);
+        let decl: ^ast.FuncDecl = fnnode.unwrap() as ^ast.FuncDecl;
+
+        # Parse and set the identifier (this shouldn't fail).
+        if not self.parse_ident() { return false; }
+        decl.id = self.stack.pop();
+
+        # Check for and parse type type parameters.
+        if not self.parse_type_params(decl.type_params) { return false; }
+
+        # Parse the parameter list.
+        if not self.parse_function_params(decl.params, true) { return false; }
+
+        # Check for a return type annotation which would again
+        # be preceeded by a `:` token.
+        if self.peek_token_tag(1) == tokens.TOK_COLON
+        {
+            # Pop the `:` token.
+            self.pop_token();
+
+            # Parse and set the type.
+            if not self.parse_type() { return false; }
+            decl.return_type = self.stack.pop();
+        }
+
+        # Expect an `->` token.
+        if not self.peek_token_tag(1) == tokens.TOK_RARROW {
+            let tok: int = self.peek_token_tag(1);
+            self.consume_until(tokens.TOK_RBRACE);
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+               "expected %s but found %s" as ^int8,
+               tokens.to_str(tokens.TOK_RARROW),
+               tokens.to_str(tok));
+            errors.end();
+            return false;
+        }
+
+        # Pop the `->` token.
+        self.pop_token();
+
+        # Parse the function block next.
+        if not self.parse_block_expr() { return false; }
+        decl.block = self.stack.pop();
+
+        # Push us into our node stack.
+        impl.methods.push(fnnode);
+    }
+
+    # Expect and parse the `}` token.
+    if not self.expect(tokens.TOK_RBRACE) { return false; }
 
     # Push our node on the stack.
     self.stack.push(node);

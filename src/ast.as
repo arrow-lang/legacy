@@ -84,6 +84,7 @@ let TAG_TUPLE_TYPE_MEM  : int = 74;             # TupleTypeMem
 let TAG_EXTERN_STATIC   : int = 75;             # ExternStaticSlot
 let TAG_EXTERN_FUNC     : int = 76;             # ExternFunc
 let TAG_STRING          : int = 77;             # StringExpr
+let TAG_IMPLEMENT       : int = 78;             # Implement
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -302,6 +303,9 @@ type ArrayType { mut element: Node, mut size: Node }
 #      to import.
 type Import { mut ids: Nodes }
 
+# Implement Block
+type Implement { mut type_: Node, mut methods: Nodes }
+
 # Global
 type Empty { }
 
@@ -365,6 +369,7 @@ def _sizeof(tag: int) -> uint {
     # else if tag == TAG_SEQ_EXPR  { let tmp: SequenceExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_TUPLE_EXPR { let tmp: TupleExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_TUPLE_TYPE { let tmp: TupleType; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_IMPLEMENT { let tmp: Implement; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODE    { let tmp: Node; ((&tmp + 1) - &tmp); }
     else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
@@ -543,6 +548,7 @@ def fdump(stream: ^libc._IO_FILE, &node: Node) {
         dump_table[TAG_ARRAY_TYPE] = dump_array_type;
         dump_table[TAG_STRING] = dump_string_expr;
         dump_table[TAG_IMPORT] = dump_import;
+        dump_table[TAG_IMPLEMENT] = dump_implement;
         dump_initialized = true;
     }
 
@@ -856,6 +862,18 @@ def dump_struct(stream: ^libc._IO_FILE, node: ^Node) {
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Type Parameters", x.type_params);
     dump_nodes(stream, "Members", x.nodes);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_implement
+# -----------------------------------------------------------------------------
+def dump_implement(stream: ^libc._IO_FILE, node: ^Node) {
+    let x: ^Implement = unwrap(node^) as ^Implement;
+    libc.fprintf(stream, "Implement <?>\n" as ^int8);   
+ 
+    dump_indent = dump_indent + 1;
+    fdump(stream, x.type_);
+    dump_nodes(stream, "Methods", x.methods);
     dump_indent = dump_indent - 1;
 }
 

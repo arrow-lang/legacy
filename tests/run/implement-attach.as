@@ -10,6 +10,7 @@ implement Point {
 }
 
 def main() {
+# let main() -> {
     assert(not bool.false_());
     assert(int.zero() == 0);
     assert(Point.origin().x == 0);

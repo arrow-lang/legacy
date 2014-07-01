@@ -213,6 +213,57 @@ def extract_extern_static(&mut g: generator_.Generator, x: ^ast.ExternStaticSlot
     errors.end();
 }
 
+# Extract "implement" block.
+# -----------------------------------------------------------------------------
+def extract_implement(&mut g: generator_.Generator, x: ^ast.Implement)
+{
+    # We should iterate through each member function and extract
+    # it separately as a "instance" or "attached" function bound to the
+    # type node.
+    let mut i: int = 0;
+    while i as uint < x.methods.size() {
+        let node: ast.Node = x.methods.get(i);
+        i = i + 1;
+
+        extract_attached_function(g, x, node.unwrap() as ^ast.FuncDecl);
+    }
+}
+
+# Extract an "attached function" item.
+# -----------------------------------------------------------------------------
+def extract_attached_function(&mut g: generator_.Generator,
+                              x: ^ast.FuncDecl)
+{
+    # Build the name for this function.
+    let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+
+    # Create a `code` handle for the function (ignoring the type for now).
+    let han: ^code.Handle = code.make_attached_function(
+        x, id.name.data() as str,
+        code.make_nil(),
+        0 as ^llvm.LLVMOpaqueValue);
+
+    # # Set us as an `item`.
+    # g.items.set_ptr(qname.data() as str, han as ^void);
+
+    # Push our name onto the namespace stack.
+    g.ns.push_str(id.name.data() as str);
+
+    # Generate each node in the module and place items that didn't
+    # get extracted into the new node block.
+    let nodes: ^mut ast.Nodes = ast.new_nodes();
+    let blk_node: ast.Node = x.block;
+    let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
+    extract_items(g, nodes, blk.nodes);
+    g.nodes.set_ptr(qname.data() as str, nodes as ^void);
+
+    # Pop our name off the namespace stack.
+    g.ns.erase(-1);
+
+    # Dispose of dynamic memory.
+    qname.dispose();
+}
+
 # Extract "import"
 # -----------------------------------------------------------------------------
 def extract_import(&mut g: generator_.Generator, x: ^ast.Import)

@@ -188,7 +188,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     generator_decl.generate(g);
     if errors.count > 0 { return; }
 
-    # # Next we generate defs for each "item".
+    # Next we generate defs for each "item".
     generator_def.generate(g);
     if errors.count > 0 { return; }
 

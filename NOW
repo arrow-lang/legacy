@@ -1,58 +1,11 @@
-# [x] Parse import statements
-# [x] Tokenizer operates on "tokens" (not "integers")
-#     Fixes problem with "consecutive" identifiers or strings, etc.
-# [x] Driver (getopt?)
-# [x]   » arrow --version
-# [x]   » arrow -o out
-# [x]   » arrow < in.as
-# [x]   » arrow in.as
-# [x] Driver (additional options)
-# [x]   » `arrow --parse` parse only
-# [x]   » `arrow --tokenize` tokenize only
-# [x] Module Import (from source)
-# [x] "Imported" module should not share scope with the "importing" module.
-# [x] Top-level modules (files) should not be able to be referred to by module name.
-# [ ] Driver (additional options)
-# [ ]   » `arrow -L path/to/modules` -- prepend a directory to the module path
-# [ ] Enforece "absolute" nature of "import"
-# [ ] local or relative imports "use"
-# [ ] Module import "set" (re-importing modules just extends its referencable scope)
-# [ ] Mutual recursion tests with importing (circular imports)
-# [ ] Implement (attached methods)
-# [ ] Implement (instance methods)
-# [ ] Logical operations: `and`, `or`
-# [ ] Pass by-reference in "arrow" functions
-# [ ] Mutable parameters in "arrow" functions
-# [ ] function types
-# [ ] assign named functions to slots (`to_value`)
-# [ ] function expressions
+# [ ] move `Generator.nodes` to a `nodes` property on the function handle
+# [ ] `extract_attached_function` needs to store the attached function with
+#     the attached type_ node.
 
-# -----------------------------------------------------------------------------
+def main() {
+    def nested() {
+    }
+    let m = Point();
+}
 
-# [ ] move common type resolution to the `build` step
-#     this allows for a critical piece of information (is_constant) as
-#     [1, val] would be resolved to type(val) if val is integral rather
-#     than 1 (as constants fold into their neihboring types).
-# [ ] create failing run tests
-# [ ]   - assign a non-constant <int> to a <int8>
-# [ ]   - assign a non-constant <int> to a <int128>
-# [ ]   - compare a non-constant <int> to a <int8>
-# [ ]   - compare a non-constant <int> to a <int128>
-# [ ] character type
-# [ ] "static" context is not preserved through arithmetic
-# [ ] allow "constant" expressions inside of [..]
-
-# [ ] Variadic parameter support on extern functions
-# [ ] promote aggregates to `sret` parameters (function body and call builders)
-# [ ] divergence in the type system; a divergent expression is one that
-#     does not continue. `return ..` is divergent -- `exit(0)` is divergent
-# [ ] integral expressions don't carry the target type through
-# [ ] refactor selection statements so that they do not require ";" afterwords
-# [ ] rethink conditional expression parsing so that `x if c else y = 30` works without parens
-# [ ] remove "static", module-scoped "let" bindings get promoted to what "static" was
-# [ ] Name hoisting and extraction done for "let" bindings
-# [ ] Name hoisting and extraction done on each block
-# [ ] change "def" to "let" for functions -- let main(): int -> { }
-# [ ] Remove "def" in extern bindings
-# [x] cast integer to pointer of struct dies as the initializer for static slots
-# [x] allow "." in typename
+struct Point { }

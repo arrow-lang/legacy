@@ -455,3 +455,18 @@ def type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
     # Return false.
     false;
 }
+
+# Get the qualified type name for this handle
+# -----------------------------------------------------------------------------
+def qualified_name_ref(han: ^code.Handle) -> string.String {
+    let typ: ^code.Type = han._object as ^code.Type;
+    let mut m: string.String = string.make();
+    m._data.reserve(64);
+    let written: int = libc.snprintf(
+        m.data(), 64, "%p" as ^int8, typ.handle);
+    m._data.size = written as uint;
+    let data: ^int8 = m.data();
+    (data + 0)^ = string.ord("_");
+    (data + 1)^ = string.ord("Z");
+    m;
+}

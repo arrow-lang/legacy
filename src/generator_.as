@@ -41,6 +41,9 @@ type Generator {
     # from extracting the "items".
     mut nodes: dict.Dictionary,
 
+    # List of functions to be attached.
+    mut attached_functions: list.List,
+
     # The stack of namespaces that represent our current "item" scope.
     mut ns: list.List,
 
@@ -78,6 +81,7 @@ implement Generator {
         # FIXME: Dispose of each "item".
         self.items.dispose();
         self.nodes.dispose();
+        self.attached_functions.dispose();
 
         # Dispose of our namespace list.
         self.ns.dispose();

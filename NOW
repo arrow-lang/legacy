@@ -9,3 +9,9 @@ def main() {
 }
 
 struct Point { }
+
+# [ ]
+implement (int, bool) {
+    first(self) -> self[0];
+    second(self) -> self[1];
+}

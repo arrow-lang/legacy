@@ -34,6 +34,7 @@ let TAG_EXTERN_FUNC: int = 19;
 let TAG_EXTERN_STATIC: int = 20;
 let TAG_CHAR_TYPE: int = 21;
 let TAG_STR_TYPE: int = 21;
+let TAG_ATTACHED_FUNCTION: int = 22;
 
 # Value categories
 # -----------------------------------------------------------------------------
@@ -211,7 +212,7 @@ def make_bool_type(handle: ^LLVMOpaqueType) -> ^Handle {
 def make_char_type() -> ^Handle {
     # Build the module.
     let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
-    ty.handle = llvm.LLVMInt32Type();
+    ty.handle = LLVMInt32Type();
     ty.bits = 0;  # FIXME: Get the size of this type using sizeof.
 
     # Wrap in a handle.
@@ -221,7 +222,7 @@ def make_char_type() -> ^Handle {
 def make_str_type() -> ^Handle {
     # Build the module.
     let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
-    ty.handle = llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0);
+    ty.handle = LLVMPointerType(LLVMInt8Type(), 0);
     ty.bits = 0;  # FIXME: Get the size of this type using sizeof.
 
     # Wrap in a handle.
@@ -763,6 +764,50 @@ def make_function(
 
     # Wrap in a handle.
     make(TAG_FUNCTION, func as ^void);
+}
+
+# Attached function
+# -----------------------------------------------------------------------------
+
+type AttachedFunction {
+    context: ^ast.FuncDecl,
+    handle: ^LLVMOpaqueValue,
+    mut namespace: list.List,
+    mut name: string.String,
+    mut qualified_name: string.String,
+    mut type_: ^mut Handle,
+    mut scope: Scope,
+    mut attached_type: ^mut Handle,
+    mut attached_type_node: ^ast.Node
+}
+
+let ATTACHED_FUNCTION_SIZE: uint = ((0 as ^AttachedFunction) + 1) - (0 as ^AttachedFunction);
+
+def make_attached_function(
+        context: ^ast.FuncDecl,
+        name: str,
+        &mut namespace: list.List,
+        attached_type_node: ^ast.Node) -> ^Handle {
+    # Build the function.
+    let func: ^AttachedFunction = libc.malloc(ATTACHED_FUNCTION_SIZE as int64) as ^AttachedFunction;
+    func.context = context;
+    func.handle = 0 as ^LLVMOpaqueValue;
+    func.name = string.make();
+    func.name.extend(name);
+    func.namespace = namespace.clone();
+    # func.qualified_name = string.join(".", func.namespace);
+    # func.qualified_name.append(".");
+    # func.qualified_name.extend(name);
+    func.type_ = make_nil();
+    func.scope = make_scope();
+    func.attached_type = make_nil();
+    func.attached_type_node = attached_type_node;
+
+    # Push the top scope block for the function.
+    func.scope.push();
+
+    # Wrap in a handle.
+    make(TAG_ATTACHED_FUNCTION, func as ^void);
 }
 
 # External function

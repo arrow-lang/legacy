@@ -15,6 +15,7 @@ import generator_extract;
 import generator_def;
 import generator_decl;
 import generator_type;
+import generator_realize;
 import builders;
 import resolvers;
 
@@ -75,6 +76,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.ns = list.make(types.STR);
     g.top_ns = string.make();
     g.loops = list.make_generic(generator_.LOOP_SIZE);
+    g.attached_functions = list.make(types.PTR);
 
     # Build the "type resolution" jump table.
     libc.memset(&g.type_resolvers[0] as ^void, 0, (100 * ptr_size) as int32);
@@ -178,6 +180,10 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     # by "some" declaration (`module`, `function`, `struct`, etc.) this
     # effectually removes the AST structure.
     generator_extract.extract(g, node);
+    if errors.count > 0 { return; }
+
+    # Next we realize the type of each item that we extracted.
+    generator_realize.generate(g);
     if errors.count > 0 { return; }
 
     # Next we resolve the type of each item that we extracted.

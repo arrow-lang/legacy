@@ -33,6 +33,12 @@ def generate(&mut g: generator_.Generator)
             generate_function(g, key, val._object as ^code.Function);
             void;
         }
+        else if val._tag == code.TAG_ATTACHED_FUNCTION
+        {
+            generate_attached_function(g, key,
+                                       val._object as ^code.AttachedFunction);
+            void;
+        }
         else if val._tag == code.TAG_STRUCT
         {
             generate_struct(g, key, val._object as ^code.Struct);
@@ -90,6 +96,22 @@ def generate_function(&mut g: generator_.Generator, qname: str,
         # Add the function to the module.
         # TODO: Set priv, vis, etc.
         x.handle = llvm.LLVMAddFunction(g.mod, qname as ^int8, type_.handle);
+    }
+}
+
+# Attached Function
+# -----------------------------------------------------------------------------
+def generate_attached_function(
+    &mut g: generator_.Generator, qname: str, x: ^code.AttachedFunction)
+{
+    if x.handle == 0 as ^llvm.LLVMOpaqueValue {
+        # Get the type node out of the handle.
+        let type_: ^code.FunctionType = x.type_._object as ^code.FunctionType;
+
+        # Add the function to the module.
+        # TODO: Set priv, vis, etc.
+        x.handle = llvm.LLVMAddFunction(
+            g.mod, x.qualified_name.data() as ^int8, type_.handle);
     }
 }
 

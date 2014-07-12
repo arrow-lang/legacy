@@ -1,9 +1,10 @@
+import libc;
+import llvm;
 import code;
 import dict;
 import list;
 import types;
 import errors;
-import llvm;
 import ast;
 import generator_;
 import generator_util;
@@ -31,6 +32,7 @@ def generate(&mut g: generator_.Generator)
             or val._tag == code.TAG_STRUCT
             or val._tag == code.TAG_EXTERN_FUNC
             or val._tag == code.TAG_EXTERN_STATIC
+            or val._tag == code.TAG_ATTACHED_FUNCTION
         {
             generate_handle(g, key, val);
         }
@@ -51,6 +53,11 @@ def generate_handle(&mut g: generator_.Generator, qname: str,
     else if handle._tag == code.TAG_FUNCTION
     {
         generate_function(g, qname, handle._object as ^code.Function);
+    }
+    else if handle._tag == code.TAG_ATTACHED_FUNCTION
+    {
+        generate_attached_function(g, qname,
+                                   handle._object as ^code.AttachedFunction);
     }
     else if handle._tag == code.TAG_STRUCT
     {
@@ -122,6 +129,40 @@ def generate_static_slot(&mut g: generator_.Generator,
     x.type_ = code.make_poison() if code.isnil(han) else han;
 }
 
+# Generate the return type for a `function-like`.
+# -----------------------------------------------------------------------------
+def _generate_return_type(&mut g: generator_.Generator,
+                          x: ^ast.Node,
+                          namespace: ^list.List,
+                          scope: ^code.Scope) -> ^code.Handle
+{
+
+    # Resolve the return type.
+    let ret_han: ^code.Handle = code.make_nil();
+    if ast.isnull(x^)
+    {
+        # No return type specified.
+        # TODO: In the future this should resolve the type
+        #   of the function body.
+        # Use a void return type for now.
+        ret_han = code.make_void_type(llvm.LLVMVoidType());
+    }
+    else
+    {
+        # Get and resolve the return type.
+        ret_han = resolver.resolve_in(
+            &g, x, namespace, scope, code.make_nil());
+        if not code.is_type(ret_han) {
+            ret_han = code.type_of(ret_han);
+        }
+
+        if code.isnil(ret_han) { return code.make_nil(); }
+    }
+
+    # Return the ret handle.
+    return ret_han;
+}
+
 # Generate the type for the `function`.
 # -----------------------------------------------------------------------------
 def generate_function(&mut g: generator_.Generator,
@@ -135,38 +176,17 @@ def generate_function(&mut g: generator_.Generator,
     if code.ispoison(x.type_) { return code.make_nil(); }
 
     # Resolve the return type.
-    let ret_han: ^code.Handle = code.make_nil();
-    let ret_typ_han: ^llvm.LLVMOpaqueType;
-    if ast.isnull(x.context.return_type)
-    {
-        # No return type specified.
-        # TODO: In the future this should resolve the type
-        #   of the function body.
-        # Use a void return type for now.
-        ret_typ_han = llvm.LLVMVoidType();
-        ret_han = code.make_void_type(ret_typ_han);
-        ret_typ_han;  # HACK!
+    let ret_han: ^code.Handle = _generate_return_type(
+        g,
+        &x.context.return_type,
+        &x.namespace,
+        &x.scope);
+    if code.isnil(ret_han) {
+        x.type_ = code.make_poison();
+        return code.make_poison();
     }
-    else
-    {
-        # Get and resolve the return type.
-        ret_han = resolver.resolve_in(
-            &g, &x.context.return_type, &x.namespace,
-            &x.scope, code.make_nil());
-        if not code.is_type(ret_han) {
-            ret_han = code.type_of(ret_han);
-        }
-
-        if code.isnil(ret_han) {
-            # Failed to resolve type; mark us as poisioned.
-            x.type_ = code.make_poison();
-            return code.make_poison();
-        }
-
-        # Get the ret type handle.
-        let ret_typ: ^code.Type = ret_han._object as ^code.Type;
-        ret_typ_han = ret_typ.handle;
-    }
+    let ret_typ: ^code.Type = ret_han._object as ^code.Type;
+    let ret_typ_han: ^llvm.LLVMOpaqueType = ret_typ.handle;
 
     # Resolve the type for each parameter.
     let mut params: list.List = list.make(types.PTR);
@@ -198,6 +218,71 @@ def generate_function(&mut g: generator_.Generator,
     let han: ^code.Handle;
     han = code.make_function_type(
         qname, x.namespace, x.name.data() as str, val, ret_han, params);
+    x.type_ = han;
+
+    # Dispose of dynamic memory.
+    param_type_handles.dispose();
+
+    # Return the type handle.
+    han;
+}
+
+# Generate the type for the `attached function`.
+# -----------------------------------------------------------------------------
+def generate_attached_function(&mut g: generator_.Generator,
+                               qname: str,
+                               x: ^code.AttachedFunction)
+    -> ^code.Handle
+{
+    # Return our type if it is resolved.
+    if not code.isnil(x.type_) { return x.type_; }
+
+    # Return nil if we have been poisioned from a previous failure.
+    if code.ispoison(x.type_) { return code.make_nil(); }
+
+    # Resolve the return type.
+    let ret_han: ^code.Handle = _generate_return_type(
+        g,
+        &x.context.return_type,
+        &x.namespace,
+        &x.scope);
+    if code.isnil(ret_han) {
+        x.type_ = code.make_poison();
+        return code.make_poison();
+    }
+    let ret_typ: ^code.Type = ret_han._object as ^code.Type;
+    let ret_typ_han: ^llvm.LLVMOpaqueType = ret_typ.handle;
+
+    # Resolve the type for each parameter.
+    let mut params: list.List = list.make(types.PTR);
+    let mut param_type_handles: list.List = list.make(types.PTR);
+    let mut i: int = 0;
+    while i as uint < x.context.params.size()
+    {
+        let pnode: ast.Node = x.context.params.get(i);
+        i = i + 1;
+        let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
+        if not _generate_func_param(
+            g, p, &x.namespace, &x.scope, params, param_type_handles)
+        {
+             # Failed to resolve type; mark us as poisioned.
+             x.type_ = code.make_poison();
+             return code.make_poison();
+        }
+    }
+
+    # Build the LLVM type handle.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMFunctionType(
+        ret_typ_han,
+        param_type_handles.elements as ^^llvm.LLVMOpaqueType,
+        param_type_handles.size as uint32,
+        0);
+
+    # Create and store our type.
+    let han: ^code.Handle;
+    han = code.make_function_type(
+        "", x.namespace, x.name.data() as str, val, ret_han, params);
     x.type_ = han;
 
     # Dispose of dynamic memory.

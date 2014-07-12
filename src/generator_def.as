@@ -32,6 +32,12 @@ def generate(&mut g: generator_.Generator) {
             generate_function(g, key, val._object as ^code.Function);
             void;
         }
+        else if val._tag == code.TAG_ATTACHED_FUNCTION
+        {
+            generate_attached_function(g, key,
+                                       val._object as ^code.AttachedFunction);
+            void;
+        }
         else if    val._tag == code.TAG_TYPE
                 or val._tag == code.TAG_INT_TYPE
                 or val._tag == code.TAG_FLOAT_TYPE
@@ -167,7 +173,8 @@ def generate_function(&mut g: generator_.Generator, qname: str,
     }
 
     # Pull out the nodes that correspond to this function.
-    let nodes: ^ast.Nodes = g.nodes.get_ptr(qname) as ^ast.Nodes;
+    let blk_node: ast.Node = x.context.block;
+    let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
 
     # Create a namespace for the function definition.
     let mut ns: list.List = x.namespace.clone();
@@ -182,8 +189,8 @@ def generate_function(&mut g: generator_.Generator, qname: str,
     # Iterate over the nodes in the function.
     let mut i: int = 0;
     let mut res: ^code.Handle = code.make_nil();
-    while i as uint < (nodes^).size() {
-        let node: ast.Node = (nodes^).get(i);
+    while i as uint < blk.nodes.size() {
+        let node: ast.Node = blk.nodes.get(i);
         i = i + 1;
 
         # Resolve the type of the node.
@@ -197,7 +204,7 @@ def generate_function(&mut g: generator_.Generator, qname: str,
             &g, &node, &ns, &x.scope, target);
 
         # Set the last handle as our value.
-        if i as uint >= (nodes^).size() {
+        if i as uint >= blk.nodes.size() {
             res = han;
         }
     }
@@ -274,6 +281,42 @@ def generate_function(&mut g: generator_.Generator, qname: str,
 
     # Unset the current function.
     g.current_function = prev_fn;
+}
+
+# Attached Function [TAG_ATTACHED_FUNCTION]
+# -----------------------------------------------------------------------------
+def generate_attached_function(&mut g: generator_.Generator, qname: str,
+                               x: ^code.AttachedFunction)
+{
+    # Generate as a normal function.
+    generate_function(g, qname, x as ^code.Function);
+
+    # # Set the current function.
+    # let prev_fn: ^code.Function = g.current_function;
+    # g.current_function = x as ^code.Function;
+
+    # # Skip if this function been generated or is available externally.
+    # if llvm.LLVMCountBasicBlocks(x.handle) > 0 { return; }
+
+    # # Create the entry basic block for the function definition.
+    # let entry: ^llvm.LLVMOpaqueBasicBlock;
+    # entry = llvm.LLVMAppendBasicBlock(x.handle, "" as ^int8);
+
+    # # Remember the insert block.
+    # let cur_block: ^llvm.LLVMOpaqueBasicBlock;
+    # cur_block = llvm.LLVMGetInsertBlock(g.irb);
+
+    # # Set the insertion point.
+    # llvm.LLVMPositionBuilderAtEnd(g.irb, entry);
+
+    # # Dispose.
+    # # ns.dispose();
+
+    # # Reset to the old insert block.
+    # llvm.LLVMPositionBuilderAtEnd(g.irb, cur_block);
+
+    # # Unset the current function.
+    # g.current_function = prev_fn;
 }
 
 # Internal

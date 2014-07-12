@@ -121,20 +121,6 @@ def extract_function(&mut g: generator_.Generator, x: ^ast.FuncDecl)
     # Set us as an `item`.
     g.items.set_ptr(qname.data() as str, han as ^void);
 
-    # Push our name onto the namespace stack.
-    g.ns.push_str(id.name.data() as str);
-
-    # Generate each node in the module and place items that didn't
-    # get extracted into the new node block.
-    let nodes: ^mut ast.Nodes = ast.new_nodes();
-    let blk_node: ast.Node = x.block;
-    let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
-    extract_items(g, nodes, blk.nodes);
-    g.nodes.set_ptr(qname.data() as str, nodes as ^void);
-
-    # Pop our name off the namespace stack.
-    g.ns.erase(-1);
-
     # Dispose of dynamic memory.
     qname.dispose();
 }
@@ -217,55 +203,34 @@ def extract_extern_static(&mut g: generator_.Generator, x: ^ast.ExternStaticSlot
 # -----------------------------------------------------------------------------
 def extract_implement(&mut g: generator_.Generator, x: ^ast.Implement)
 {
-    errors.begin_error();
-    errors.libc.fprintf(errors.libc.stderr, "not implemented: extract_implement" as ^int8);
-    errors.end();
     # We should iterate through each member function and extract
     # it separately as a "instance" or "attached" function bound to the
     # type node.
-#     let mut i: int = 0;
-#     while i as uint < x.methods.size() {
-#         let node: ast.Node = x.methods.get(i);
-#         i = i + 1;
+    let mut i: int = 0;
+    while i as uint < x.methods.size() {
+        let node: ast.Node = x.methods.get(i);
+        i = i + 1;
 
-#         extract_attached_function(g, x, node.unwrap() as ^ast.FuncDecl);
-#     }
+        extract_attached_function(g, &x.type_, node.unwrap() as ^ast.FuncDecl);
+    }
 }
 
-# # Extract an "attached function" item.
-# # -----------------------------------------------------------------------------
-# def extract_attached_function(&mut g: generator_.Generator,
-#                               x: ^ast.FuncDecl)
-# {
-#     # Build the name for this function.
-#     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+# Extract an "attached function" item.
+# -----------------------------------------------------------------------------
+def extract_attached_function(&mut g: generator_.Generator,
+                              type_: ^ast.Node,
+                              x: ^ast.FuncDecl)
+{
+    # Build the name for this function.
+    let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
 
-#     # Create a `code` handle for the function (ignoring the type for now).
-#     let han: ^code.Handle = code.make_attached_function(
-#         x, id.name.data() as str,
-#         code.make_nil(),
-#         0 as ^llvm.LLVMOpaqueValue);
+    # Create a `code` handle for the function (ignoring the type for now).
+    let han: ^code.Handle = code.make_attached_function(
+        x, id.name.data() as str, g.ns, type_);
 
-#     # # Set us as an `item`.
-#     # g.items.set_ptr(qname.data() as str, han as ^void);
-
-#     # Push our name onto the namespace stack.
-#     g.ns.push_str(id.name.data() as str);
-
-#     # Generate each node in the module and place items that didn't
-#     # get extracted into the new node block.
-#     let nodes: ^mut ast.Nodes = ast.new_nodes();
-#     let blk_node: ast.Node = x.block;
-#     let blk: ^ast.Block = blk_node.unwrap() as ^ast.Block;
-#     extract_items(g, nodes, blk.nodes);
-#     g.nodes.set_ptr(qname.data() as str, nodes as ^void);
-
-#     # Pop our name off the namespace stack.
-#     g.ns.erase(-1);
-
-#     # Dispose of dynamic memory.
-#     qname.dispose();
-# }
+    # Push this into the "attached" function list.
+    g.attached_functions.push_ptr(han as ^void);
+}
 
 # Extract "import"
 # -----------------------------------------------------------------------------

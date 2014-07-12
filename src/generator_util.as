@@ -470,3 +470,17 @@ def qualified_name_ref(han: ^code.Handle) -> string.String {
     (data + 1)^ = string.ord("Z");
     m;
 }
+
+# Get an attached function
+# -----------------------------------------------------------------------------
+def get_attached_function(&mut g: generator_.Generator,
+                          type_: ^code.Handle,
+                          name: str) -> ^code.Handle
+{
+    let mut qn: string.String = qualified_name_ref(type_);
+    qn.append(".");
+    qn.extend(name);
+    let item: ^code.Handle = g.items.get_ptr(qn.data() as str) as ^code.Handle;
+    qn.dispose();
+    item;
+}

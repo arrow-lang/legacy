@@ -451,40 +451,50 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
 
             # Dispose.
             ns.dispose();
-        } else if lhs._tag == code.TAG_FUNCTION_TYPE {
-            let fn: ^code.FunctionType = lhs._object as ^code.FunctionType;
-
-            # Build the namespace.
-            let mut ns: list.List = fn.namespace.clone();
-            ns.push_str(fn.unqualified_name.data() as str);
-
-            # Attempt to resolve the member.
-            item = generator_util.get_scoped_item_in(
-                g^, rhs_id.name.data() as str, scope, ns);
-
-            # Do we have this item?
-            if item == 0 as ^code.Handle {
-                # No; report and bail.
-                 errors.begin_error();
-                 errors.libc.fprintf(errors.libc.stderr,
-                                "function '%s' has no member '%s'" as ^int8,
-                                fn.name.data(), rhs_id.name.data());
-                 errors.end();
-                 return code.make_nil();
-            }
-
-            # Dispose.
-            ns.dispose();
         } else if lhs._tag == code.TAG_STRUCT_TYPE {
             let struct_: ^code.StructType = lhs._object as ^code.StructType;
 
-            # Resolve the type of this specific structure member.
-            item = generator_type.generate_struct_member(
-                g^, struct_, rhs_id.name.data() as str);
+            # Check for an attached function.
+            item = generator_util.get_attached_function(
+                g^, lhs, rhs_id.name.data() as str);
+            if not code.isnil(item) {
+                # We have an attached function, probably.
+                item = generator_type.generate_attached_function(
+                    g^, "",
+                    item._object as ^code.AttachedFunction);
+            } else {
+                # Null us out.
+                item = code.make_nil();
+            }
 
-            # Does this member exist in the structure?
             if code.isnil(item) {
-                # No; bail (error already reported).
+                # Resolve the type of this specific structure member.
+                item = generator_type.generate_struct_member(
+                    g^, struct_, rhs_id.name.data() as str);
+            }
+
+            if code.isnil(item) {
+                # Bail (error already reported).
+                return code.make_nil();
+            }
+        } else if code.is_type(lhs) {
+            # Check for an attached function.
+            item = generator_util.get_attached_function(
+                g^, lhs, rhs_id.name.data() as str);
+            if not code.isnil(item) {
+                # We have an attached function, probably.
+                item = generator_type.generate_attached_function(
+                    g^, "",
+                    item._object as ^code.AttachedFunction);
+            } else {
+                # Nope; report the error and bail.
+                let mut typename: string.String = code.typename(lhs);
+                errors.begin_error();
+                errors.libc.fprintf(errors.libc.stderr,
+                   "type '%s' has no member '%s'" as ^int8,
+                   typename.data(), rhs_id.name.data());
+                errors.end();
+                typename.dispose();
                 return code.make_nil();
             }
         } else {

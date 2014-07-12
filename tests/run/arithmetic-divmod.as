@@ -1,6 +1,6 @@
 def main() {
-    static x: int32 = 15;
-    static y: int32 = 5;
+    let x: int32 = 15;
+    let y: int32 = 5;
     assert( x // 5 == 3);
     assert( x // 4 == 3);
     assert( x // 3 == 5);

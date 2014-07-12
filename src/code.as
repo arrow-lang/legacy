@@ -539,6 +539,9 @@ def type_of(handle: ^Handle) -> ^Handle {
     } else if handle._tag == TAG_MEMBER {
         let mem: ^Member = handle._object as ^Member;
         mem.type_;
+    } else if handle._tag == TAG_ATTACHED_FUNCTION {
+        let val: ^Function = handle._object as ^Function;
+        val.type_;
     } else {
         make_nil();
     }

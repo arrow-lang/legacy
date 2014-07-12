@@ -1,5 +1,5 @@
 def main() {
-    static a: int128 = 10;
+    let a: int128 = 10;
     assert(a == a);
     assert(a - 10 == 0);
     assert(a // 10 == 1);
@@ -8,6 +8,6 @@ def main() {
     assert(a * a * a * a == 10000);
     assert(a * a // a * a == 100);
 
-    static b: int32 = 0x10101010;
+    let b: int32 = 0x10101010;
     assert(b + 1 - 1 == b);
 }

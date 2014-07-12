@@ -20,16 +20,6 @@ module extra {
 }
 
 def main() {
-    # Declare a couple statics in here.
-    static m: float32 = 32.5;
-    static n: int32 = 2352532;
-
-    # Define a nested function.
-    def nested() {
-        # With more static data.
-        static m: int32 = 312;
-        static a: bool = true;
-    }
 
     # Assert the values of the "safe" statics.
     assert(a == 621);
@@ -42,10 +32,6 @@ def main() {
     assert(extra.b == false);
     assert(extra.more.o == 210);
     assert(extra.more.p == 122);
-    assert(m == 32.5);
-    assert(n == 2352532);
-    assert(nested.m == 312);
-    assert(nested.a == true);
 
     # Assert the values of the "unsafe" statics.
     # FIXME: As soon as "unsafe" is implemented this stuff needs to go

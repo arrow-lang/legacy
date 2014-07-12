@@ -1,6 +1,6 @@
 def main() {
-    static mut rv = 20;
-    static mut rb = 50;
+    let mut rv = 20;
+    let mut rb = 50;
     assert(rv == 20);
     assert(rb == 50);
     rv = rb = 0;

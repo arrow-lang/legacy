@@ -248,6 +248,28 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
             # Dispose.
             ns.dispose();
         }
+        else if lhs._tag == code.TAG_STRUCT
+        {
+            let type_: ^code.Handle = code.type_of(lhs);
+
+            # Check for an attached function.
+            item = generator_util.get_attached_function(
+                g^, type_, rhs_id.name.data() as str);
+            if not code.isnil(item) {
+                # We have an attached function.
+                return item;
+            }
+        }
+        else if code.is_type(lhs)
+        {
+           # Check for an attached function.
+           item = generator_util.get_attached_function(
+               g^, lhs, rhs_id.name.data() as str);
+           if not code.isnil(item) {
+               # We have an attached function.
+               return item;
+           }
+        }
         else if    lhs._tag == code.TAG_VALUE
                 or lhs._tag == code.TAG_LOCAL_SLOT
         {
@@ -603,6 +625,13 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Pull out the handle and its type.
     if expr._tag == code.TAG_FUNCTION
+    {
+        let type_: ^code.FunctionType;
+        let fn_han: ^code.Function = expr._object as ^code.Function;
+        type_ = fn_han.type_._object as ^code.FunctionType;
+        return call_function(g, x, scope, fn_han.handle, type_);
+    }
+    else if expr._tag == code.TAG_ATTACHED_FUNCTION
     {
         let type_: ^code.FunctionType;
         let fn_han: ^code.Function = expr._object as ^code.Function;

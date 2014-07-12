@@ -290,33 +290,6 @@ def generate_attached_function(&mut g: generator_.Generator, qname: str,
 {
     # Generate as a normal function.
     generate_function(g, qname, x as ^code.Function);
-
-    # # Set the current function.
-    # let prev_fn: ^code.Function = g.current_function;
-    # g.current_function = x as ^code.Function;
-
-    # # Skip if this function been generated or is available externally.
-    # if llvm.LLVMCountBasicBlocks(x.handle) > 0 { return; }
-
-    # # Create the entry basic block for the function definition.
-    # let entry: ^llvm.LLVMOpaqueBasicBlock;
-    # entry = llvm.LLVMAppendBasicBlock(x.handle, "" as ^int8);
-
-    # # Remember the insert block.
-    # let cur_block: ^llvm.LLVMOpaqueBasicBlock;
-    # cur_block = llvm.LLVMGetInsertBlock(g.irb);
-
-    # # Set the insertion point.
-    # llvm.LLVMPositionBuilderAtEnd(g.irb, entry);
-
-    # # Dispose.
-    # # ns.dispose();
-
-    # # Reset to the old insert block.
-    # llvm.LLVMPositionBuilderAtEnd(g.irb, cur_block);
-
-    # # Unset the current function.
-    # g.current_function = prev_fn;
 }
 
 # Internal

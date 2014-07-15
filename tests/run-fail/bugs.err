@@ -1,0 +1,5 @@
+# $ ./build/arrow tests/run-fail/bugs.as | lli-3.4
+
+'main' function not found in module.
+[1]    31395 segmentation fault (core dumped)  ./build/arrow tests/run-fail/bugs.as |
+       31397 exit 255

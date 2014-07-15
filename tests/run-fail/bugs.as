@@ -1,0 +1,1 @@
+extern def puts(str); def main() {puts(str); 1; }

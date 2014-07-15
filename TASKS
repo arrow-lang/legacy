@@ -24,11 +24,11 @@
  ☐ variadic parameter support for external functions only
    extern printf(str, ...)
  ☐ resolve selection parsing so that a selection "statement" does not need a trailing ";"
- ☐ Implement (attached methods)
+ ✔ Implement (attached methods) @done (14-07-12 14:47)
    implement int { new(): int -> { return 0; } }
    int.new() == 0
  ☐ Implement (instance methods)
-   implement int { slap(self): Self -> { return -self; } }
+   implement int { slap(self): int -> { return -self; } }
    5.slap() == -5
  ☐ automatic derefence when "using" a raw pointer (`[]`, `()`, and `.`)
  ☐ Logical operations: `and`, `or`

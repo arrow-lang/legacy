@@ -60,7 +60,10 @@ type Generator {
     mut loops: list.List,
 
     # The current function being generated.
-    mut current_function: ^code.Function
+    mut current_function: ^code.Function,
+
+    # The current self being generated.
+    mut current_self: ^code.Handle
 }
 
 implement Generator {

@@ -85,6 +85,7 @@ let TAG_EXTERN_STATIC   : int = 75;             # ExternStaticSlot
 let TAG_EXTERN_FUNC     : int = 76;             # ExternFunc
 let TAG_STRING          : int = 77;             # StringExpr
 let TAG_IMPLEMENT       : int = 78;             # Implement
+let TAG_SELF            : int = 79;             # Self
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -231,8 +232,10 @@ type Loop { condition: Node, block: Node }
 type FuncDecl {
     mut id: Node,
     return_type: Node,
-    mut type_params: Nodes,
     mut params: Nodes,
+    mut type_params: Nodes,
+    instance: bool,
+    mutable: bool,
     block: Node
 }
 
@@ -411,6 +414,7 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_GLOBAL
            or tag == TAG_BREAK
+           or tag == TAG_SELF
            or tag == TAG_CONTINUE {
         let tmp: Empty;
         ((&tmp + 1) - &tmp);
@@ -529,6 +533,7 @@ def fdump(stream: ^libc._IO_FILE, &node: Node) {
         dump_table[TAG_TYPE_EXPR] = dump_type_expr;
         dump_table[TAG_TYPE_BOX] = dump_type_box;
         dump_table[TAG_GLOBAL] = dump_global;
+        dump_table[TAG_SELF] = dump_self;
         dump_table[TAG_BREAK] = dump_break;
         dump_table[TAG_CONTINUE] = dump_continue;
         dump_table[TAG_ARRAY_EXPR] = dump_array_expr;
@@ -869,8 +874,8 @@ def dump_struct(stream: ^libc._IO_FILE, node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_implement(stream: ^libc._IO_FILE, node: ^Node) {
     let x: ^Implement = unwrap(node^) as ^Implement;
-    libc.fprintf(stream, "Implement <?>\n" as ^int8);   
- 
+    libc.fprintf(stream, "Implement <?>\n" as ^int8);
+
     dump_indent = dump_indent + 1;
     fdump(stream, x.type_);
     dump_nodes(stream, "Methods", x.methods);
@@ -1063,6 +1068,8 @@ def dump_extern_func(stream: ^libc._IO_FILE, node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_func_decl(stream: ^libc._IO_FILE, node: ^Node) {
     let x: ^FuncDecl = unwrap(node^) as ^FuncDecl;
+    if x.mutable { libc.fprintf(stream, "Mutable " as ^int8); }
+    if x.instance { libc.fprintf(stream, "Member " as ^int8); }
     libc.fprintf(stream, "FuncDecl <?> " as ^int8);
     let id: ^Ident = unwrap(x.id) as ^Ident;
     libc.fprintf(stream, "%s\n" as ^int8, id.name.data());
@@ -1151,6 +1158,12 @@ def dump_type_box(stream: ^libc._IO_FILE, node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_global(stream: ^libc._IO_FILE, node: ^Node) {
     libc.fprintf(stream, "Global <?> \n" as ^int8);
+}
+
+# dump_self
+# -----------------------------------------------------------------------------
+def dump_self(stream: ^libc._IO_FILE, node: ^Node) {
+    libc.fprintf(stream, "Self <?> \n" as ^int8);
 }
 
 # dump_break

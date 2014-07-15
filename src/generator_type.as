@@ -252,11 +252,22 @@ def generate_attached_function(&mut g: generator_.Generator,
     }
     let ret_typ: ^code.Type = ret_han._object as ^code.Type;
     let ret_typ_han: ^llvm.LLVMOpaqueType = ret_typ.handle;
-
-    # Resolve the type for each parameter.
     let mut params: list.List = list.make(types.PTR);
     let mut param_type_handles: list.List = list.make(types.PTR);
     let mut i: int = 0;
+
+    # Check for "self"
+    if x.context.instance {
+        # Push a parameter for "self"
+        let attached_type: ^code.Type = x.attached_type._object as ^code.Type;
+        param_type_handles.push_ptr(attached_type.handle as ^void);
+        params.push_ptr(code.make_parameter(
+            "self",
+            x.attached_type,
+            code.make_nil()) as ^void);
+    }
+
+    # Resolve the type for each parameter.
     while i as uint < x.context.params.size()
     {
         let pnode: ast.Node = x.context.params.get(i);

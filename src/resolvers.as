@@ -363,6 +363,29 @@ def ident(g: ^mut generator_.Generator, node: ^ast.Node,
     return _type_of(g, item);
 }
 
+# Self [TAG_SELF]
+# -----------------------------------------------------------------------------
+def self_(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle {
+    # Handle "self" identical to an identifier.
+    # Retrieve the item with scope resolution rules.
+    let item: ^code.Handle = generator_util.get_scoped_item_in(
+        g^, "self", scope, g.ns);
+
+    # Bail if we weren't able to resolve this identifier.
+    if code.isnil(item) {
+        errors.begin_error();
+        errors.libc.fprintf(errors.libc.stderr,
+                       "name '%s' is not defined" as ^int8,
+                       "self");
+        errors.end();
+        return code.make_nil();
+    }
+
+    # Resolve the item for its type.
+    return _type_of(g, item);
+}
+
 # Assignment [TAG_ASSIGN]
 # -----------------------------------------------------------------------------
 def assign(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -529,7 +552,7 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
     let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
 
     # Resolve the type of the call expression.
-    let expr: ^code.Handle = resolver.resolve(g, &x.expression);
+    let expr: ^code.Handle = resolver.resolve_s(g, &x.expression, scope);
     if code.isnil(expr) { return code.make_nil(); }
 
     # Check what we are dealing with.

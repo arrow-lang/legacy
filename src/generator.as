@@ -77,6 +77,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.top_ns = string.make();
     g.loops = list.make_generic(generator_.LOOP_SIZE);
     g.attached_functions = list.make(types.PTR);
+    g.current_self = code.make_nil();
 
     # Build the "type resolution" jump table.
     libc.memset(&g.type_resolvers[0] as ^void, 0, (100 * ptr_size) as int32);
@@ -123,6 +124,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_INDEX] = resolvers.index;
     g.type_resolvers[ast.TAG_ARRAY_EXPR] = resolvers.array;
     g.type_resolvers[ast.TAG_STRING] = resolvers.string_;
+    g.type_resolvers[ast.TAG_SELF] = resolvers.self_;
 
     # Build the "builder" jump table.
     libc.memset(&g.builders[0] as ^void, 0, (100 * ptr_size) as int32);
@@ -168,6 +170,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_ARRAY_EXPR] = builders.array;
     # g.builders[ast.TAG_TUPLE_TYPE] = builders.tuple_type;
     g.builders[ast.TAG_STRING] = builders.string_;
+    g.builders[ast.TAG_SELF] = builders.self_;
 
     # Add basic type definitions.
     generator_util.declare_basic_types(g);

@@ -29,6 +29,20 @@ def ident(g: ^mut generator_.Generator, node: ^ast.Node,
     item;
 }
 
+# Self [TAG_SELF]
+# -----------------------------------------------------------------------------
+def self_(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Handle "self" identical to an identifier.
+    # Retrieve the item with scope resolution rules.
+    let item: ^code.Handle = generator_util.get_scoped_item_in(
+        g^, "self", scope, g.ns);
+
+    # Return the item.
+    item;
+}
+
 # Boolean [TAG_BOOLEAN]
 # -----------------------------------------------------------------------------
 def boolean(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -282,6 +296,15 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
                 let struct_: ^code.StructType = type_._object as
                     ^code.StructType;
 
+                # Check for an attached function.
+                item = generator_util.get_attached_function(
+                    g^, type_, rhs_id.name.data() as str);
+                if not code.isnil(item) {
+                    # We have an attached member function.
+                    g.current_self = lhs;
+                    return item;
+                }
+
                 # Get the index of the member.
                 let member_han: ^code.Handle = struct_.member_map.get_ptr(
                     rhs_id.name.data() as str) as ^code.Handle;
@@ -321,6 +344,18 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
     libc.memset(argl.elements as ^void, 0, (argl.size * argl.element_size) as int32);
     let argv: ^mut ^llvm.LLVMOpaqueValue =
         argl.elements as ^^llvm.LLVMOpaqueValue;
+
+    # If we are dealing with an "instance" function then push in self.
+    if type_.parameter_map.contains("self") {
+        if not code.isnil(g.current_self) {
+            let self_han: ^code.Handle = g.current_self;
+            let self_val_han: ^code.Handle = generator_def.to_value(
+                g^, self_han, code.VC_RVALUE, false);
+            let self_val: ^code.Value = self_val_han._object as ^code.Value;
+            (argv + 0)^ = self_val.handle;
+            g.current_self = code.make_nil();
+        }
+    }
 
     # Iterate through each argument, build, and push them into
     # their appropriate position in the argument list.

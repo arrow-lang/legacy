@@ -451,7 +451,9 @@ def parse_function(&mut self) -> bool
     if not self.parse_type_params(decl.type_params) { return false; }
 
     # Parse the parameter list.
-    if not self.parse_function_params(decl.params, true) { return false; }
+    if not self.parse_function_params(decl, true, false) {
+        return false;
+    }
 
     # Check for a return type annotation which would again
     # be preceeded by a `:` token.
@@ -478,18 +480,55 @@ def parse_function(&mut self) -> bool
 
 # Function parameter list
 # -----------------------------------------------------------------------------
-def parse_function_params(&mut self, &mut nodes: ast.Nodes,
-                          require_names: bool) -> bool
+def parse_function_params(&mut self, fn: ^ast.FuncDecl,
+                          require_names: bool,
+                          self_: bool) -> bool
 {
     # Expect a `(` token to start the parameter list.
     if not self.expect(tokens.TOK_LPAREN) { return false; }
 
     # Iterate through and parse each parameter.
+    let mut idx: uint = 0;
+    let found_self: bool = false;
     while self.peek_token_tag(1) <> tokens.TOK_RPAREN
     {
+        # If we are allowed to have "self" ..
+        if self_ and idx == 0 {
+            # Check for `mut self` or `self` sequences.
+            let found: bool = false;
+            if self.peek_token_tag(1) == tokens.TOK_MUT and
+               self.peek_token_tag(2) == tokens.TOK_SELF
+            {
+                # Found mutable self
+                fn.instance = true;
+                fn.mutable = true;
+                self.pop_token();
+                self.pop_token();
+                found = true;
+            }
+            else if self.peek_token_tag(1) == tokens.TOK_SELF
+            {
+                # Found self
+                fn.instance = true;
+                fn.mutable = false;
+                self.pop_token();
+                found = true;
+            }
+            if found {
+                # Peek and consume the `,` token if present; else, consume
+                # tokens until we reach the `)`.
+                if self._expect_sequence_continue(tokens.TOK_RPAREN) {
+                    continue; }
+                return false;
+            }
+        }
+
         # Parse the parameter.
         if not self.parse_function_param(require_names) { return false; }
-        nodes.push(self.stack.pop());
+        fn.params.push(self.stack.pop());
+
+        # Push the idx counter.
+        idx = idx + 1;
 
         # Peek and consume the `,` token if present; else, consume
         # tokens until we reach the `)`.
@@ -1456,6 +1495,10 @@ def parse_primary_expr(&mut self) -> bool
     {
         self.parse_global_expr();
     }
+    else if tok.tag == tokens.TOK_SELF
+    {
+        self.parse_self_expr();
+    }
     else if tok.tag == tokens.TOK_IF
     {
         self.parse_select_expr();
@@ -1897,6 +1940,21 @@ def parse_global_expr(&mut self) -> bool
     true;
 }
 
+# Self expression
+# -----------------------------------------------------------------------------
+def parse_self_expr(&mut self) -> bool
+{
+    # Consume the `self` token.
+    self.pop_token();
+
+    # Allocate and create the node.
+    # Push our node on the stack.
+    self.stack.push(ast.make(ast.TAG_SELF));
+
+    # Return success.
+    true;
+}
+
 # Select expression
 # -----------------------------------------------------------------------------
 def parse_select_expr(&mut self) -> bool
@@ -2226,9 +2284,16 @@ def parse_impl(&mut self) -> bool
 
     # Enumerate until we reach the `}` token.
     while self.peek_token_tag(1) <> tokens.TOK_RBRACE {
-        # Expect an `identifier` token to start the member function
+        # Expect and parse a `let`
+        if not self.expect(tokens.TOK_LET) {
+            self.consume_until(tokens.TOK_RBRACE);
+            return false;
+        }
+
+        # Expect a `let identifier` token to start the named function
         # declaration.
-        if not self.peek_token_tag(1) == tokens.TOK_IDENTIFIER {
+        if not (self.peek_token_tag(1) == tokens.TOK_IDENTIFIER)
+        {
             let tok: int = self.peek_token_tag(1);
             self.consume_until(tokens.TOK_RBRACE);
             errors.begin_error();
@@ -2252,7 +2317,9 @@ def parse_impl(&mut self) -> bool
         if not self.parse_type_params(decl.type_params) { return false; }
 
         # Parse the parameter list.
-        if not self.parse_function_params(decl.params, true) { return false; }
+        if not self.parse_function_params(decl, true, true) {
+            return false;
+        }
 
         # Check for a return type annotation which would again
         # be preceeded by a `:` token.
@@ -2448,7 +2515,9 @@ def parse_extern_function(&mut self) -> bool
     decl.id = self.stack.pop();
 
     # Parse the parameter list.
-    if not self.parse_function_params(decl.params, false) { return false; }
+    if not self.parse_function_params(decl as ^ast.FuncDecl, false, false) {
+        return false;
+    }
 
     # Check for a return type annotation which would again
     # be preceeded by a `:` token.

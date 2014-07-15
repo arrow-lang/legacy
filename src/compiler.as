@@ -10,12 +10,8 @@ import generator_;
 
 def main(argc: int, argv: ^^int8) {
 
-    let help = ("Command\tUsage\tDescription\n"
-                "-h\t\tShows the help screen\n"
-                "-o\tarrow -o <filename>\t"
-                    "set output filename (if not provided, outputs to stdout)\n"
-                "--version, -V\t\tprint version and exit\n"
-                "-L\tarrow -L /path/to/look/up\tadds a path to the default lookup path\n");
+    # sadly, no implicit string concatination in the old compiler
+    let help: str = ("Command\tUsage\tDescription\n-h\t\tShows the help screen\n-o\tarrow -o <filename>\tset output filename (if not provided, outputs to stdout)\n--version, -V\t\tprint version and exit\n-L\tarrow -L /path/to/look/up\tadds a path to the default lookup path\n");
 
     # Build options "description"
     let desc: libc.option[50];
@@ -85,7 +81,7 @@ def main(argc: int, argv: ^^int8) {
             } else if c as char == "o" {
                 output_filename = libc.optarg;
             } else if c as char == "h"{
-                printf("%s", help);
+                printf(help);
             }
 
             # HACK!

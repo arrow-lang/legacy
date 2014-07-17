@@ -126,9 +126,9 @@ enum Option<T> {
 
 # Function types
 # -----------------------------------------------------------------------------
-let call(fn: (int, bool): int) -> { }   # takes a 2 param fn that returns int
-let call(fn: (int, bool): ()) -> { }    # takes a 2 param fn
-let call(fn: (): ()) -> { }             # takes a 0 param fn that returns unit
+let call(fn: delegate(int, bool): int) -> { }   # takes a 2 param fn that returns int
+let call(fn: delegate(int, bool)) -> { }    # takes a 2 param fn
+let call(fn: delegate()) -> { }             # takes a 0 param fn that returns unit
 let ret(): (): () -> { }                # returns a 0 param fn that returns unit
 let ret(): (int, bool): bool -> { }     # returns a 2 param fn that returns bool
 let ret(): (int, bool): () -> { }       # returns a 2 param fn that returns unit

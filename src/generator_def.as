@@ -395,6 +395,17 @@ def to_value(&mut g: generator_.Generator,
             code.make_nil();
         }
     }
+    else if handle._tag == code.TAG_FUNCTION {
+        # Get the function handle.
+        let fn: ^code.Function = handle._object as ^code.Function;
+
+        # Get the type of the function.
+        let fn_type_handle: ^code.Handle = fn.type_;
+        let fn_type: ^code.Type = fn_type_handle._object as ^code.Type;
+
+        # Create a handle of the function.
+        code.make_value(fn_type_handle, code.VC_LVALUE, fn.handle);
+    }
     else {
         # No idea how to handle this.
         code.make_nil();

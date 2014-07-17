@@ -293,6 +293,22 @@ def typename(handle: ^Handle) -> string.String {
         name.extend(&int_[0] as str);
 
         name.append("]");
+    } else if handle._tag == TAG_FUNCTION_TYPE {
+        let fn_ty: ^FunctionType = handle._object as ^FunctionType;
+        name.extend("delegate(");
+
+        # FIXME: Argument types
+
+        name.append(")");
+
+        if not isnil(fn_ty.return_type) {
+            if not fn_ty.return_type._tag == TAG_VOID_TYPE {
+                name.extend(": ");
+                let mut ret_name: string.String = typename(fn_ty.return_type);
+                name.extend(ret_name.data() as str);
+                ret_name.dispose();
+            }
+        }
     }
 
     # Return the name.

@@ -1,26 +1,29 @@
-extern def printf(str, int);
+# [x] locally assign functions to slots
+# [x] call locally assigned functions
+# [ ] 1, 2 in arrays
+# [ ] 1, 2 in function parameters
+# [ ] extern functions
+# [ ] attached functions
+# [x] typename
+# [x] type_common
+# [ ] ^ with arguments
 
-struct Point { x: int, y: int }
 
-implement Point {
-    let origin(): Point -> { return Point(0, 0); }
+def strange(): delegate(int, bool) -> delegate(bool) -> { }
 
-    let print(self) -> {
-        printf("(%d", self.x);
-        printf(", %d)", self.y);
-    }
+extern def puts(str);
+def print() { puts("Hello World"); }
+# def some()
+# def print_2() { puts("Hello World 2"); }
 
-    let println(self) -> {
-        # Point.print(self);
-        self.print();
-        printf("%c", 0x0a);
-    }
-}
-
-def main(): int {
-    let o = Point.origin();
-    o.x = 43;
-    o.println();
-    # Point.println(o);
-    return 0;
+def main() {
+    let m = print;
+    let mut m2 = print;
+    let x: delegate(int);
+    # m2 = m;
+    # m();
+    # m2();
+    # m();
+    # (m if false else m2)();
+    # m3();
 }

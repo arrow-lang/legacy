@@ -10,6 +10,9 @@ import generator_;
 
 def main(argc: int, argv: ^^int8) {
 
+    # sadly, no implicit string concatination in the old compiler
+    let help: str = ("Usage: arrow [options] file...\nCommand\t\t\tDescription\n-h\t\t\tShows the help screen\n-o\t\t\tset output filename (if not provided, outputs to stdout)\n--version, -V\t\tprint version and exit\n-L\t\t\tadds a path to the default lookup path\n");
+
     # Build options "description"
     let desc: libc.option[50];
     let opt: libc.option;
@@ -56,7 +59,7 @@ def main(argc: int, argv: ^^int8) {
         let option_index: int32 = 0;
         let c: int = libc.getopt_long(
             argc as int32, argv,
-            "Vo:" as ^int8,
+            "hVo:" as ^int8,
             &desc[0], &option_index);
 
         # Detect the end of the options.
@@ -77,6 +80,9 @@ def main(argc: int, argv: ^^int8) {
                 show_version = true;
             } else if c as char == "o" {
                 output_filename = libc.optarg;
+            } else if c as char == "h"{
+                printf(help);
+                libc.exit(0);
             }
 
             # HACK!

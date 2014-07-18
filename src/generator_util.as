@@ -234,6 +234,9 @@ def is_same_type(a: ^code.Handle, b: ^code.Handle) -> bool
         let b_type: ^code.PointerType = b._object as ^code.PointerType;
         return is_same_type(a_type.pointee, b_type.pointee);
     }
+    else if a._tag == code.TAG_VOID_TYPE and a._tag == b._tag {
+        return true;
+    }
     else if a._tag == code.TAG_ARRAY_TYPE and a._tag == b._tag
     {
         # These are both arrays; move to the element types.
@@ -241,6 +244,41 @@ def is_same_type(a: ^code.Handle, b: ^code.Handle) -> bool
         let b_type: ^code.ArrayType = b._object as ^code.ArrayType;
         return a_type.size == b_type.size and
                is_same_type(a_type.element, b_type.element);
+    }
+    else if a._tag == code.TAG_FUNCTION_TYPE and a._tag == b._tag
+    {
+        # These are both functions.
+        let a_type: ^code.FunctionType = a._object as ^code.FunctionType;
+        let b_type: ^code.FunctionType = b._object as ^code.FunctionType;
+
+        # Short-circuit if the argument count is unmatched.
+        if a_type.parameters.size <> b_type.parameters.size { return false; }
+
+        # Short-circuit if the return type is unmatched.
+        if not is_same_type(a_type.return_type, b_type.return_type) {
+            return false;
+        }
+
+        # Iterate through the arguments and break if any argument is
+        # unmatched.
+        let mut i: int = 0;
+        while i as uint < a_type.parameters.size {
+            let a_param_han: ^code.Handle = a_type.parameters.at_ptr(i) as
+                ^code.Handle;
+            let b_param_han: ^code.Handle = b_type.parameters.at_ptr(i) as
+                ^code.Handle;
+            let a_param: ^code.Parameter = a_param_han._object as
+                ^code.Parameter;
+            let b_param: ^code.Parameter = b_param_han._object as
+                ^code.Parameter;
+            if not is_same_type(a_param.type_, b_param.type_) {
+                return false;
+            }
+            i = i + 1;
+        }
+
+        # These functions seems to be equivalent.
+        return true;
     }
 
     # Perform an address check.
@@ -483,4 +521,17 @@ def get_attached_function(&mut g: generator_.Generator,
     let item: ^code.Handle = g.items.get_ptr(qn.data() as str) as ^code.Handle;
     qn.dispose();
     item;
+}
+
+# Alter Type Handle
+def alter_type_handle(type_handle: ^code.Handle) -> ^llvm.LLVMOpaqueType
+{
+    let type_: ^code.Type = type_handle._object as ^code.Type;
+    let mut handle: ^llvm.LLVMOpaqueType = type_.handle;
+    if type_handle._tag == code.TAG_FUNCTION_TYPE {
+        # For functions we store them as function "pointers" but refer
+        # to them as objects.
+        handle = llvm.LLVMPointerType(handle, 0);
+    }
+    handle;
 }

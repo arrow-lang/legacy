@@ -1,5 +1,6 @@
 import generator_;
 import code;
+import libc;
 import ast;
 import llvm;
 import list;
@@ -718,6 +719,59 @@ def tuple_type(g: ^mut generator_.Generator, node: ^ast.Node,
     han;
 }
 
+# Delegate [TAG_DELEGATE]
+# -----------------------------------------------------------------------------
+def delegate(g: ^mut generator_.Generator, node: ^ast.Node,
+             scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.Delegate = (node^).unwrap() as ^ast.Delegate;
+
+    # Resolve the return type.
+    let ret_han: ^code.Handle = generator_type._generate_return_type(
+        g^,
+        &x.return_type,
+        &g.ns,
+        scope);
+    if code.isnil(ret_han) { return code.make_nil(); }
+    let ret_typ: ^code.Type = ret_han._object as ^code.Type;
+    let ret_typ_han: ^llvm.LLVMOpaqueType = ret_typ.handle;
+
+    # Resolve the type for each parameter.
+    let mut params: list.List = list.make(types.PTR);
+    let mut param_type_handles: list.List = list.make(types.PTR);
+    let mut i: int = 0;
+    while i as uint < x.params.size()
+    {
+        let pnode: ast.Node = x.params.get(i);
+        i = i + 1;
+        let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
+        if not generator_type._generate_func_param(
+            g^, p, &g.ns, scope, params, param_type_handles)
+        {
+             return code.make_nil();
+        }
+    }
+
+    # Build the LLVM type handle.
+    let val: ^llvm.LLVMOpaqueType;
+    val = llvm.LLVMFunctionType(
+        ret_typ_han,
+        param_type_handles.elements as ^^llvm.LLVMOpaqueType,
+        param_type_handles.size as uint32,
+        0);
+
+    # Create and store our type.
+    let han: ^code.Handle;
+    han = code.make_function_type("", g.ns, "" as str, val, ret_han, params);
+
+    # Dispose of dynamic memory.
+    param_type_handles.dispose();
+
+    # Return the type handle.
+    han;
+}
+
 # Array [TAG_ARRAY_EXPR]
 # -----------------------------------------------------------------------------
 def array(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -780,7 +834,9 @@ def array(g: ^mut generator_.Generator, node: ^ast.Node,
     # Build the LLVM type handle.
     let type_: ^code.Type = type_han._object as ^code.Type;
     let val: ^llvm.LLVMOpaqueType;
-    val = llvm.LLVMArrayType(type_.handle, x.nodes.size() as uint32);
+    val = llvm.LLVMArrayType(
+        generator_util.alter_type_handle(type_han),
+        x.nodes.size() as uint32);
 
     # Create and store our type.
     let han: ^code.Handle;

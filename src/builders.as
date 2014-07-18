@@ -183,7 +183,8 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Build a stack allocation.
     let val: ^llvm.LLVMOpaqueValue;
-    val = llvm.LLVMBuildAlloca(g.irb, type_.handle, id.name.data());
+    val = llvm.LLVMBuildAlloca(
+        g.irb, generator_util.alter_type_handle(type_han), id.name.data());
 
     # Build the store.
     if init <> 0 as ^llvm.LLVMOpaqueValue {
@@ -654,8 +655,9 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
     let x: ^ast.CallExpr = (node^).unwrap() as ^ast.CallExpr;
 
     # Build the called expression.
+    let type_: ^code.Handle = resolver.resolve_s(g, &x.expression, scope);
     let expr: ^code.Handle = builder.build(
-        g, &x.expression, scope, code.make_nil());
+        g, &x.expression, scope, type_);
     if code.isnil(expr) { return code.make_nil(); }
 
     # Pull out the handle and its type.
@@ -672,6 +674,40 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
         let fn_han: ^code.Function = expr._object as ^code.Function;
         type_ = fn_han.type_._object as ^code.FunctionType;
         return call_function(g, x, scope, fn_han.handle, type_);
+    }
+    else if expr._tag == code.TAG_LOCAL_SLOT
+    {
+        let slot: ^code.LocalSlot = expr._object as ^code.LocalSlot;
+        let type_handle: ^code.Handle = slot.type_;
+        if type_handle._tag == code.TAG_FUNCTION_TYPE
+        {
+            let type_: ^code.FunctionType;
+            type_ = type_handle._object as ^code.FunctionType;
+
+            # Load the function handle from the function object.
+            let handle: ^llvm.LLVMOpaqueValue = llvm.LLVMBuildLoad(
+                g.irb, slot.handle, "" as ^int8);
+
+            # Call the function normally.
+            return call_function(g, x, scope, handle, type_);
+        }
+    }
+    else if expr._tag == code.TAG_VALUE
+    {
+        let val: ^code.Value = expr._object as ^code.Value;
+        let type_handle: ^code.Handle = val.type_;
+        if type_handle._tag == code.TAG_FUNCTION_TYPE
+        {
+            let type_: ^code.FunctionType;
+            type_ = type_handle._object as ^code.FunctionType;
+
+            # Load the function handle from the function object.
+            let handle: ^llvm.LLVMOpaqueValue = llvm.LLVMBuildLoad(
+                g.irb, val.handle, "" as ^int8);
+
+            # Call the function normally.
+            return call_function(g, x, scope, handle, type_);
+        }
     }
     else if expr._tag == code.TAG_EXTERN_FUNC
     {
@@ -2053,7 +2089,8 @@ def array(g: ^mut generator_.Generator, node: ^ast.Node,
     # Build the `array` instruction (and create the constant array).
     let mut val: ^llvm.LLVMOpaqueValue;
     val = llvm.LLVMConstArray(
-        el_type.handle, values, valuel.size as uint32);
+        generator_util.alter_type_handle(el_type_han), values,
+        valuel.size as uint32);
 
     # Create a temporary allocation.
     let mut ptr: ^llvm.LLVMOpaqueValue;

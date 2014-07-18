@@ -11,7 +11,7 @@ import generator_;
 def main(argc: int, argv: ^^int8) {
 
     # sadly, no implicit string concatination in the old compiler
-    let help: str = ("Usage: arrow [options] file...\nCommand\t\t\tDescription\n-h\t\t\tShows the help screen\n-o\t\t\tset output filename (if not provided, outputs to stdout)\n--version, -V\t\tprint version and exit\n-L\t\t\tadds a path to the default lookup path\n");
+    let help: str = ("Usage: arrow [options] file\nOptions:\n  -h\t\t\tDisplay this information\n  -o <file>\t\tPlace the output into <file>\n  -V, --version\t\tDisplay version information\n  -L <directory>\tAdd <directory> to module search path\n");
 
     # Build options "description"
     let desc: libc.option[50];

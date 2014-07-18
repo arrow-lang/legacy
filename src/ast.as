@@ -86,6 +86,7 @@ let TAG_EXTERN_FUNC     : int = 76;             # ExternFunc
 let TAG_STRING          : int = 77;             # StringExpr
 let TAG_IMPLEMENT       : int = 78;             # Implement
 let TAG_SELF            : int = 79;             # Self
+let TAG_DELEGATE        : int = 80;             # Delegate
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -239,6 +240,13 @@ type FuncDecl {
     block: Node
 }
 
+# Function delegate
+type Delegate {
+    mut id: Node,
+    return_type: Node,
+    mut params: Nodes
+}
+
 # External function declaration.
 type ExternFunc {
     mut id: Node,
@@ -381,6 +389,7 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_ARRAY_TYPE     { let tmp: ArrayType; ((&tmp + 1) - &tmp); }
     else if tag == TAG_IMPORT  { let tmp: Import; ((&tmp + 1) - &tmp); }
     else if tag == TAG_INDEX   { let tmp: IndexExpr; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_DELEGATE  { let tmp: Delegate; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CAST    { let tmp: CastExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_CALL    { let tmp: CallExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_LOOP    { let tmp: Loop; ((&tmp + 1) - &tmp); }
@@ -554,6 +563,7 @@ def fdump(stream: ^libc._IO_FILE, &node: Node) {
         dump_table[TAG_STRING] = dump_string_expr;
         dump_table[TAG_IMPORT] = dump_import;
         dump_table[TAG_IMPLEMENT] = dump_implement;
+        dump_table[TAG_DELEGATE] = dump_delegate;
         dump_initialized = true;
     }
 
@@ -1079,6 +1089,18 @@ def dump_func_decl(stream: ^libc._IO_FILE, node: ^Node) {
     dump_nodes(stream, "Type Parameters", x.type_params);
     dump_nodes(stream, "Parameters", x.params);
     fdump(stream, x.block);
+    dump_indent = dump_indent - 1;
+}
+
+# dump_delegate
+# -----------------------------------------------------------------------------
+def dump_delegate(stream: ^libc._IO_FILE, node: ^Node) {
+    let x: ^Delegate = unwrap(node^) as ^Delegate;
+    libc.fprintf(stream, "Delegate <?>\n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    if not isnull(x.return_type) { fdump(stream, x.return_type); }
+    dump_nodes(stream, "Parameters", x.params);
     dump_indent = dump_indent - 1;
 }
 

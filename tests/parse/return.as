@@ -1,5 +1,5 @@
 # A function that has an explicit return statement returning nothing.
-def main() { return; }
+let main() -> { return; }
 
 # A function that explicitly returns something.
-def some(): int { return 4; }
+let some(): int -> { return 4; }

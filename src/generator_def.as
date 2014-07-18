@@ -156,7 +156,7 @@ def generate_function(&mut g: generator_.Generator, qname: str,
         # Allocate this param.
         let val: ^llvm.LLVMOpaqueValue;
         val = llvm.LLVMBuildAlloca(
-            g.irb, generator_util.alter_type_handle(prm.type_),
+            g.irb, prm_type.handle,
             prm.name.data());
 
         # Get the parameter handle.

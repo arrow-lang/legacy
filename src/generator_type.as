@@ -477,6 +477,8 @@ def _generate_func_param_wrap(handle: ^code.Handle, value: ^llvm.LLVMOpaqueType)
 {
     # Decide if we need to "wrap" the type as a reference type.
     let mut type_: ^code.Handle = handle;
+    let han: ^code.Type = type_._object as ^code.Type;
+    han.handle = value;
     if type_._tag == code.TAG_STRUCT_TYPE
         or type_._tag == code.TAG_ARRAY_TYPE
     {

@@ -319,17 +319,18 @@ def parse_common_statement(&mut self) -> bool {
     if tok.tag == tokens.TOK_BREAK    { return self.parse_break(); }
     if tok.tag == tokens.TOK_CONTINUE { return self.parse_continue(); }
 
+    # let <identifier> "("
+
     if tok.tag == tokens.TOK_LET or tok.tag == tokens.TOK_STATIC
     {
-        if self.parse_slot() { return self.expect(tokens.TOK_SEMICOLON); }
-        return false;
-    }
-
-    if tok.tag == tokens.TOK_DEF {
-        # Functions are only declarations if they are named.
-        if self.peek_token_tag(2) == tokens.TOK_IDENTIFIER {
+        # Check if the next token is an identifer and short circut
+        if self.peek_token_tag(2) == tokens.TOK_IDENTIFIER and (self.peek_token_tag(3) == tokens.TOK_LPAREN or self.peek_token_tag(3) == tokens.TOK_LCARET ) {
             return self.parse_function();
         }
+
+        if self.parse_slot() { return self.expect(tokens.TOK_SEMICOLON); }
+        return false;
+
     }
 
     if tok.tag == tokens.TOK_LBRACE {
@@ -434,7 +435,7 @@ def parse_function(&mut self) -> bool
     let node: ast.Node = ast.make(ast.TAG_FUNC_DECL);
     let decl: ^ast.FuncDecl = node.unwrap() as ^ast.FuncDecl;
 
-    # Pop the `def` token.
+    # Pop the `let` token.
     self.pop_token();
 
     # Expect an `identifier` next.
@@ -466,6 +467,14 @@ def parse_function(&mut self) -> bool
         if not self.parse_type() { return false; }
         decl.return_type = self.stack.pop();
     }
+
+    if not self.peek_token_tag(1) == tokens.TOK_RARROW {
+        self.expect(tokens.TOK_RARROW);
+        return false;
+    }
+
+    # Consume the -> token
+    self.pop_token();
 
     # Parse the function block next.
     if not self.parse_block_expr() { return false; }

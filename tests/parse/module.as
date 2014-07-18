@@ -10,11 +10,11 @@ module math {
     let mut o: Point;
 
     # Declare a function in this module.
-    def pow(a: float64, mut i: uint): float64 { }
+    let pow(a: float64, mut i: uint): float64 -> { }
 
 }
 
-def main() {
+let main() -> {
 
     # Declare a variable of a type from the module.
     let o: math.Point;

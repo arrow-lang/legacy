@@ -1,1 +1,1 @@
-def main(
+let main(

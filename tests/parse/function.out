@@ -1,6 +1,7 @@
 ModuleDecl <?> _
   Nodes <?> 
     FuncDecl <?> name
+      Ident <?> int
       Type Parameters <?> 
       Parameters <?> 
       Block <?>
@@ -76,13 +77,6 @@ ModuleDecl <?> _
       Parameters <?> 
       Block <?>
         Nodes <?> 
-          FuncDecl <?> nested
-            Ident <?> int
-            Type Parameters <?> 
-            Parameters <?> 
-            Block <?>
-              Nodes <?> 
-                IntegerExpr <?> 432 (10)
     FuncDecl <?> some
       Type Parameters <?> 
         TypeParam <?> T

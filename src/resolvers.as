@@ -590,6 +590,66 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
     }
 }
 
+# Logical [TAG_LOGICAL_AND, TAG_LOGICAL_OR]
+# -----------------------------------------------------------------------------
+def logical(g: ^mut generator_.Generator, node: ^ast.Node,
+            scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Resolve the type of the operands.
+    let lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
+    if code.isnil(lhs) { return code.make_nil(); }
+    let rhs: ^code.Handle = resolver.resolve_s(g, &x.rhs, scope);
+    if code.isnil(rhs) { return code.make_nil(); }
+
+    # Ensure that we have a boolean.
+    if lhs._tag <> code.TAG_BOOL_TYPE {
+        # Get formal type name.
+        let mut ty_name: string.String = code.typename(lhs);
+
+        # Report error.
+        errors.begin_error();
+        errors.libc.fprintf(
+            errors.libc.stderr,
+            "mismatched types: expected 'bool' but found '%s'" as ^int8,
+            ty_name.data());
+
+        errors.end();
+
+        # Dispose.
+        ty_name.dispose();
+
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Ensure that we have a boolean.
+    if rhs._tag <> code.TAG_BOOL_TYPE {
+        # Get formal type name.
+        let mut ty_name: string.String = code.typename(rhs);
+
+        # Report error.
+        errors.begin_error();
+        errors.libc.fprintf(
+            errors.libc.stderr,
+            "mismatched types: expected 'bool' but found '%s'" as ^int8,
+            ty_name.data());
+
+        errors.end();
+
+        # Dispose.
+        ty_name.dispose();
+
+        # Return nil.
+        return code.make_nil();
+    }
+
+    # Ignore send back a boolean.
+    (g^).items.get_ptr("bool") as ^code.Handle;
+}
+
 # Relational [TAG_EQ, TAG_NE, TAG_LT, TAG_LE, TAG_GT, TAG_GE]
 # -----------------------------------------------------------------------------
 def relational(g: ^mut generator_.Generator, node: ^ast.Node,

@@ -1,3 +1,4 @@
+import string;
 import llvm;
 import libc;
 import types;
@@ -773,6 +774,172 @@ def arithmetic_b_operands(g: ^mut generator_.Generator, node: ^ast.Node,
     res;
 }
 
+# Logical [TAG_LOGICAL_AND, TAG_LOGICAL_OR]
+# -----------------------------------------------------------------------------
+def logical(g: ^mut generator_.Generator, node: ^ast.Node,
+            scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Get the current basic block and resolve our current function handle.
+    let cur_block: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMGetInsertBlock(g.irb);
+    let cur_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMGetBasicBlockParent(
+        cur_block);
+
+    # Resolve each operand for its type.
+    let lhs_ty: ^code.Handle = resolver.resolve_st(g, &x.lhs, scope, target);
+    let rhs_ty: ^code.Handle = resolver.resolve_st(g, &x.rhs, scope, target);
+
+    # Build the left operand.
+    let lhs: ^code.Handle = builder.build(g, &x.lhs, scope, lhs_ty);
+    let lhs_val_han: ^code.Handle = generator_def.to_value(
+        g^, lhs, code.VC_RVALUE, false);
+    let lhs_val: ^code.Value = lhs_val_han._object as ^code.Value;
+
+    # Create the three neccessary basic blocks: then, else, merge.
+    let mut then_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+    let else_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+    let mut merge_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+
+    # Create the conditional branch.
+    if node.tag == ast.TAG_LOGICAL_AND {
+        llvm.LLVMBuildCondBr(g.irb, lhs_val.handle, then_b, else_b);
+    } else {
+        llvm.LLVMBuildCondBr(g.irb, lhs_val.handle, else_b, then_b);
+    }
+
+    # Switch to the `then` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, then_b);
+
+    # Build the right operand.
+    let rhs: ^code.Handle = builder.build(g, &x.rhs, scope, rhs_ty);
+    let rhs_val_han: ^code.Handle = generator_def.to_value(
+        g^, rhs, code.VC_RVALUE, false);
+    let rhs_val: ^code.Value = rhs_val_han._object as ^code.Value;
+
+    # Create a branch to the `merge` block.
+    llvm.LLVMBuildBr(g.irb, merge_b);
+
+    # Insert the `else` block after our current block.
+    then_b = llvm.LLVMGetInsertBlock(g.irb);
+    llvm.LLVMMoveBasicBlockAfter(else_b, then_b);
+
+    # Switch to the `else` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, else_b);
+
+    # Create a branch to the `merge` block.
+    llvm.LLVMBuildBr(g.irb, merge_b);
+
+    # Insert the `else` block after our current block.
+    else_b = llvm.LLVMGetInsertBlock(g.irb);
+    llvm.LLVMMoveBasicBlockAfter(merge_b, else_b);
+
+    # Switch to the `merge` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, merge_b);
+
+    # Create a `PHI` node.
+    let type_han: ^code.Type = target._object as ^code.Type;
+    let type_val: ^llvm.LLVMOpaqueType = type_han.handle;
+    let val: ^llvm.LLVMOpaqueValue;
+    let bool_val: ^llvm.LLVMOpaqueValue = llvm.LLVMConstInt(
+        type_val, 0 if node.tag == ast.TAG_LOGICAL_AND else 1, false);
+    val = llvm.LLVMBuildPhi(g.irb, type_val, "" as ^int8);
+    llvm.LLVMAddIncoming(val, &rhs_val.handle, &then_b, 1);
+    llvm.LLVMAddIncoming(val, &bool_val, &else_b, 1);
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(target, code.VC_RVALUE, val);
+
+    # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
+
+    # Return our wrapped result.
+    han;
+}
+
+# Logical Or [TAG_LOGICAL_OR]
+# -----------------------------------------------------------------------------
+def logical_or(g: ^mut generator_.Generator, node: ^ast.Node,
+               scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.BinaryExpr = (node^).unwrap() as ^ast.BinaryExpr;
+
+    # Get the current basic block and resolve our current function handle.
+    let cur_block: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMGetInsertBlock(g.irb);
+    let cur_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMGetBasicBlockParent(
+        cur_block);
+
+    # Resolve each operand for its type.
+    let lhs_ty: ^code.Handle = resolver.resolve_st(g, &x.lhs, scope, target);
+    let rhs_ty: ^code.Handle = resolver.resolve_st(g, &x.rhs, scope, target);
+
+    # Build the left operand.
+    let lhs: ^code.Handle = builder.build(g, &x.lhs, scope, lhs_ty);
+    let lhs_val_han: ^code.Handle = generator_def.to_value(
+        g^, lhs, code.VC_RVALUE, false);
+    let lhs_val: ^code.Value = lhs_val_han._object as ^code.Value;
+
+    # Create the three neccessary basic blocks: then, else, merge.
+    let then_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+    let else_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+    let merge_b: ^llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
+        cur_fn, "" as ^int8);
+
+    # Create the conditional branch.
+    llvm.LLVMBuildCondBr(g.irb, lhs_val.handle, else_b, then_b);
+
+    # Switch to the `then` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, then_b);
+
+    # Build the right operand.
+    let rhs: ^code.Handle = builder.build(g, &x.rhs, scope, rhs_ty);
+    let rhs_val_han: ^code.Handle = generator_def.to_value(
+        g^, rhs, code.VC_RVALUE, false);
+    let rhs_val: ^code.Value = rhs_val_han._object as ^code.Value;
+
+    # Create a branch to the `merge` block.
+    llvm.LLVMBuildBr(g.irb, merge_b);
+
+    # Switch to the `else` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, else_b);
+
+    # Create a branch to the `merge` block.
+    llvm.LLVMBuildBr(g.irb, merge_b);
+
+    # Switch to the `merge` block.
+    llvm.LLVMPositionBuilderAtEnd(g.irb, merge_b);
+
+    # Create a `PHI` node.
+    let type_han: ^code.Type = target._object as ^code.Type;
+    let type_val: ^llvm.LLVMOpaqueType = type_han.handle;
+    let val: ^llvm.LLVMOpaqueValue;
+    let bool_val: ^llvm.LLVMOpaqueValue = llvm.LLVMConstInt(
+        type_val, 1, false);
+    val = llvm.LLVMBuildPhi(g.irb, type_val, "" as ^int8);
+    llvm.LLVMAddIncoming(val, &rhs_val.handle, &then_b, 1);
+    llvm.LLVMAddIncoming(val, &bool_val, &else_b, 1);
+
+    # Wrap and return the value.
+    let han: ^code.Handle;
+    han = code.make_value(target, code.VC_RVALUE, val);
+
+    # Dispose.
+    code.dispose(lhs_val_han);
+    code.dispose(rhs_val_han);
+
+    # Return our wrapped result.
+    han;
+}
+
 # Relational [TAG_EQ, TAG_NE, TAG_LT, TAG_LE, TAG_GT, TAG_GE]
 # -----------------------------------------------------------------------------
 def relational(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -1150,6 +1317,29 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
         # Dispose.
         code.dispose(lhs_han);
         code.dispose(rhs_han);
+    }
+    else if target._tag == code.TAG_BOOL_TYPE
+    {
+        # Cast to values.
+        let lhs_val: ^code.Value = lhs_val_han._object as ^code.Value;
+        let rhs_val: ^code.Value = rhs_val_han._object as ^code.Value;
+
+        if node.tag == ast.TAG_BITAND {
+            # Build the `AND` instruction.
+            val = llvm.LLVMBuildAnd(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_BITOR {
+            # Build the `OR` instruction.
+            val = llvm.LLVMBuildOr(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        } else if node.tag == ast.TAG_BITXOR {
+            # Build the `XOR` instruction.
+            val = llvm.LLVMBuildXor(
+                g.irb,
+                lhs_val.handle, rhs_val.handle, "" as ^int8);
+        }
     }
     else if target._tag == code.TAG_POINTER_TYPE
     {

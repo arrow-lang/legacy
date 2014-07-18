@@ -86,6 +86,8 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
     g.type_resolvers[ast.TAG_FLOAT] = resolvers.float;
     g.type_resolvers[ast.TAG_CALL] = resolvers.call;
+    g.type_resolvers[ast.TAG_LOGICAL_AND] = resolvers.logical;
+    g.type_resolvers[ast.TAG_LOGICAL_OR] = resolvers.logical;
     g.type_resolvers[ast.TAG_PROMOTE] = resolvers.arithmetic_u;
     g.type_resolvers[ast.TAG_NUMERIC_NEGATE] = resolvers.arithmetic_u;
     g.type_resolvers[ast.TAG_LOGICAL_NEGATE] = resolvers.arithmetic_u;
@@ -133,6 +135,8 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_INTEGER] = builders.integer;
     g.builders[ast.TAG_BOOLEAN] = builders.boolean;
     g.builders[ast.TAG_FLOAT] = builders.float;
+    g.builders[ast.TAG_LOGICAL_AND] = builders.logical;
+    g.builders[ast.TAG_LOGICAL_OR] = builders.logical;
     g.builders[ast.TAG_CALL] = builders.call;
     g.builders[ast.TAG_PROMOTE] = builders.arithmetic_u;
     g.builders[ast.TAG_NUMERIC_NEGATE] = builders.arithmetic_u;

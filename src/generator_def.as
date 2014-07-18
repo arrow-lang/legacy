@@ -155,7 +155,9 @@ def generate_function(&mut g: generator_.Generator, qname: str,
 
         # Allocate this param.
         let val: ^llvm.LLVMOpaqueValue;
-        val = llvm.LLVMBuildAlloca(g.irb, prm_type.handle, prm.name.data());
+        val = llvm.LLVMBuildAlloca(
+            g.irb, generator_util.alter_type_handle(prm.type_),
+            prm.name.data());
 
         # Get the parameter handle.
         let prm_val: ^llvm.LLVMOpaqueValue;
@@ -402,6 +404,37 @@ def to_value(&mut g: generator_.Generator,
         # Get the type of the function.
         let fn_type_handle: ^code.Handle = fn.type_;
         let fn_type: ^code.Type = fn_type_handle._object as ^code.Type;
+
+        # Create a handle of the function.
+        code.make_value(fn_type_handle, code.VC_LVALUE, fn.handle);
+    }
+    else if handle._tag == code.TAG_ATTACHED_FUNCTION {
+        # Get the function handle.
+        let fn: ^code.AttachedFunction = handle._object as ^code.AttachedFunction;
+
+        # Get the type of the function.
+        let fn_type_handle: ^code.Handle = fn.type_;
+        let fn_type: ^code.Type = fn_type_handle._object as ^code.Type;
+
+        # Create a handle of the function.
+        code.make_value(fn_type_handle, code.VC_LVALUE, fn.handle);
+    }
+    else if handle._tag == code.TAG_EXTERN_FUNC {
+        # Get the function handle.
+        let fn: ^code.ExternFunction = handle._object as ^code.ExternFunction;
+
+        # Get the type of the function.
+        let fn_type_handle: ^code.Handle = fn.type_;
+        let fn_type: ^code.Type = fn_type_handle._object as ^code.Type;
+
+        # Ensure our external handle has been declared.
+        if fn.handle == 0 as ^llvm.LLVMOpaqueValue
+        {
+            # Add the function to the module.
+            # TODO: Set priv, vis, etc.
+            fn.handle = llvm.LLVMAddFunction(
+                g.mod, fn.name.data(), fn_type.handle);
+        }
 
         # Create a handle of the function.
         code.make_value(fn_type_handle, code.VC_LVALUE, fn.handle);

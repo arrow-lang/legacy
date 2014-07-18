@@ -1,10 +1,10 @@
-implement bool { false_(): bool -> { return false; } }
-implement int { zero(): int -> { return 0; } }
+implement bool { let false_(): bool -> { return false; } }
+implement int { let zero(): int -> { return 0; } }
 
 struct Point { x: int, y: int }
 
 implement Point {
-    origin(): Point -> { return Point(0, 0); }
+    let origin(): Point -> { return Point(0, 0); }
 }
 
 def main() {

@@ -1344,6 +1344,41 @@ def parse_paren_type(&mut self) -> bool
     true;
 }
 
+# Delegate Type
+# -----------------------------------------------------------------------------
+def parse_delegate_type(&mut self) -> bool
+{
+    # Declare and allocate the node.
+    let mut node: ast.Node = ast.make(ast.TAG_DELEGATE);
+    let expr: ^ast.Delegate = node.unwrap() as ^ast.Delegate;
+
+    # Consume the `delegate` token.
+    self.pop_token();
+
+    # Parse the parameter list.
+    if not self.parse_function_params(expr as ^ast.FuncDecl, false, false) {
+        return false;
+    }
+
+    # Check for a return type which would
+    # be preceeded by a `->` token.
+    if self.peek_token_tag(1) == tokens.TOK_RARROW
+    {
+        # Pop the `->` token.
+        self.pop_token();
+
+        # Parse and set the type.
+        if not self.parse_type() { return false; }
+        expr.return_type = self.stack.pop();
+    }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
 # Type
 # -----------------------------------------------------------------------------
 # type = path | tuple-type | function-type | array-type ;
@@ -1360,6 +1395,7 @@ def parse_type(&mut self) -> bool
     let rv: bool =
         if      tok.tag == tokens.TOK_IDENTIFIER { self.parse_ident_expr(); }
         else if tok.tag == tokens.TOK_LPAREN     { self.parse_paren_type(); }
+        else if tok.tag == tokens.TOK_DELEGATE   { self.parse_delegate_type(); }
         else if tok.tag == tokens.TOK_STAR       { self.parse_pointer_type(); }
         else
         {
@@ -1367,10 +1403,11 @@ def parse_type(&mut self) -> bool
             self.consume_until(tokens.TOK_SEMICOLON);
             errors.begin_error();
             errors.libc.fprintf(errors.libc.stderr,
-                           "expected %s, %s or %s but found %s" as ^int8,
+                           "expected %s, %s, %s or %s but found %s" as ^int8,
                            tokens.to_str(tokens.TOK_STAR),
                            tokens.to_str(tokens.TOK_IDENTIFIER),
                            tokens.to_str(tokens.TOK_LPAREN),
+                           tokens.to_str(tokens.TOK_DELEGATE),
                            tokens.to_str(tok.tag));
             errors.end();
 

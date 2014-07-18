@@ -106,6 +106,9 @@ let TOK_IMPL: int = -1030;
 # "extern" -- External declarations
 let TOK_EXTERN: int = -1031;
 
+# "delegate" -- Function type literal
+let TOK_DELEGATE: int = -1032;
+
 # "->" -- Function return type declarator
 let TOK_RARROW: int = -2001;
 
@@ -260,6 +263,7 @@ def to_str(tok: int) -> str {
     else if tok == TOK_GLOBAL               { "`global`"; }
     else if tok == TOK_STRUCT               { "`struct`"; }
     else if tok == TOK_IMPL                 { "`implement`"; }
+    else if tok == TOK_DELEGATE             { "`delegate`"; }
     else if tok == TOK_RARROW               { "`->`"; }
     else if tok == TOK_PLUS                 { "`+`"; }
     else if tok == TOK_MINUS                { "`-`"; }

@@ -522,3 +522,16 @@ def get_attached_function(&mut g: generator_.Generator,
     qn.dispose();
     item;
 }
+
+# Alter Type Handle
+def alter_type_handle(type_handle: ^code.Handle) -> ^llvm.LLVMOpaqueType
+{
+    let type_: ^code.Type = type_handle._object as ^code.Type;
+    let mut handle: ^llvm.LLVMOpaqueType = type_.handle;
+    if type_handle._tag == code.TAG_FUNCTION_TYPE {
+        # For functions we store them as function "pointers" but refer
+        # to them as objects.
+        handle = llvm.LLVMPointerType(handle, 0);
+    }
+    handle;
+}

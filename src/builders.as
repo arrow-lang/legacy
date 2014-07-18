@@ -181,17 +181,10 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
         init = cast_val.handle;
     }
 
-    # Alter the type (if we need to)
-    let mut type_handle: ^llvm.LLVMOpaqueType = type_.handle;
-    if type_han._tag == code.TAG_FUNCTION_TYPE {
-        # For functions we store them as function "pointers" but refer
-        # to them as objects.
-        type_handle = llvm.LLVMPointerType(type_handle, 0);
-    }
-
     # Build a stack allocation.
     let val: ^llvm.LLVMOpaqueValue;
-    val = llvm.LLVMBuildAlloca(g.irb, type_handle, id.name.data());
+    val = llvm.LLVMBuildAlloca(
+        g.irb, generator_util.alter_type_handle(type_han), id.name.data());
 
     # Build the store.
     if init <> 0 as ^llvm.LLVMOpaqueValue {
@@ -2096,7 +2089,8 @@ def array(g: ^mut generator_.Generator, node: ^ast.Node,
     # Build the `array` instruction (and create the constant array).
     let mut val: ^llvm.LLVMOpaqueValue;
     val = llvm.LLVMConstArray(
-        el_type.handle, values, valuel.size as uint32);
+        generator_util.alter_type_handle(el_type_han), values,
+        valuel.size as uint32);
 
     # Create a temporary allocation.
     let mut ptr: ^llvm.LLVMOpaqueValue;

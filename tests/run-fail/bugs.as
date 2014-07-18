@@ -1,1 +1,5 @@
-extern def puts(str); def main() {puts(str); 1; }
+extern def puts(str);
+def main() {
+    puts("sdfsad");
+    1;
+}

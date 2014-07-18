@@ -125,6 +125,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_ARRAY_EXPR] = resolvers.array;
     g.type_resolvers[ast.TAG_STRING] = resolvers.string_;
     g.type_resolvers[ast.TAG_SELF] = resolvers.self_;
+    g.type_resolvers[ast.TAG_DELEGATE] = resolvers.delegate;
 
     # Build the "builder" jump table.
     libc.memset(&g.builders[0] as ^void, 0, (100 * ptr_size) as int32);

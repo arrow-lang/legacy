@@ -186,7 +186,8 @@ def generate_function(&mut g: generator_.Generator,
         return code.make_poison();
     }
     let ret_typ: ^code.Type = ret_han._object as ^code.Type;
-    let ret_typ_han: ^llvm.LLVMOpaqueType = ret_typ.handle;
+    let mut ret_typ_han: ^llvm.LLVMOpaqueType;
+    ret_typ_han = generator_util.alter_type_handle(ret_han);
 
     # Resolve the type for each parameter.
     let mut params: list.List = list.make(types.PTR);
@@ -251,7 +252,9 @@ def generate_attached_function(&mut g: generator_.Generator,
         return code.make_poison();
     }
     let ret_typ: ^code.Type = ret_han._object as ^code.Type;
-    let ret_typ_han: ^llvm.LLVMOpaqueType = ret_typ.handle;
+    let mut ret_typ_han: ^llvm.LLVMOpaqueType;
+    ret_typ_han = generator_util.alter_type_handle(ret_han);
+
     let mut params: list.List = list.make(types.PTR);
     let mut param_type_handles: list.List = list.make(types.PTR);
     let mut i: int = 0;
@@ -410,39 +413,20 @@ def generate_extern_function(&mut g: generator_.Generator,
     if code.ispoison(x.type_) { return code.make_nil(); }
 
     # Resolve the return type.
-    let ret_han: ^code.Handle = code.make_nil();
-    let ret_typ_han: ^llvm.LLVMOpaqueType;
-    if ast.isnull(x.context.return_type)
-    {
-        # No return type specified.
-        # TODO: In the future this should resolve the type
-        #   of the function body.
-        # Use a void return type for now.
-        ret_typ_han = llvm.LLVMVoidType();
-        ret_han = code.make_void_type(ret_typ_han);
-        ret_typ_han;  # HACK!
-    }
-    else
-    {
-        # Get and resolve the return type.
-        ret_han = resolver.resolve_in(
-            &g, &x.context.return_type, &x.namespace,
-            code.make_nil_scope(),
-            code.make_nil());
-        if not code.is_type(ret_han) {
-            ret_han = code.type_of(ret_han);
-        }
 
-        if code.isnil(ret_han) {
-            # Failed to resolve type; mark us as poisioned.
-            x.type_ = code.make_poison();
-            return code.make_poison();
-        }
-
-        # Get the ret type handle.
-        let ret_typ: ^code.Type = ret_han._object as ^code.Type;
-        ret_typ_han = ret_typ.handle;
+    # Resolve the return type.
+    let ret_han: ^code.Handle = _generate_return_type(
+        g,
+        &x.context.return_type,
+        &x.namespace,
+        code.make_nil_scope());
+    if code.isnil(ret_han) {
+        x.type_ = code.make_poison();
+        return code.make_poison();
     }
+    let ret_typ: ^code.Type = ret_han._object as ^code.Type;
+    let mut ret_typ_han: ^llvm.LLVMOpaqueType;
+    ret_typ_han = generator_util.alter_type_handle(ret_han);
 
     # Resolve the type for each parameter.
     let mut params: list.List = list.make(types.PTR);
@@ -504,8 +488,16 @@ def _generate_func_param(
 
     let ptype_obj: ^code.Type = ptype_handle._object as ^code.Type;
 
+    # Alter the type (if we need to)
+    let mut type_handle: ^llvm.LLVMOpaqueType = ptype_obj.handle;
+    if ptype_handle._tag == code.TAG_FUNCTION_TYPE {
+        # For functions we store them as function "pointers" but refer
+        # to them as objects.
+        type_handle = llvm.LLVMPointerType(type_handle, 0);
+    }
+
     # Emplace the type handle.
-    handles.push_ptr(ptype_obj.handle as ^void);
+    handles.push_ptr(type_handle as ^void);
 
     if not ast.isnull(x.id)
     {

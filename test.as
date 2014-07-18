@@ -1,29 +1,25 @@
-# [x] locally assign functions to slots
-# [x] call locally assigned functions
-# [ ] 1, 2 in arrays
-# [ ] 1, 2 in function parameters
-# [ ] extern functions
-# [ ] attached functions
-# [x] typename
-# [x] type_common
-# [ ] ^ with arguments
 
+# extern def puts(str);
 
-def strange(): delegate(int, bool) -> delegate(bool) -> { }
+# def check_1(): bool {
+#     puts("check_1");
+#     return false;
+# }
 
-extern def puts(str);
-def print() { puts("Hello World"); }
-# def some()
-# def print_2() { puts("Hello World 2"); }
+# def check_2(): bool {
+#     puts("check_2");
+#     return false;
+# }
+
+# def main() {
+#     if check_1() and check_2() {
+#         puts("true");
+#     } else {
+#         puts("false");
+#     };
+# }
 
 def main() {
-    let m = print;
-    let mut m2 = print;
-    let x: delegate(int);
-    # m2 = m;
-    # m();
-    # m2();
-    # m();
-    # (m if false else m2)();
-    # m3();
+    # let mut m: char = 0x0a;
+    let mut m: char = "a";
 }

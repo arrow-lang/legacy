@@ -26,7 +26,7 @@ let PTR:  int = 16;      #    pointer (non-managed)
 let CHAR: int = 17;      # character
 
 # Gets if the type tag has individual memory that needs to be disposed.
-let is_disposable(tag: int): bool -> {
+def is_disposable(tag: int) -> bool {
     if tag == STR { true; }
     else { false; }
 }

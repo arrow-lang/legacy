@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     # Declare an array of 20 ints.
     let a: int[20];
 

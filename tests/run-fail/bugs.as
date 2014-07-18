@@ -1,5 +1,5 @@
 extern def puts(str);
-def main() {
+let main() -> {
     puts("sdfsad");
     1;
 }

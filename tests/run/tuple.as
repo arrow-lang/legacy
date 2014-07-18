@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     # Declare static and local slots for various tuples.
     # -------------------------------------------------------------------------
     static a: (int, bool) = (451, false);

@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let mut a = 230;
     let mut b = &a;
     *b = 30;

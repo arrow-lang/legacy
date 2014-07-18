@@ -1,4 +1,4 @@
-def test_assign() {
+let test_assign() -> {
     let mut x: int;
     let y: int = x = 10;
     let mut z: int;
@@ -26,7 +26,7 @@ def test_assign() {
 #     assert(z == 32);
 # }
 
-def main() {
+let main() -> {
     test_assign();
     # test_assign_op();
 }

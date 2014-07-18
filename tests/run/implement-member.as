@@ -17,7 +17,7 @@ implement Point {
     }
 }
 
-def main(): int {
+let main(): int -> {
     let mut o = Point.origin();
     o.x = 43;
     o.println();

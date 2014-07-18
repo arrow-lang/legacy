@@ -1,4 +1,4 @@
 static a: int;
-def main() {
+let main() -> {
     a = 50;
 }

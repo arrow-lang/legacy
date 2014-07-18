@@ -1,5 +1,5 @@
 
-def main() {
+let main() -> {
     let x = 30;
     let m = [15, x];
     let y = m[1];

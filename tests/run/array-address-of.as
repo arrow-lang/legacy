@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let x: int[10];
     let p: *int = &x[0];
     assert(p == &x[0]);

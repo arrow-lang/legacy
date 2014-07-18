@@ -1,5 +1,5 @@
 # A function that has an explicit return statement returning nothing.
-def main() {
+let main() -> {
     one();
     assert(some() == 4);
     assert(that() == 9);
@@ -7,10 +7,10 @@ def main() {
 }
 
 # A function that returns nothing.
-def one() { }
+let one() -> { }
 
 # A function that explicitly returns something.
-def some(): int32 { return 4; }
+let some(): int32 -> { return 4; }
 
 # A function that implicitly returns something.
-def that(): int32 { 9; }
+let that(): int32 -> { 9; }

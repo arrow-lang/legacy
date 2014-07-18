@@ -19,7 +19,7 @@ module extra {
     }
 }
 
-def main() {
+let main() -> {
 
     # Assert the values of the "safe" statics.
     assert(a == 621);

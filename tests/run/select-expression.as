@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let x: int = if true { 10; } else { 30; };
     assert(x == 10);
 

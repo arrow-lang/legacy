@@ -2,7 +2,7 @@
 extern def malloc(uint): *mut uint8;
 extern def free(*uint8);
 
-def magic(m_: *mut uint8): uint {
+let magic(m_: *mut uint8): uint -> {
     # Get the pointer.
     let mut m = m_;
 
@@ -33,7 +33,7 @@ def magic(m_: *mut uint8): uint {
     42;
 }
 
-def main() {
+let main() -> {
     # Allocate a 10-byte buffer.
     let mut m = malloc(10);
 

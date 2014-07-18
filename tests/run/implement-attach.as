@@ -7,7 +7,7 @@ implement Point {
     let origin(): Point -> { return Point(0, 0); }
 }
 
-def main() {
+let main() -> {
     assert(not bool.false_());
     assert(int.zero() == 0);
 

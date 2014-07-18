@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let x: int32 = 15;
     let y: int32 = 5;
     assert( x // 5 == 3);

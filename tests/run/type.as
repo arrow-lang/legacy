@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     # Assert the values of the static slots.
     assert( s2 == false);
     assert(s18 == 12);

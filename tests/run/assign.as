@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let mut rv = 20;
     let mut rb = 50;
     assert(rv == 20);

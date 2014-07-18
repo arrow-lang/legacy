@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let mut counter: int = 10;
     while counter > 0 {
         if counter <= 5 { break; };

@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let a: int128 = 10;
     assert(a == a);
     assert(a - 10 == 0);

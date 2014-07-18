@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let mut table: int[10];
     table[0] = 20;
     let x: int = table[0];

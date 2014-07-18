@@ -1,5 +1,5 @@
 extern def puts(str);
-def main() {
+let main() -> {
     # Declare some strings.
     let empty: str = '';
     let single_quote: str = "'";

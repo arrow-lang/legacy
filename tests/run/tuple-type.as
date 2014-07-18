@@ -1,6 +1,6 @@
 struct Thing { }
 
-def main() {
+let main() -> {
     # Declare a tuple of basic types.
     let a: (int,);
     let b: (bool, int);

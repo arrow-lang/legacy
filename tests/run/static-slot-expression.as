@@ -6,4 +6,4 @@ static y = 60;
 static z = x * y;
 
 # Ensure that we did this correctly.
-def main() { assert(z == x * y); }
+let main() -> { assert(z == x * y); }

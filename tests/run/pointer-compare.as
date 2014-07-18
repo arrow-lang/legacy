@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let x: int = 10;
     let y: *int = &x;
     let a: *int = &x;

@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     assert(((0 as uint8) < (255 as uint8)));
     assert(((0 as uint8) <= (255 as uint8)));
     assert(((255 as uint8) > (0 as uint8)));

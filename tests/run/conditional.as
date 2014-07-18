@@ -1,9 +1,9 @@
-def question(condition: bool): int {
+let question(condition: bool): int -> {
     # Decide which value to return from this function.
     10 if condition else 20;
 }
 
-def main() {
+let main() -> {
     # Check the value result.
     assert(question(false) == 20);
     assert(question(true) == 10);

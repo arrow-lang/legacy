@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let a: int8 = 32;
     let b: int8 = 63;
     let mut m: (*int8)[2];

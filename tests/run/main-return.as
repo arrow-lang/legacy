@@ -1,1 +1,1 @@
-def main(): int { return 42; }
+let main(): int -> { return 42; }

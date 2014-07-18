@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let i5 = 5;
     let i7 = 7;
 

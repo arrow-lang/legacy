@@ -1,5 +1,5 @@
 extern def printf(str, char);
-def main() {
+let main() -> {
     # Declare a character.
     let mut endl: char;
 

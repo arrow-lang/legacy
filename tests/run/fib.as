@@ -1,9 +1,9 @@
-def fibonacci(n: int64, a1: int64 = 1, a2: int64 = 1): int64 {
+let fibonacci(n: int64, a1: int64 = 1, a2: int64 = 1): int64 -> {
     if n == 0 { a1; }
     else { fibonacci(n - 1, a2, a1 + a2); };
 }
 
-def main() {
+let main() -> {
     assert(fibonacci( 0, 1, 1) ==               1);
     assert(fibonacci( 1, 1, 1) ==               1);
     assert(fibonacci( 2, 1, 1) ==               2);

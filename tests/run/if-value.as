@@ -1,4 +1,4 @@
-def main() {
+let main() -> {
     let mut condition: bool = false;
     if condition == false {
         assert(not condition);

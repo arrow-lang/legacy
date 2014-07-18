@@ -1,5 +1,5 @@
 static mut x: uint;
-def main() {
+let main() -> {
     assert(x == 40);
 }
 x = 40;

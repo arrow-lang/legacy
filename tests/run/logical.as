@@ -1,4 +1,4 @@
-def test_bool() {
+let test_bool() -> {
     assert(true == true);
     assert(false != true);
     assert(not true == false);
@@ -25,7 +25,7 @@ def test_bool() {
     assert(true or not true);
 }
 
-def test_int() {
+let test_int() -> {
     assert(12 == 12);
     assert(12 != 40);
     assert(not (12 == 40));
@@ -41,7 +41,7 @@ def test_int() {
     assert(not (40 == 30) and 30 > 20);
 }
 
-def main() {
+let main() -> {
     test_bool();
     test_int();
 }

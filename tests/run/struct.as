@@ -2,7 +2,7 @@ struct Point { x: int, y: int }
 struct Box { value: bool }
 struct Line { begin: Point, end: Point }
 
-def main() {
+let main() -> {
     let a = Point(30, 60);
     let b = Point(y: 60, x: 30);
     let c = Box(false);

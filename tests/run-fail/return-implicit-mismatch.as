@@ -1,1 +1,1 @@
-def some(): int { false; }
+let some(): int -> { false; }

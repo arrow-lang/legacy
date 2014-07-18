@@ -1,36 +1,31 @@
 
-extern def puts(str);
+extern def printf(str, int);
 
-let check_1(): bool -> {
-    puts("check_1");
-    return true;
+struct Point {
+    x: int,
+    y: int,
 }
 
-let check_2(): bool -> {
-    puts("check_2");
-    return true;
+implement Point {
+    let println(self) -> {
+        printf("(%d, ", self.x);
+        printf("%d)", self.y);
+        printf("%c", 0x0a);
+    }
 }
 
-let check_3(): bool -> {
-    puts("check_3");
-    return true;
-}
+let println_all(points: Point[2]) -> {
+    Point.println(points[0]);
+    Point.println(points[1]);
 
-let check_4(): bool -> {
-    puts("check_4");
-    return true;
+    # FIXME: Man #11 is going to fix a lot
+    # points[0].println();
+    # points[1].println();
 }
 
 let main() -> {
-
-    # let condition = true & false;
-
-    let condition = check_1() ^ not not not !!check_2();
-    assert(condition);
-
-    # if check_1() and check_2() {
-    #     puts("true");
-    # } else {
-    #     puts("false");
-    # };
+    println_all([
+        Point(5, 20),
+        Point(15, 69),
+    ]);
 }

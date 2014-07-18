@@ -199,7 +199,7 @@ def generate_function(&mut g: generator_.Generator,
         i = i + 1;
         let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
         if not _generate_func_param(
-            g, p, &x.namespace, &x.scope, params, param_type_handles)
+            g, p, &x.namespace, &x.scope, params, param_type_handles, true)
         {
              # Failed to resolve type; mark us as poisioned.
              x.type_ = code.make_poison();
@@ -262,12 +262,16 @@ def generate_attached_function(&mut g: generator_.Generator,
     # Check for "self"
     if x.context.instance {
         # Push a parameter for "self"
-        let attached_type: ^code.Type = x.attached_type._object as ^code.Type;
-        param_type_handles.push_ptr(attached_type.handle as ^void);
-        params.push_ptr(code.make_parameter(
-            "self",
+        let self_type_handle: ^code.Handle = _generate_func_param_wrap(
             x.attached_type,
-            code.make_nil()) as ^void);
+            generator_util.alter_type_handle(x.attached_type));
+        let self_type: ^code.Type = self_type_handle._object as ^code.Type;
+        param_type_handles.push_ptr(self_type.handle as ^void);
+        let param: ^code.Handle = code.make_parameter(
+            "self",
+            self_type_handle,
+            code.make_nil());
+        params.push_ptr(param as ^void);
     }
 
     # Resolve the type for each parameter.
@@ -277,7 +281,7 @@ def generate_attached_function(&mut g: generator_.Generator,
         i = i + 1;
         let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
         if not _generate_func_param(
-            g, p, &x.namespace, &x.scope, params, param_type_handles)
+            g, p, &x.namespace, &x.scope, params, param_type_handles, true)
         {
              # Failed to resolve type; mark us as poisioned.
              x.type_ = code.make_poison();
@@ -439,7 +443,7 @@ def generate_extern_function(&mut g: generator_.Generator,
         let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
         if not _generate_func_param(
             g, p, &x.namespace, code.make_nil_scope(),
-            params, param_type_handles)
+            params, param_type_handles, false)
         {
              # Failed to resolve type; mark us as poisioned.
              x.type_ = code.make_poison();
@@ -468,6 +472,22 @@ def generate_extern_function(&mut g: generator_.Generator,
     han;
 }
 
+# Helper: Wrap a parameter tpye
+def _generate_func_param_wrap(handle: ^code.Handle, value: ^llvm.LLVMOpaqueType) -> ^code.Handle
+{
+    # Decide if we need to "wrap" the type as a reference type.
+    let mut type_: ^code.Handle = handle;
+    if type_._tag == code.TAG_STRUCT_TYPE
+        or type_._tag == code.TAG_ARRAY_TYPE
+    {
+        # Yes, wrap the type as a reference.
+        let val: ^llvm.LLVMOpaqueType = llvm.LLVMPointerType(
+            value, 0);
+        type_ = code.make_reference_type(type_, false, val);
+    }
+    return type_;
+}
+
 # Helper: Generate the type for a parameter
 # -----------------------------------------------------------------------------
 def _generate_func_param(
@@ -476,25 +496,21 @@ def _generate_func_param(
     namespace: ^mut list.List,
     scope: ^mut code.Scope,
     &mut types: list.List,
-    &mut handles: list.List) -> bool
+    &mut handles: list.List,
+    arrow_cc: bool) -> bool
 {
     # Resolve the type.
-    let ptype_handle: ^code.Handle = resolver.resolve_in(
+    let mut ptype_handle: ^code.Handle = resolver.resolve_in(
         &g, &x.type_, namespace, scope, code.make_nil());
     if code.isnil(ptype_handle) { return false; }
     if not code.is_type(ptype_handle) {
         ptype_handle = code.type_of(ptype_handle);
     }
 
-    let ptype_obj: ^code.Type = ptype_handle._object as ^code.Type;
-
-    # Alter the type (if we need to)
-    let mut type_handle: ^llvm.LLVMOpaqueType = ptype_obj.handle;
-    if ptype_handle._tag == code.TAG_FUNCTION_TYPE {
-        # For functions we store them as function "pointers" but refer
-        # to them as objects.
-        type_handle = llvm.LLVMPointerType(type_handle, 0);
-    }
+    ptype_handle = _generate_func_param_wrap(
+        ptype_handle, generator_util.alter_type_handle(ptype_handle));
+    let type_: ^code.Type = ptype_handle._object as ^code.Type;
+    let type_handle: ^llvm.LLVMOpaqueType = type_.handle;
 
     # Emplace the type handle.
     handles.push_ptr(type_handle as ^void);

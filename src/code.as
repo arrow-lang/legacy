@@ -35,6 +35,7 @@ let TAG_EXTERN_STATIC: int = 20;
 let TAG_CHAR_TYPE: int = 21;
 let TAG_STR_TYPE: int = 23;
 let TAG_ATTACHED_FUNCTION: int = 22;
+let TAG_REFERENCE_TYPE: int = 24;
 
 # Value categories
 # -----------------------------------------------------------------------------
@@ -279,6 +280,12 @@ def typename(handle: ^Handle) -> string.String {
         let mut ptr_name: string.String = typename(p_ty.pointee);
         name.extend(ptr_name.data() as str);
         ptr_name.dispose();
+    } else if handle._tag == TAG_REFERENCE_TYPE {
+        let p_ty: ^ReferenceType = handle._object as ^ReferenceType;
+        name.append("&");
+        let mut ptr_name: string.String = typename(p_ty.pointee);
+        name.extend(ptr_name.data() as str);
+        ptr_name.dispose();
     } else if handle._tag == TAG_ARRAY_TYPE {
         let a_ty: ^ArrayType = handle._object as ^ArrayType;
         let mut el_name: string.String = typename(a_ty.element);
@@ -346,6 +353,30 @@ def make_pointer_type(pointee: ^Handle, mutable: bool, handle: ^LLVMOpaqueType) 
 
     # Wrap in a handle.
     make(TAG_POINTER_TYPE, han as ^void);
+}
+
+# Reference type
+# -----------------------------------------------------------------------------
+
+type ReferenceType {
+    handle: ^LLVMOpaqueType,
+    bits: int64,
+    mutable: bool,
+    mut pointee: ^Handle
+}
+
+let REFERENCE_TYPE_SIZE: uint = ((0 as ^ReferenceType) + 1) - (0 as ^ReferenceType);
+
+def make_reference_type(pointee: ^Handle, mutable: bool, handle: ^LLVMOpaqueType) -> ^Handle {
+    # Build the parameter.
+    let han: ^ReferenceType = libc.malloc(POINTER_TYPE_SIZE as int64) as ^ReferenceType;
+    han.handle = handle;
+    han.mutable = mutable;
+    han.pointee = pointee;
+    han.bits = 0;  # FIXME: Get the actual size of this type with sizeof
+
+    # Wrap in a handle.
+    make(TAG_REFERENCE_TYPE, han as ^void);
 }
 
 # Array type
@@ -539,6 +570,7 @@ def is_type(handle: ^Handle) -> bool {
     handle._tag == TAG_TUPLE_TYPE or
     handle._tag == TAG_STRUCT_TYPE or
     handle._tag == TAG_POINTER_TYPE or
+    handle._tag == TAG_REFERENCE_TYPE or
     handle._tag == TAG_FLOAT_TYPE or
     handle._tag == TAG_ARRAY_TYPE;
 }

@@ -11,7 +11,6 @@ implement Point {
     }
 
     let println(self) -> {
-        # Point.print(self);
         self.print();
         printf("%c", 0x0a);
     }
@@ -23,3 +22,4 @@ let main(): int -> {
     o.println();
     return 0;
 }
+

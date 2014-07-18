@@ -233,6 +233,19 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
             g, &x.lhs, scope, code.make_nil());
         if code.isnil(lhs) { return code.make_nil(); }
 
+        if lhs._tag <> code.TAG_MODULE {
+            # Pull out the reference if we are dealing with a reference type.
+            let lhs_type_handle: ^code.Handle = code.type_of(lhs);
+            if lhs_type_handle._tag == code.TAG_REFERENCE_TYPE {
+                let ref: ^code.ReferenceType = lhs_type_handle._object as
+                    ^code.ReferenceType;
+                let lhs_val: ^code.Value = lhs._object as ^code.Value;
+                let mut load_val: ^llvm.LLVMOpaqueValue =
+                    llvm.LLVMBuildLoad(g.irb, lhs_val.handle, "" as ^int8);
+                lhs = code.make_value(ref.pointee, code.VC_LVALUE, load_val);
+            }
+        }
+
         # Attempt to get an `item` out of the LHS.
         if lhs._tag == code.TAG_MODULE
         {
@@ -350,10 +363,20 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
     # If we are dealing with an "instance" function then push in self.
     if type_.parameter_map.contains("self") {
         if not code.isnil(g.current_self) {
+            let self_param_idx: int =
+                type_.parameter_map.get_uint("self") as int;
+            let self_param_han: ^code.Handle =
+                type_.parameters.at_ptr(self_param_idx) as ^code.Handle;
+            let self_param: ^code.Parameter = self_param_han._object as
+                ^code.Parameter;
             let self_han: ^code.Handle = g.current_self;
             let self_val_han: ^code.Handle = generator_def.to_value(
                 g^, self_han, code.VC_RVALUE, false);
-            let self_val: ^code.Value = self_val_han._object as ^code.Value;
+            let self_val_: ^code.Value = self_val_han._object as ^code.Value;
+            let self_cast_han: ^code.Handle = generator_util.cast(
+                g^, self_val_han, self_param.type_, false);
+            if code.isnil(self_cast_han) { return code.make_nil(); }
+            let self_val: ^code.Value = self_cast_han._object as ^code.Value;
             (argv + 0)^ = self_val.handle;
             g.current_self = code.make_nil();
         }

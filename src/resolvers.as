@@ -447,8 +447,14 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
     else
     {
         # Resolve the type of the lhs.
-        let lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
+        let mut lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
         if code.isnil(lhs) { return code.make_nil(); }
+
+        # Pull out the reference if we are dealing with a reference type.
+        if lhs._tag == code.TAG_REFERENCE_TYPE {
+            let ref: ^code.ReferenceType = lhs._object as ^code.ReferenceType;
+            lhs = ref.pointee;
+        }
 
         # Attempt to get an `item` out of the LHS.
         if lhs._tag == code.TAG_MODULE {
@@ -807,7 +813,7 @@ def delegate(g: ^mut generator_.Generator, node: ^ast.Node,
         i = i + 1;
         let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
         if not generator_type._generate_func_param(
-            g^, p, &g.ns, scope, params, param_type_handles)
+            g^, p, &g.ns, scope, params, param_type_handles, true)
         {
              return code.make_nil();
         }
@@ -1268,6 +1274,12 @@ def index(g: ^mut generator_.Generator, node: ^ast.Node,
     # Resolve the types of the operand.
     let operand: ^code.Handle = resolver.resolve_s(g, &x.expression, scope);
     if code.isnil(operand) { return code.make_nil(); }
+
+    # Pull out the reference if we are dealing with a reference type.
+    if operand._tag == code.TAG_REFERENCE_TYPE {
+        let ref: ^code.ReferenceType = operand._object as ^code.ReferenceType;
+        operand = ref.pointee;
+    }
 
     # Ensure we are dealing with an array.
     if operand._tag <> code.TAG_ARRAY_TYPE

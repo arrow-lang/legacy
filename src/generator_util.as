@@ -1,3 +1,5 @@
+import libc;
+import errors;
 import types;
 import ast;
 import generator_;
@@ -234,6 +236,13 @@ def is_same_type(a: ^code.Handle, b: ^code.Handle) -> bool
         let b_type: ^code.PointerType = b._object as ^code.PointerType;
         return is_same_type(a_type.pointee, b_type.pointee);
     }
+    else if a._tag == code.TAG_REFERENCE_TYPE and a._tag == b._tag
+    {
+        # These are both pointers; move to the pointee types.
+        let a_type: ^code.ReferenceType = a._object as ^code.ReferenceType;
+        let b_type: ^code.ReferenceType = b._object as ^code.ReferenceType;
+        return is_same_type(a_type.pointee, b_type.pointee);
+    }
     else if a._tag == code.TAG_VOID_TYPE and a._tag == b._tag {
         return true;
     }
@@ -451,6 +460,36 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
         else if int_ty.bits > 32 and not int_ty.signed {
             val = llvm.LLVMBuildSExt(g.irb, src_val.handle, dst.handle,
                                      "" as ^int8);
+        }
+    }
+    else if type_._tag == code.TAG_REFERENCE_TYPE
+    {
+        let ref_type: ^code.ReferenceType = type_._object as ^code.ReferenceType;
+        let pointee_cast_han: ^code.Handle = cast(
+            g, handle, ref_type.pointee, explicit);
+        if not code.isnil(pointee_cast_han) {
+            let pointee_val_han: ^code.Value = pointee_cast_han._object as
+                ^code.Value;
+            if src_val.category == code.VC_LVALUE {
+                val = src_val.handle;
+            } else {
+                # Try and optimize this if our previous value is a
+                # LOAD operation.
+                let opc: int = llvm.LLVMGetInstructionOpcode(src_val.handle);
+                if opc == 27 {  # LLVMLoad
+                    val = llvm.LLVMGetOperand(src_val.handle, 0);
+                    llvm.LLVMInstructionEraseFromParent(src_val.handle);
+                    val;
+                } else {
+                    let pointee_type: ^code.Type = ref_type.pointee._object as
+                        ^code.Type;
+                    let slot: ^llvm.LLVMOpaqueValue =
+                        llvm.LLVMBuildAlloca(
+                            g.irb, pointee_type.handle, "" as ^int8);
+                    llvm.LLVMBuildStore(g.irb, pointee_val_han.handle, slot);
+                    val = slot;
+                }
+            }
         }
     }
 

@@ -11,11 +11,11 @@ let call_twice(fn: delegate()) -> { fn(); fn(); }
 let some(x: int): int -> { x; }
 
 # Declare a named function that returns a function.
-# let that(): delegate(int) -> int -> { some; }
+let that(): delegate(int) -> int -> { some; }
 
 let main() -> {
     # Declare a slot for a function type that takes and returns an int.
-    # let action = that();
+    let action = that();
 
     # Declare a slot for a function that takes and returns nothing.
     let pure = printer;
@@ -25,7 +25,7 @@ let main() -> {
     call_twice(pure);
 
     # Print the result of returning.
-    # printf("%d", action(3210));
+    printf("%d", action(3210));
     printf("%c", 0x0A);
 
     # FIXME: issue #11

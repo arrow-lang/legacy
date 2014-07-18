@@ -66,7 +66,7 @@ def declare_basic_types(&mut g: generator_.Generator) {
 
     # TODO: UTF-8 String
     # ASCII String
-    han = code.make_str_type();
+    let han: ^code.Handle = code.make_str_type();
     g.items.set_ptr("str", han as ^void);
 }
 
@@ -427,6 +427,32 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
         val = llvm.LLVMBuildIntToPtr(
             g.irb, src_val.handle, dst.handle, "" as ^int8);
     }
+    else if src_han._tag == code.TAG_CHAR_TYPE
+          and type_._tag == code.TAG_INT_TYPE
+    {
+        let int_ty: ^code.IntegerType = type_._object as ^code.IntegerType;
+        if int_ty.bits <= 32 and not int_ty.signed {
+            val = llvm.LLVMBuildZExt(g.irb, src_val.handle, dst.handle,
+                                     "" as ^int8);
+        }
+        else if int_ty.bits < 32 and int_ty.signed {
+            val = llvm.LLVMBuildSExt(g.irb, src_val.handle, dst.handle,
+                                     "" as ^int8);
+        }
+    }
+    else if type_._tag == code.TAG_CHAR_TYPE
+          and src_han._tag == code.TAG_INT_TYPE
+    {
+        let int_ty: ^code.IntegerType = src_han._object as ^code.IntegerType;
+        if int_ty.bits >= 32 and int_ty.signed {
+            val = llvm.LLVMBuildZExt(g.irb, src_val.handle, dst.handle,
+                                     "" as ^int8);
+        }
+        else if int_ty.bits > 32 and not int_ty.signed {
+            val = llvm.LLVMBuildSExt(g.irb, src_val.handle, dst.handle,
+                                     "" as ^int8);
+        }
+    }
 
     # If we got nothing, return nothing
     if val == 0 as ^llvm.LLVMOpaqueValue {
@@ -469,6 +495,10 @@ def type_compatible(d: ^code.Handle, s: ^code.Handle) -> bool {
     if is_same_type(d, s) { return true; }
     else if s_ty.handle == d_ty.handle { return true; }
     else if s._tag == code.TAG_INT_TYPE and d._tag == code.TAG_INT_TYPE
+    {
+        return true;
+    }
+    else if d._tag == code.TAG_INT_TYPE and s._tag == code.TAG_CHAR_TYPE
     {
         return true;
     }

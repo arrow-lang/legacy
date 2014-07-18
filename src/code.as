@@ -33,7 +33,7 @@ let TAG_ARRAY_TYPE: int = 18;
 let TAG_EXTERN_FUNC: int = 19;
 let TAG_EXTERN_STATIC: int = 20;
 let TAG_CHAR_TYPE: int = 21;
-let TAG_STR_TYPE: int = 21;
+let TAG_STR_TYPE: int = 23;
 let TAG_ATTACHED_FUNCTION: int = 22;
 
 # Value categories
@@ -252,7 +252,7 @@ def typename(handle: ^Handle) -> string.String {
     if      handle._tag == TAG_VOID_TYPE { name.extend("nothing"); }
     else if handle._tag == TAG_BOOL_TYPE { name.extend("bool"); }
     else if handle._tag == TAG_CHAR_TYPE { name.extend("char"); }
-    else if handle._tag == TAG_STR_TYPE { name.extend("str"); }
+    else if handle._tag == TAG_STR_TYPE  { name.extend("str"); }
     else if handle._tag == TAG_INT_TYPE {
         let int_ty: ^IntegerType = handle._object as ^IntegerType;
         if not int_ty.signed { name.append('u'); }

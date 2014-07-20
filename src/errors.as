@@ -33,8 +33,9 @@ def begin_error_at(s: span.Span) {
     if isatty(2) <> 0 {
         libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);
     }
+    libc.fprintf(libc.stderr, "In " as ^int8);
     s.fprint(libc.stderr);
-    libc.fprintf(libc.stderr, ": " as ^int8);
+    libc.fprintf(libc.stderr, ":\n    " as ^int8);
     print_error();
 }
 

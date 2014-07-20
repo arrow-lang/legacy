@@ -119,7 +119,7 @@ def expect(&mut self, req: int) -> bool {
         true;
     } else {
         # Report error.
-        errors.begin_error();
+        errors.begin_error_at(tok.span);
         errors.libc.fprintf(errors.libc.stderr,
                        "expected %s but found %s" as ^int8,
                        tokens.to_str(req),

@@ -27,8 +27,7 @@ let TAG_GE              : int = 17;             # GEExpr
 let TAG_MODULE          : int = 18;             # ModuleDecl
 let TAG_NODES           : int = 19;             # Nodes
 let TAG_BOOLEAN         : int = 20;             # BooleanExpr
-let TAG_STATIC_SLOT     : int = 21;             # StaticSlotDecl
-let TAG_LOCAL_SLOT      : int = 22;             # LocalSlotDecl
+let TAG_SLOT            : int = 22;             # SlotDecl
 let TAG_IDENT           : int = 23;             # Ident
 let TAG_ASSIGN          : int = 24;             # AssignExpr
 let TAG_ASSIGN_ADD      : int = 25;             # AssignAddExpr
@@ -262,14 +261,6 @@ type FuncParam {
     default: Node
 }
 
-# Static slot declaration.
-type StaticSlotDecl {
-    mut id: Node,
-    type_: Node,
-    mutable: bool,
-    initializer: Node
-}
-
 # External static slot.
 type ExternStaticSlot {
     mut id: Node,
@@ -278,7 +269,7 @@ type ExternStaticSlot {
 }
 
 # Local slot declaration.
-type LocalSlotDecl {
+type SlotDecl {
     mut id: Node,
     type_: Node,
     mutable: bool,
@@ -397,11 +388,8 @@ def _sizeof(tag: int) -> uint {
     else if tag == TAG_TYPE_PARAM{ let tmp: TypeParam; ((&tmp + 1) - &tmp); }
     else if tag == TAG_EXTERN_STATIC { let tmp: ExternStaticSlot; ((&tmp + 1) - &tmp); }
     else if tag == TAG_EXTERN_FUNC { let tmp: ExternFunc; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_STATIC_SLOT {
-        let tmp: StaticSlotDecl;
-        ((&tmp + 1) - &tmp);
-    } else if tag == TAG_LOCAL_SLOT {
-        let tmp: LocalSlotDecl;
+    else if tag == TAG_SLOT {
+        let tmp: SlotDecl;
         ((&tmp + 1) - &tmp);
     } else if tag == TAG_SELECT {
         let tmp: SelectExpr;
@@ -520,10 +508,9 @@ def fdump(stream: ^libc._IO_FILE, &node: Node) {
         dump_table[TAG_ASSIGN_INT_DIV] = dump_binop_expr;
         dump_table[TAG_ASSIGN_MOD] = dump_binop_expr;
         dump_table[TAG_SELECT_OP] = dump_binop_expr;
-        dump_table[TAG_STATIC_SLOT] = dump_static_slot;
         dump_table[TAG_EXTERN_STATIC] = dump_extern_static_slot;
         dump_table[TAG_EXTERN_FUNC] = dump_extern_func;
-        dump_table[TAG_LOCAL_SLOT] = dump_local_slot;
+        dump_table[TAG_SLOT] = dump_slot;
         dump_table[TAG_IDENT] = dump_ident;
         dump_table[TAG_SELECT] = dump_select_expr;
         dump_table[TAG_SELECT_BRANCH] = dump_select_branch;
@@ -951,21 +938,6 @@ def dump_ident(stream: ^libc._IO_FILE, node: ^Node) {
     libc.fprintf(stream, "Ident <?> %s\n" as ^int8, x.name.data());
 }
 
-# dump_static_slot
-# -----------------------------------------------------------------------------
-def dump_static_slot(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^StaticSlotDecl = unwrap(node^) as ^StaticSlotDecl;
-    libc.fprintf(stream, "StaticSlotDecl <?> " as ^int8);
-    if x.mutable { libc.fprintf(stream, "mut " as ^int8); }
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    libc.fprintf(stream, "%s\n" as ^int8, id.name.data());
-
-    dump_indent = dump_indent + 1;
-    if not isnull(x.type_) { fdump(stream, x.type_); }
-    if not isnull(x.initializer) { fdump(stream, x.initializer); }
-    dump_indent = dump_indent - 1;
-}
-
 # dump_extern_static_slot
 # -----------------------------------------------------------------------------
 def dump_extern_static_slot(stream: ^libc._IO_FILE, node: ^Node) {
@@ -980,11 +952,11 @@ def dump_extern_static_slot(stream: ^libc._IO_FILE, node: ^Node) {
     dump_indent = dump_indent - 1;
 }
 
-# dump_local_slot
+# dump_slot
 # -----------------------------------------------------------------------------
-def dump_local_slot(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^LocalSlotDecl = unwrap(node^) as ^LocalSlotDecl;
-    libc.fprintf(stream, "LocalSlotDecl <?> " as ^int8);
+def dump_slot(stream: ^libc._IO_FILE, node: ^Node) {
+    let x: ^SlotDecl = unwrap(node^) as ^SlotDecl;
+    libc.fprintf(stream, "SlotDecl <?> " as ^int8);
     if x.mutable { libc.fprintf(stream, "mut " as ^int8); }
     let id: ^Ident = unwrap(x.id) as ^Ident;
     libc.fprintf(stream, "%s\n" as ^int8, id.name.data());

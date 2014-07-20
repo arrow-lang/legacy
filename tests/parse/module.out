@@ -9,13 +9,13 @@ ModuleDecl <?> _
               Ident <?> int
             StructMem <?> y
               Ident <?> int
-        StaticSlotDecl <?> a
+        SlotDecl <?> a
           Ident <?> int
           IntegerExpr <?> 23 (10)
-        LocalSlotDecl <?> b
+        SlotDecl <?> b
           Ident <?> float64
           FloatExpr <?> 42.2
-        LocalSlotDecl <?> mut o
+        SlotDecl <?> mut o
           Ident <?> Point
         FuncDecl <?> pow
           Ident <?> float64
@@ -32,11 +32,11 @@ ModuleDecl <?> _
       Parameters <?> 
       Block <?>
         Nodes <?> 
-          LocalSlotDecl <?> o
+          SlotDecl <?> o
             MemberExpr <?>
               Ident <?> math
               Ident <?> Point
-          LocalSlotDecl <?> result
+          SlotDecl <?> result
             Ident <?> float64
             CallExpr <?>
               MemberExpr <?>

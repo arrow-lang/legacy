@@ -54,24 +54,15 @@ ModuleDecl <?> _
       Parameters <?> 
       Block <?>
         Nodes <?> 
-    FuncDecl <?> some
-      Ident <?> bool
-      Type Parameters <?> 
-      Parameters <?> 
-      Block <?>
-        Nodes <?> 
-          StaticSlotDecl <?> y
-            Ident <?> int
-            IntegerExpr <?> 32 (10)
-          LocalSlotDecl <?> x
-            Ident <?> int
-            IntegerExpr <?> 43 (10)
-          LocalSlotDecl <?> y
-            Ident <?> int
-          AssignExpr <?>
-            Ident <?> y
-            IntegerExpr <?> 436 (10)
-          BooleanExpr <?> true
+    SlotDecl <?> x
+      Ident <?> int
+      IntegerExpr <?> 43 (10)
+    SlotDecl <?> y
+      Ident <?> int
+    AssignExpr <?>
+      Ident <?> y
+      IntegerExpr <?> 436 (10)
+    BooleanExpr <?> true
     FuncDecl <?> main
       Type Parameters <?> 
       Parameters <?> 

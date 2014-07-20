@@ -19,9 +19,9 @@ let i: (int, a: bool);
 # Assign some tuples into those slots.
 a = (3214, false);
 b = (62, 26,);
-# c = (2351, "sdhs", 321.1672,);
+c = (2351, "sdhs", 321.1672,);
 d = (2872,);
-# e = (a: 26526, b: "eysdgfh", c: 236.213);
+e = (a: 26526, b: "eysdgfh", c: 236.213);
 e = (:a, :b, c: 21.21);
 f = (a: 235, b: 235,);
 g = (a: false);

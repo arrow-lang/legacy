@@ -321,7 +321,7 @@ def parse_common_statement(&mut self) -> bool {
 
     # let <identifier> "("
 
-    if tok.tag == tokens.TOK_LET or tok.tag == tokens.TOK_STATIC
+    if tok.tag == tokens.TOK_LET
     {
         # Check if the next token is an identifer and short circut
         if self.peek_token_tag(2) == tokens.TOK_IDENTIFIER and (self.peek_token_tag(3) == tokens.TOK_LPAREN or self.peek_token_tag(3) == tokens.TOK_LCARET ) {
@@ -2245,14 +2245,9 @@ def parse_struct(&mut self) -> bool {
 # -----------------------------------------------------------------------------
 def parse_slot(&mut self) -> bool
 {
-    # Determine our tag.
-    let tag: int =
-        if self.peek_token_tag(1) == tokens.TOK_STATIC { ast.TAG_STATIC_SLOT; }
-        else { ast.TAG_LOCAL_SLOT; };
-
     # Allocate space for the node
-    let node: ast.Node = ast.make(tag);
-    let slot: ^ast.StaticSlotDecl =  node.unwrap() as ^ast.StaticSlotDecl;
+    let node: ast.Node = ast.make(ast.TAG_SLOT);
+    let slot: ^ast.SlotDecl =  node.unwrap() as ^ast.SlotDecl;
 
     # Pop the decl token.
     self.pop_token();

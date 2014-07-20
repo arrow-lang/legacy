@@ -1,6 +1,6 @@
 ModuleDecl <?> _
   Nodes <?> 
-    LocalSlotDecl <?> a
+    SlotDecl <?> a
       ArrayType <?>
         IntegerExpr <?> 20 (10)
         Ident <?> int
@@ -12,7 +12,7 @@ ModuleDecl <?> _
         Ident <?> a
         IntegerExpr <?> 5 (10)
       IntegerExpr <?> 3420 (10)
-    LocalSlotDecl <?> b
+    SlotDecl <?> b
       ArrayType <?>
         IntegerExpr <?> 10 (10)
         TupleType <?>
@@ -38,7 +38,7 @@ ModuleDecl <?> _
     Struct <?> Thing
       Type Parameters <?> 
       Members <?> 
-    LocalSlotDecl <?> t
+    SlotDecl <?> t
       ArrayType <?>
         MultiplyExpr <?>
           IntegerExpr <?> 5 (10)
@@ -53,7 +53,7 @@ ModuleDecl <?> _
             ArrayType <?>
               IntegerExpr <?> 5 (10)
               Ident <?> uint
-    LocalSlotDecl <?> b
+    SlotDecl <?> b
       ArrayType <?>
         IntegerExpr <?> 12 (10)
         Ident <?> Blob

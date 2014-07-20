@@ -1,67 +1,67 @@
 ModuleDecl <?> _
   Nodes <?> 
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       PointerType <?>
         Ident <?> int
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       PointerType <?>
         PointerType <?>
           PointerType <?>
             Ident <?> int
-    LocalSlotDecl <?> mut x
+    SlotDecl <?> mut x
       PointerType <?>
         Ident <?> int
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       PointerType <?> mut
         Ident <?> int
-    LocalSlotDecl <?> mut x
+    SlotDecl <?> mut x
       PointerType <?> mut
         Ident <?> int
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       PointerType <?> mut
         PointerType <?>
           Ident <?> int
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       PointerType <?> mut
         PointerType <?> mut
           Ident <?> int
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       PointerType <?> mut
         PointerType <?> mut
           PointerType <?>
             Ident <?> int
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       PointerType <?> mut
         PointerType <?> mut
           PointerType <?> mut
             Ident <?> int
-    LocalSlotDecl <?> y
+    SlotDecl <?> y
       IntegerExpr <?> 73 (10)
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       AddressOfExpr <?>
         Ident <?> y
-    LocalSlotDecl <?> a
+    SlotDecl <?> a
       IntegerExpr <?> 73 (10)
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       AddressOfExpr <?> mut
         Ident <?> a
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       PointerType <?> mut
         Ident <?> int
       AddressOfExpr <?>
         Ident <?> a
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
       Ident <?> int
-    LocalSlotDecl <?> y
+    SlotDecl <?> y
       PointerType <?>
         Ident <?> int
       AddressOfExpr <?>
         Ident <?> x
-    LocalSlotDecl <?> z
+    SlotDecl <?> z
       Ident <?> int
       DerefExpr <?>
         Ident <?> y
-    LocalSlotDecl <?> w
+    SlotDecl <?> w
       Ident <?> int
       DerefExpr <?>
         AddressOfExpr <?>

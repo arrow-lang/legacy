@@ -28,21 +28,21 @@ ModuleDecl <?> _
           IntegerExpr <?> 42 (10)
         TupleExprMem <?>
           FloatExpr <?> 3232e-1
-    LocalSlotDecl <?> a
+    SlotDecl <?> a
       TupleType <?>
         Elements <?> 
           TupleTypeMem <?>
             Ident <?> int
           TupleTypeMem <?>
             Ident <?> bool
-    LocalSlotDecl <?> b
+    SlotDecl <?> b
       TupleType <?>
         Elements <?> 
           TupleTypeMem <?>
             Ident <?> int
           TupleTypeMem <?>
             Ident <?> int
-    LocalSlotDecl <?> c
+    SlotDecl <?> c
       TupleType <?>
         Elements <?> 
           TupleTypeMem <?>
@@ -51,12 +51,12 @@ ModuleDecl <?> _
             Ident <?> str
           TupleTypeMem <?>
             Ident <?> float64
-    LocalSlotDecl <?> d
+    SlotDecl <?> d
       TupleType <?>
         Elements <?> 
           TupleTypeMem <?>
             Ident <?> uint
-    LocalSlotDecl <?> e
+    SlotDecl <?> e
       TupleType <?>
         Elements <?> 
           TupleTypeMem <?> a
@@ -65,26 +65,26 @@ ModuleDecl <?> _
             Ident <?> str
           TupleTypeMem <?> c
             Ident <?> float64
-    LocalSlotDecl <?> f
+    SlotDecl <?> f
       TupleType <?>
         Elements <?> 
           TupleTypeMem <?> a
             Ident <?> int
           TupleTypeMem <?> b
             Ident <?> uint
-    LocalSlotDecl <?> g
+    SlotDecl <?> g
       TupleType <?>
         Elements <?> 
           TupleTypeMem <?> a
             Ident <?> bool
-    LocalSlotDecl <?> h
+    SlotDecl <?> h
       TupleType <?>
         Elements <?> 
           TupleTypeMem <?> a
             Ident <?> bool
           TupleTypeMem <?>
             Ident <?> int
-    LocalSlotDecl <?> i
+    SlotDecl <?> i
       TupleType <?>
         Elements <?> 
           TupleTypeMem <?>
@@ -108,11 +108,31 @@ ModuleDecl <?> _
           TupleExprMem <?>
             IntegerExpr <?> 26 (10)
     AssignExpr <?>
+      Ident <?> c
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?>
+            IntegerExpr <?> 2351 (10)
+          TupleExprMem <?>
+            StringExpr <?> sdhs
+          TupleExprMem <?>
+            FloatExpr <?> 321.1672
+    AssignExpr <?>
       Ident <?> d
       TupleExpr <?>
         Elements <?> 
           TupleExprMem <?>
             IntegerExpr <?> 2872 (10)
+    AssignExpr <?>
+      Ident <?> e
+      TupleExpr <?>
+        Elements <?> 
+          TupleExprMem <?> a
+            IntegerExpr <?> 26526 (10)
+          TupleExprMem <?> b
+            StringExpr <?> eysdgfh
+          TupleExprMem <?> c
+            FloatExpr <?> 236.213
     AssignExpr <?>
       Ident <?> e
       TupleExpr <?>

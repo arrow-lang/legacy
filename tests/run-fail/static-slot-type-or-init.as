@@ -1,2 +1,2 @@
-static a;
-static b;
+let a;
+let b;

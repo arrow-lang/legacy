@@ -23,14 +23,14 @@ ModuleDecl <?> _
           MultiplyExpr <?>
             Ident <?> a
             IntegerExpr <?> 2 (10)
-    StaticSlotDecl <?> x
+    SlotDecl <?> x
       Ident <?> uint
       IntegerExpr <?> 40 (10)
-    StaticSlotDecl <?> u
+    SlotDecl <?> u
       TypeExpr <?> 
         Ident <?> x
-    StaticSlotDecl <?> t
+    SlotDecl <?> t
       TypeBox <?> 
-    StaticSlotDecl <?> t
+    SlotDecl <?> t
       TypeExpr <?> 
         TypeBox <?> 

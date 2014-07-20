@@ -26,9 +26,9 @@ def extract(&mut g: generator_.Generator, node: ast.Node) -> bool
     {
         extract_function(g, node.unwrap() as ^ast.FuncDecl);
     }
-    else if node.tag == ast.TAG_STATIC_SLOT
+    else if node.tag == ast.TAG_SLOT
     {
-        extract_static_slot(g, node.unwrap() as ^ast.StaticSlotDecl);
+        extract_static_slot(g, node.unwrap() as ^ast.SlotDecl);
     }
     else if node.tag == ast.TAG_STRUCT
     {
@@ -127,7 +127,7 @@ def extract_function(&mut g: generator_.Generator, x: ^ast.FuncDecl)
 
 # Extract a "static slot" item.
 # -----------------------------------------------------------------------------
-def extract_static_slot(&mut g: generator_.Generator, x: ^ast.StaticSlotDecl)
+def extract_static_slot(&mut g: generator_.Generator, x: ^ast.SlotDecl)
 {
     # Build the qual name for this slot.
     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;

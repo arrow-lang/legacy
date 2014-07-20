@@ -1,4 +1,4 @@
-static a: int;
+let a: int;
 let main() -> {
     a = 50;
 }

@@ -7,7 +7,7 @@ ModuleDecl <?> _
           Ident <?> int
         StructMem <?> y
           Ident <?> int
-    LocalSlotDecl <?> mut origin
+    SlotDecl <?> mut origin
       Ident <?> Point
     AssignExpr <?>
       MemberExpr <?>

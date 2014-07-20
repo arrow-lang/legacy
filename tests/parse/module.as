@@ -5,7 +5,7 @@ module math {
     struct Point { x: int, y: int }
 
     # Declare a few variables in this module.
-    static a: int = 23;
+    let a: int = 23;
     let b: float64 = 42.2;
     let mut o: Point;
 

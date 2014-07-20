@@ -610,7 +610,7 @@ def type_of(handle: ^Handle) -> ^Handle {
 # other designators.
 
 type StaticSlot {
-    context: ^ast.StaticSlotDecl,
+    context: ^ast.SlotDecl,
     mut name: string.String,
     mut namespace: list.List,
     mut qualified_name: string.String,
@@ -621,7 +621,7 @@ type StaticSlot {
 let STATIC_SLOT_SIZE: uint = ((0 as ^StaticSlot) + 1) - (0 as ^StaticSlot);
 
 def make_static_slot(
-        context: ^ast.StaticSlotDecl,
+        context: ^ast.SlotDecl,
         name: str,
         &mut namespace: list.List,
         type_: ^Handle,

@@ -1,10 +1,10 @@
 ModuleDecl <?> _
   Nodes <?> 
-    LocalSlotDecl <?> x
+    SlotDecl <?> x
     AssignExpr <?>
       Ident <?> x
       IntegerExpr <?> 423 (10)
-    LocalSlotDecl <?> mut y
+    SlotDecl <?> mut y
       Ident <?> int
     AssignExpr <?>
       Ident <?> y
@@ -15,11 +15,11 @@ ModuleDecl <?> _
     AssignExpr <?>
       Ident <?> y
       IntegerExpr <?> 8293 (10)
-    LocalSlotDecl <?> a
+    SlotDecl <?> a
       Ident <?> int
-    LocalSlotDecl <?> b
+    SlotDecl <?> b
       Ident <?> int
-    LocalSlotDecl <?> c
+    SlotDecl <?> c
       Ident <?> int
     AssignExpr <?>
       Ident <?> a
@@ -28,7 +28,7 @@ ModuleDecl <?> _
         AssignExpr <?>
           Ident <?> c
           IntegerExpr <?> 0 (10)
-    LocalSlotDecl <?> mut z
+    SlotDecl <?> mut z
       Ident <?> int
       IntegerExpr <?> 20 (10)
     AssignMultiplyExpr <?>

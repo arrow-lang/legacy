@@ -196,13 +196,13 @@ def string_(g: ^mut generator_.Generator, node: ^ast.Node,
     code.make_value(target, code.VC_RVALUE, val);
 }
 
-# Local Slot [TAG_LOCAL_SLOT]
+# Local Slot [TAG_SLOT]
 # -----------------------------------------------------------------------------
 def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
                scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
 {
     # Unwrap the node to its proper type.
-    let x: ^ast.LocalSlotDecl = (node^).unwrap() as ^ast.LocalSlotDecl;
+    let x: ^ast.SlotDecl = (node^).unwrap() as ^ast.SlotDecl;
 
     # Get the name out of the node.
     let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;

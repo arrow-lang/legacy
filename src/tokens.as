@@ -231,7 +231,7 @@ let TOK_STRING: int = -4006;
 
 # Name of the token
 # ----------------------------------------------------------------------------
-def to_str(tok: int) -> str {
+let to_str(tok: int): str -> {
     if      tok == TOK_END                  { "end"; }
     else if tok == TOK_DEF                  { "`def`"; }
     else if tok == TOK_LET                  { "`let`"; }
@@ -303,5 +303,15 @@ def to_str(tok: int) -> str {
     else if tok == TOK_HEX_INTEGER          { "`integer`"; }
     else if tok == TOK_FLOAT                { "`float`"; }
     else if tok == TOK_STRING               { "`string`"; }
-    else                                    { "?"; }
+    else                                    { "?"; };
+}
+
+# Test driver
+# ----------------------------------------------------------------------------
+extern def puts(str);
+let main() -> {
+    puts(to_str(TOK_IDENTIFIER));
+    puts(to_str(TOK_PERCENT_EQ));
+    puts(to_str(493690));
+    puts(to_str(TOK_SELF));
 }

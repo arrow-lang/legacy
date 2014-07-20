@@ -120,6 +120,7 @@ def string_(g: ^mut generator_.Generator, node: ^ast.Node,
     # Iterate and construct bytes from the string.
     let mut chars: list.List = x.text._data;
     let mut bytes: list.List = list.make(types.I8);
+    bytes.reserve(1);
     let mut buffer: list.List = list.make(types.I8);
     let mut i: int = 0;
     let mut in_escape: bool = false;
@@ -179,9 +180,13 @@ def string_(g: ^mut generator_.Generator, node: ^ast.Node,
         }
     }
 
+    # Close the text.
+    let raw_bytes: ^int8 = bytes.elements;
+    (raw_bytes + bytes.size)^ = 0;
+
     # Build a llvm val for the ASCII string.
     let val: ^llvm.LLVMOpaqueValue;
-    val = llvm.LLVMBuildGlobalStringPtr(g.irb, bytes.elements, "" as ^int8);
+    val = llvm.LLVMBuildGlobalStringPtr(g.irb, raw_bytes, "" as ^int8);
 
     # Dispose.
     bytes.dispose();

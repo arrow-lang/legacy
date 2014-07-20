@@ -432,8 +432,10 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         argl.elements as ^^llvm.LLVMOpaqueValue;
 
     # If we are dealing with an "instance" function then push in self.
+    let mut self_idx: uint = 0;
     if type_.parameter_map.contains("self") {
         if not code.isnil(g.current_self) {
+            self_idx = 1;
             let self_param_idx: int =
                 type_.parameter_map.get_uint("self") as int;
             let self_param_han: ^code.Handle =
@@ -470,7 +472,7 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         if ast.isnull(a.name)
         {
             # An unnamed argument just corresponds to the sequence.
-            param_idx = i as uint - 1;
+            param_idx = (i as uint - 1) + self_idx;
         }
         else
         {

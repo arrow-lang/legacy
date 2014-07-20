@@ -488,6 +488,9 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 return code.make_nil();
             }
 
+            # Pull the named argument index.
+            param_idx = type_.parameter_map.get_uint(id.name.data() as str);
+
             # Check if we already have one of these.
             if (argv + param_idx)^ <> 0 as ^llvm.LLVMOpaqueValue {
                 errors.begin_error();
@@ -497,9 +500,6 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 errors.end();
                 return code.make_nil();
             }
-
-            # Pull the named argument index.
-            param_idx = type_.parameter_map.get_uint(id.name.data() as str);
         }
 
         # Resolve the type of the argument expression.
@@ -624,6 +624,13 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 return code.make_nil();
             }
 
+            # Pull the named argument index.
+            let phan: ^code.Handle =
+                type_.member_map.get_ptr(id.name.data() as str) as
+                    ^code.Handle;
+            let pnode: ^code.Member = phan._object as ^code.Member;
+            param_idx = pnode.index;
+
             # Check if we already have one of these.
             if (argv + param_idx)^ <> 0 as ^llvm.LLVMOpaqueValue {
                 errors.begin_error();
@@ -633,13 +640,6 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 errors.end();
                 return code.make_nil();
             }
-
-            # Pull the named argument index.
-            let phan: ^code.Handle =
-                type_.member_map.get_ptr(id.name.data() as str) as
-                    ^code.Handle;
-            let pnode: ^code.Member = phan._object as ^code.Member;
-            param_idx = pnode.index;
         }
 
         # Resolve the type of the argument expression.
@@ -664,6 +664,7 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
         # Emplace in the argument list.
+        printf("[call_default_ctor] push_param %d\n", param_idx);
         (argv + param_idx)^ = cast_val.handle;
 
         # Dispose.

@@ -664,7 +664,6 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
         # Emplace in the argument list.
-        printf("[call_default_ctor] push_param %d\n", param_idx);
         (argv + param_idx)^ = cast_val.handle;
 
         # Dispose.

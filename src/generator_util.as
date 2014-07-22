@@ -492,6 +492,28 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
             }
         }
     }
+    else if explicit and type_._tag == code.TAG_STR_TYPE
+           and src_han._tag == code.TAG_POINTER_TYPE
+    {
+        let ptr_ty: ^code.PointerType = src_han._object as ^code.PointerType;
+        if ptr_ty.pointee._tag == code.TAG_INT_TYPE {
+            let int_ty: ^code.IntegerType = ptr_ty.pointee._object as ^code.IntegerType;
+            if int_ty.bits == 8 {
+                val = src_val.handle;
+            }
+        }
+    }
+    else if explicit and src_han._tag == code.TAG_STR_TYPE
+           and type_._tag == code.TAG_POINTER_TYPE
+    {
+        let ptr_ty: ^code.PointerType = type_._object as ^code.PointerType;
+        if ptr_ty.pointee._tag == code.TAG_INT_TYPE {
+            let int_ty: ^code.IntegerType = ptr_ty.pointee._object as ^code.IntegerType;
+            if int_ty.bits == 8 {
+                val = src_val.handle;
+            }
+        }
+    }
 
     # If we got nothing, return nothing
     if val == 0 as ^llvm.LLVMOpaqueValue {

@@ -521,6 +521,15 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             }
         }
 
+        # Ensure that we haven't run off the parameter list.
+        if type_.parameters.size <= param_idx {
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                                "too many arguments in call" as ^int8);
+            errors.end();
+            return code.make_nil();
+        }
+
         # Resolve the type of the argument expression.
         let param_typ: ^code.Handle = code.type_of(
             type_.parameters.at_ptr(param_idx as int) as ^code.Handle);
@@ -659,6 +668,15 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 errors.end();
                 return code.make_nil();
             }
+        }
+
+        # Ensure that we haven't run off the parameter list.
+        if type_.members.size <= param_idx {
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                                "too many arguments in call" as ^int8);
+            errors.end();
+            return code.make_nil();
         }
 
         # Resolve the type of the argument expression.

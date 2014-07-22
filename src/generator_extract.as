@@ -251,7 +251,7 @@ def extract_import(&mut g: generator_.Generator, x: ^ast.Import)
         errors.begin_error();
         errors.libc.fprintf(errors.libc.stderr,
                             "cannot find module for '%s'" as ^int8,
-                            filename.data());
+                            id0.name.data());
         errors.end();
     }
 

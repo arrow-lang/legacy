@@ -431,7 +431,6 @@ def to_value(&mut g: generator_.Generator,
         if fn.handle == 0 as ^llvm.LLVMOpaqueValue
         {
             # Add the function to the module.
-            # TODO: Set priv, vis, etc.
             fn.handle = llvm.LLVMAddFunction(
                 g.mod, fn.name.data(), fn_type.handle);
         }

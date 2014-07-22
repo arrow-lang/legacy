@@ -77,8 +77,9 @@ def generate_static_slot(&mut g: generator_.Generator, qname: str,
     let type_: ^code.Type = x.type_._object as ^code.Type;
 
     # Add the global slot declaration to the IR.
-    # TODO: Set priv, vis, etc.
     x.handle = llvm.LLVMAddGlobal(g.mod, type_.handle, qname as ^int8);
+    llvm.LLVMSetLinkage(x.handle, 9);  # LLVMPrivateLinkage
+    llvm.LLVMSetVisibility(x.handle, 1);  # LLVMHiddenVisibility
 
     # Set if this is constant.
     llvm.LLVMSetGlobalConstant(x.handle, not x.context.mutable);
@@ -94,8 +95,9 @@ def generate_function(&mut g: generator_.Generator, qname: str,
         let type_: ^code.FunctionType = x.type_._object as ^code.FunctionType;
 
         # Add the function to the module.
-        # TODO: Set priv, vis, etc.
         x.handle = llvm.LLVMAddFunction(g.mod, qname as ^int8, type_.handle);
+        llvm.LLVMSetLinkage(x.handle, 9);  # LLVMPrivateLinkage
+        llvm.LLVMSetVisibility(x.handle, 1);  # LLVMHiddenVisibility
     }
 }
 
@@ -109,9 +111,10 @@ def generate_attached_function(
         let type_: ^code.FunctionType = x.type_._object as ^code.FunctionType;
 
         # Add the function to the module.
-        # TODO: Set priv, vis, etc.
         x.handle = llvm.LLVMAddFunction(
             g.mod, x.qualified_name.data() as ^int8, type_.handle);
+        llvm.LLVMSetLinkage(x.handle, 9);  # LLVMPrivateLinkage
+        llvm.LLVMSetVisibility(x.handle, 1);  # LLVMHiddenVisibility
     }
 }
 

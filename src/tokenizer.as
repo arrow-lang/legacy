@@ -171,6 +171,9 @@ implement Token {
             else if self.tag == tokens.TOK_DELEGATE {
                 libc.fprintf(stream, "delegate" as ^int8);
             }
+            else if self.tag == tokens.TOK_SIZEOF {
+                libc.fprintf(stream, "sizeof" as ^int8);
+            }
             libc.fprintf(stream, "'" as ^int8);
         }
         else if self.tag > -3000 and self.tag < -2000 {
@@ -698,6 +701,7 @@ implement Tokenizer {
         else if self.buffer.eq_str("implement") { tag = tokens.TOK_IMPL; }
         else if self.buffer.eq_str("extern")    { tag = tokens.TOK_EXTERN; }
         else if self.buffer.eq_str("delegate")  { tag = tokens.TOK_DELEGATE; }
+        else if self.buffer.eq_str("size_of")   { tag = tokens.TOK_SIZEOF; }
 
         # Return the token.
         if tag == 0 {

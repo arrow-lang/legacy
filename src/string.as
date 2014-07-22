@@ -9,11 +9,7 @@ import list;
 # NOTE: `.dispose` must be called on a "used" string in order to deallocate
 #       any used memory.
 #
-# TODO: join
 # TODO: slice
-# TODO: ord
-# TODO: eq
-# TODO: eq_str
 
 struct String {
     _data: list.List
@@ -25,6 +21,14 @@ implement String {
     # -------------------------------------------------------------------------
     let new(): String -> {
         return String(list.List.new(types.I8));
+    }
+
+    # Construct a new string from an existing `str`.
+    # -------------------------------------------------------------------------
+    let from_str(s: str): String -> {
+        let res = String.new();
+        res.extend(s);
+        res;
     }
 
     # Dispose of the memory used in this string.
@@ -65,7 +69,7 @@ implement String {
         self._data.element_size = types.sizeof(types.I8);
 
         # Ensure we have enough space.
-        let size: uint = libc.strlen(s) as uint;
+        let size = libc.strlen(s) as uint;
         self._data.reserve(self._data.size + size + 1);
 
         # Copy in the string.
@@ -83,18 +87,24 @@ implement String {
         self._data.reserve(self._data.size + 1);
 
         # Set the +1 to zero.
-        let p: *mut int8 = (self._data.elements + self._data.size) as *mut int8;
+        let p = (self._data.elements + self._data.size) as *mut int8;
         *p = 0;
 
         # Return our buffer.
         return self._data.elements as str;
     }
 
-    # # Get if this string is equal to another string.
-    # # -------------------------------------------------------------------------
-    # def eq_str(&mut self, other: str) -> bool {
-    #     libc.strcmp(self.data(), other as ^int8) == 0;
-    # }
+    # Get if this string is equal to another string.
+    # -------------------------------------------------------------------------
+    let eq(mut self, mut other: String): bool -> {
+        libc.strcmp(self.data(), other.data()) == 0;
+    }
+
+    # Get if this string is equal to another `str`.
+    # -------------------------------------------------------------------------
+    let eq_str(mut self, other: str): bool -> {
+        libc.strcmp(self.data(), other) == 0;
+    }
 
     # # Slice and return the substring between the given indices.
     # # -------------------------------------------------------------------------
@@ -137,40 +147,42 @@ implement String {
 
 # Get the ordinal value of an ASCII character.
 # -----------------------------------------------------------------------------
-# let ord(c: char): int8 -> { c as int8; }
+let ord(c: char): int8 -> { c as int8; }
 
-# # Join a list of strings into one string separated by a character.
-# # -----------------------------------------------------------------------------
-# let join(separator: char, list: list.List): String -> {
-#     # Make a new string.
-#     let mut res = String.new();
+# Join a list of strings into one string separated by a character.
+# -----------------------------------------------------------------------------
+let join(separator: char, list: list.List): String -> {
+    # Make a new string.
+    let mut res = String.new();
 
-#     # Enumerate through the list and extend the res with each string.
-#     let mut i: int = 0;
-#     while i as uint < list.size {
-#         if i > 0 { res.append(separator); }
-#         res.extend(list.at_str(i));
-#         i = i + 1;
-#     }
+    # Enumerate through the list and extend the res with each string.
+    let mut i: int = 0;
+    while i as uint < list.size {
+        if i > 0 { res.append(separator); };
+        res.extend(list.get_str(i));
+        i = i + 1;
+    }
 
-#     # Return the built string.
-#     res;
-# }
+    # Return the built string.
+    res;
+}
 
 # Test driver
 # =============================================================================
 
 let main() -> {
+    let mut l = list.List.new(types.STR);
 
-    let mut s = String.new();
-    s.extend("Hello World");
+    l.push_str("std");
+    l.push_str("io");
+    l.push_str("net");
+    l.push_str("tcp");
+    l.push_str("Server");
 
-    # let mut sm: String = s.slice(0, 2);
+    let mut s = join(0x2e as int8, l);
 
     libc.puts(s.data());
-    # printf("%s\n", s.data());
 
+    l.dispose();
     s.dispose();
-    # sm.dispose();
-
 }

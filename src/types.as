@@ -46,9 +46,9 @@ let sizeof(tag: int): uint -> {
     else if tag == F32  { size_of(float32); }
     else if tag == F64  { size_of(float64); }
     else if tag == CHAR { size_of(char); }
-    else if tag == STR  { size_of(str); }
+    else if tag == STR  { size_of(*uint); }
     else if tag == INT  { size_of(int); }
     else if tag == UINT { size_of(uint); }
-    else if tag == PTR  { size_of(*int8); }
+    else if tag == PTR  { size_of(*uint); }
     else { 0; };
 }

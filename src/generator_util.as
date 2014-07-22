@@ -105,6 +105,8 @@ def declare_assert(&mut g: generator_.Generator) {
     # Build the LLVM function declaration.
     let val: ^llvm.LLVMOpaqueValue;
     val = llvm.LLVMAddFunction(g.mod, "assert" as ^int8, type_obj);
+    llvm.LLVMSetLinkage(val, 9);  # LLVMPrivateLinkage
+    llvm.LLVMSetVisibility(val, 1);  # LLVMHiddenVisibility
 
     # Create a `solid` handle to the function.
     let mut ns: list.List = list.make(types.STR);
@@ -440,26 +442,34 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
           and type_._tag == code.TAG_INT_TYPE
     {
         let int_ty: ^code.IntegerType = type_._object as ^code.IntegerType;
-        if int_ty.bits <= 32 and not int_ty.signed {
+        if int_ty.bits >= 32 and not int_ty.signed {
             val = llvm.LLVMBuildZExt(g.irb, src_val.handle, dst.handle,
                                      "" as ^int8);
         }
-        else if int_ty.bits < 32 and int_ty.signed {
+        else if int_ty.bits > 32 and int_ty.signed {
             val = llvm.LLVMBuildSExt(g.irb, src_val.handle, dst.handle,
                                      "" as ^int8);
+        }
+        else if explicit {
+            val = llvm.LLVMBuildTrunc(g.irb, src_val.handle, dst.handle,
+                                      "" as ^int8);
         }
     }
     else if type_._tag == code.TAG_CHAR_TYPE
           and src_han._tag == code.TAG_INT_TYPE
     {
         let int_ty: ^code.IntegerType = src_han._object as ^code.IntegerType;
-        if int_ty.bits >= 32 and int_ty.signed {
+        if int_ty.bits <= 32 and int_ty.signed {
             val = llvm.LLVMBuildZExt(g.irb, src_val.handle, dst.handle,
                                      "" as ^int8);
         }
-        else if int_ty.bits > 32 and not int_ty.signed {
+        else if int_ty.bits < 32 and not int_ty.signed {
             val = llvm.LLVMBuildSExt(g.irb, src_val.handle, dst.handle,
                                      "" as ^int8);
+        }
+        else if explicit {
+            val = llvm.LLVMBuildTrunc(g.irb, src_val.handle, dst.handle,
+                                      "" as ^int8);
         }
     }
     else if type_._tag == code.TAG_REFERENCE_TYPE
@@ -489,6 +499,28 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
                     llvm.LLVMBuildStore(g.irb, pointee_val_han.handle, slot);
                     val = slot;
                 }
+            }
+        }
+    }
+    else if explicit and type_._tag == code.TAG_STR_TYPE
+           and src_han._tag == code.TAG_POINTER_TYPE
+    {
+        let ptr_ty: ^code.PointerType = src_han._object as ^code.PointerType;
+        if ptr_ty.pointee._tag == code.TAG_INT_TYPE {
+            let int_ty: ^code.IntegerType = ptr_ty.pointee._object as ^code.IntegerType;
+            if int_ty.bits == 8 {
+                val = src_val.handle;
+            }
+        }
+    }
+    else if explicit and src_han._tag == code.TAG_STR_TYPE
+           and type_._tag == code.TAG_POINTER_TYPE
+    {
+        let ptr_ty: ^code.PointerType = type_._object as ^code.PointerType;
+        if ptr_ty.pointee._tag == code.TAG_INT_TYPE {
+            let int_ty: ^code.IntegerType = ptr_ty.pointee._object as ^code.IntegerType;
+            if int_ty.bits == 8 {
+                val = src_val.handle;
             }
         }
     }

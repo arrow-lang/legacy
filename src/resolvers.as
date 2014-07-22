@@ -296,6 +296,15 @@ def boolean(g: ^mut generator_.Generator, node: ^ast.Node,
     (g^).items.get_ptr("bool") as ^code.Handle;
 }
 
+# Size Of [TAG_SIZEOF]
+# -----------------------------------------------------------------------------
+def sizeof(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Yep; this is a boolean.
+    (g^).items.get_ptr("uint") as ^code.Handle;
+}
+
 # Integer [TAG_INTEGER]
 # -----------------------------------------------------------------------------
 def integer(g: ^mut generator_.Generator, node: ^ast.Node,

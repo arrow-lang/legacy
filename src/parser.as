@@ -119,7 +119,7 @@ def expect(&mut self, req: int) -> bool {
         true;
     } else {
         # Report error.
-        errors.begin_error();
+        errors.begin_error_at(tok.span);
         errors.libc.fprintf(errors.libc.stderr,
                        "expected %s but found %s" as ^int8,
                        tokens.to_str(req),
@@ -356,6 +356,34 @@ def parse_break(&mut self) -> bool
 
     # Expect a `;`.
     if not self.expect(tokens.TOK_SEMICOLON) { return false; }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
+# Size Of
+# -----------------------------------------------------------------------------
+def parse_sizeof(&mut self) -> bool
+{
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_SIZEOF);
+    let expr: ^ast.SizeOf = node.unwrap() as ^ast.SizeOf;
+
+    # Pop the `size_of` token.
+    self.pop_token();
+
+    # Expect a `(`.
+    if not self.expect(tokens.TOK_LPAREN) { return false; }
+
+    # Parse and set the type.
+    if not self.parse_type() { return false; }
+    expr.type_ = self.stack.pop();
+
+    # Expect a `)`.
+    if not self.expect(tokens.TOK_RPAREN) { return false; }
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -1410,7 +1438,7 @@ def parse_type(&mut self) -> bool
         {
             # Expected some kind of type expression node.
             self.consume_until(tokens.TOK_SEMICOLON);
-            errors.begin_error();
+            errors.begin_error_at(tok.span);
             errors.libc.fprintf(errors.libc.stderr,
                            "expected %s, %s, %s or %s but found %s" as ^int8,
                            tokens.to_str(tokens.TOK_STAR),
@@ -1553,6 +1581,10 @@ def parse_primary_expr(&mut self) -> bool
     {
         # This is some kind of block.
         self.parse_block_expr();
+    }
+    else if tok.tag == tokens.TOK_SIZEOF
+    {
+        self.parse_sizeof();
     }
     else
     {

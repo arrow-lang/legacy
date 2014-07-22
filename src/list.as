@@ -1,5 +1,5 @@
-import libc;
 import types;
+import libc;
 
 # List
 # =============================================================================
@@ -11,8 +11,6 @@ import types;
 # TODO: Allow creation with a specific element size (instead of the tag)
 # TODO: set_*
 # TODO: contains_*
-# TODO: push_str, push_ptr
-# TODO: get_str, get_ptr
 # TODO: pop_*
 # TODO: remove_*
 # TODO: contains_*
@@ -81,7 +79,7 @@ implement List {
 
         # Reallocate memory to the new requested capacity.
         self.elements = libc.realloc(self.elements,
-                                     capacity * self.element_size);
+                                     self.capacity * self.element_size);
     }
 
     # Dispose of the resources used by this dynamic list.
@@ -110,9 +108,18 @@ implement List {
         # Request additional memory if needed.
         if self.size == self.capacity { self.reserve(self.capacity + 1); };
 
-        # Move element into the container.
-        libc.memcpy(self.elements + self.size * self.element_size,
-                    element, self.element_size);
+        let offset = self.size * self.element_size;
+        if self.tag == types.STR {
+            # Allocate space in the container.
+            let ref = (self.elements + offset) as **int8;
+            *ref = libc.calloc(libc.strlen(element as str) + 1, 1);
+
+            # Copy the string into the container.
+            libc.memcpy(*ref, element, libc.strlen(element as str));
+        } else {
+            # Move element into the container.
+            libc.memcpy(self.elements + offset, element, self.element_size);
+        };
 
         # Increment size to keep track of element insertion.
         self.size = self.size + 1;
@@ -134,6 +141,9 @@ implement List {
     let push_uint(mut self, el: uint) -> { self.push(&el as *int8); }
 
     let push_char(mut self, el: char) -> { self.push(&el as *int8); }
+    let push_str(mut self, el: str) -> { self.push(el as *int8); }
+
+    let push_ptr(mut self, el: *int8) -> { self.push(&el as *int8); }
 
     # Get an element at `index` from the start of the list (negative indicies
     # offset from the size of the list). Attempting to access an element
@@ -165,6 +175,9 @@ implement List {
     let get_uint(self, idx: int): uint -> { return *(self.get(idx) as *uint); }
 
     let get_char(self, idx: int): char -> { return *(self.get(idx) as *char); }
+    let get_str(self, idx: int): str -> { return *(self.get(idx) as *str); }
+
+    let get_ptr(self, idx: int): *int8 -> { return *(self.get(idx) as **int8); }
 
     # Erase the element at `index` in the list. This is O(1) for elements
     # at the end of the list and O(n) for any other element (where `n` is
@@ -222,19 +235,19 @@ implement List {
 # =============================================================================
 
 let main() -> {
-    let mut l = List.new(types.I8);
-    l.push_i8(12);
-    l.push_i8(62);
-    l.push_i8(82);
-    assert(l.get_i8(0) == 12);
-    assert(l.get_i8(-1) == 82);
-    assert(l.get_i8(2) == 82);
-    assert(l.get_i8(1) == 62);
-    assert(l.size == 3);
-    l.erase(-1);
-    assert(l.size == 2);
-    let ln = l.clone();
-    assert(ln.size == 2);
-    assert(ln.get_i8(-1) == 62);
+    let mut l = List.new(types.STR);
+
+    l.push_str("std");
+    l.push_str("io");
+    l.push_str("net");
+    l.push_str("tcp");
+    l.push_str("Server");
+
+    let mut i: uint = 0;
+    while i < l.size {
+        libc.printf("%s\n", l.get_str(i));
+        i = i + 1;
+    }
+
     l.dispose();
 }

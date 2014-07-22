@@ -86,6 +86,7 @@ let TAG_STRING          : int = 77;             # StringExpr
 let TAG_IMPLEMENT       : int = 78;             # Implement
 let TAG_SELF            : int = 79;             # Self
 let TAG_DELEGATE        : int = 80;             # Delegate
+let TAG_SIZEOF          : int = 81;             # SizeOf
 
 # AST node defintions
 # -----------------------------------------------------------------------------
@@ -268,6 +269,10 @@ type ExternStaticSlot {
     mutable: bool
 }
 
+type SizeOf {
+    type_: Node
+}
+
 # Local slot declaration.
 type SlotDecl {
     mut id: Node,
@@ -364,6 +369,7 @@ def _sizeof(tag: int) -> uint {
         ((&tmp + 1) - &tmp);
     }
     else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_SIZEOF  { let tmp: SizeOf; ((&tmp + 1) - &tmp); }
     else if tag == TAG_ADDRESS_OF  { let tmp: AddressOfExpr; ((&tmp + 1) - &tmp); }
     else if tag == TAG_UNSAFE  { let tmp: UnsafeBlock; ((&tmp + 1) - &tmp); }
     else if tag == TAG_BLOCK   { let tmp: Block; ((&tmp + 1) - &tmp); }
@@ -500,6 +506,7 @@ def fdump(stream: ^libc._IO_FILE, &node: Node) {
         dump_table[TAG_BITOR] = dump_binop_expr;
         dump_table[TAG_BITAND] = dump_binop_expr;
         dump_table[TAG_BITXOR] = dump_binop_expr;
+        dump_table[TAG_SIZEOF] = dump_sizeof;
         dump_table[TAG_ASSIGN] = dump_binop_expr;
         dump_table[TAG_ASSIGN_ADD] = dump_binop_expr;
         dump_table[TAG_ASSIGN_SUB] = dump_binop_expr;
@@ -1128,6 +1135,17 @@ def dump_return_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
     dump_indent = dump_indent + 1;
     if not isnull(x.expression) { fdump(stream, x.expression); }
+    dump_indent = dump_indent - 1;
+}
+
+# dump_sizeof
+# -----------------------------------------------------------------------------
+def dump_sizeof(stream: ^libc._IO_FILE, node: ^Node) {
+    let x: ^SizeOf = unwrap(node^) as ^SizeOf;
+    libc.fprintf(stream, "SizeOf <?> \n" as ^int8);
+
+    dump_indent = dump_indent + 1;
+    fdump(stream, x.type_);
     dump_indent = dump_indent - 1;
 }
 

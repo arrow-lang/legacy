@@ -1438,7 +1438,7 @@ def parse_type(&mut self) -> bool
         {
             # Expected some kind of type expression node.
             self.consume_until(tokens.TOK_SEMICOLON);
-            errors.begin_error();
+            errors.begin_error_at(tok.span);
             errors.libc.fprintf(errors.libc.stderr,
                            "expected %s, %s, %s or %s but found %s" as ^int8,
                            tokens.to_str(tokens.TOK_STAR),

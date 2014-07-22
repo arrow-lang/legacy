@@ -197,12 +197,29 @@ implement List {
         self.size = self.size - 1;
     }
 
+    # Clear.
+    # -------------------------------------------------------------------------
+    let clear(mut self) -> {
+        # If the underylying type needs to be disposed ..
+        if types.is_disposable(self.tag) {
+            # Iterate through each element and free its memory.
+            let mut i: uint = 0;
+            let mut x: **int8 = self.elements as **int8;
+            while i < self.size {
+                libc.free(*x);
+                x = x + 1;
+                i = i + 1;
+            }
+        };
+
+        # Set the size to 0.
+        self.size = 0;
+    }
+
 }
 
 # Test driver
 # =============================================================================
-
-extern def printf(str, int8);
 
 let main() -> {
     let mut l = List.new(types.I8);

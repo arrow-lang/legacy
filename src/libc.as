@@ -13,6 +13,10 @@
 # Copying
 extern def memcpy(destination: *int8, source: *int8, n: uint): *int8;
 extern def memmove(destination: *int8, source: *int8, n: uint): *int8;
+extern def strcpy(destination: str, source: str): str;
+
+# Other
+extern def strlen(s: str): uint;
 
 # stdlib.h
 # -----------------------------------------------------------------------------
@@ -22,3 +26,9 @@ extern def malloc(size: uint): *int8;
 extern def calloc(n: uint, size: uint): *int8;
 extern def realloc(ptr: *int8, size: uint): *int8;
 extern def free(ptr: *int8);
+
+# stdio.h
+# -----------------------------------------------------------------------------
+
+# Character input/output
+extern def puts(str): int64;

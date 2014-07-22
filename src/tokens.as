@@ -109,6 +109,10 @@ let TOK_EXTERN: int = -1031;
 # "delegate" -- Function type literal
 let TOK_DELEGATE: int = -1032;
 
+# "size_of" -- Size of
+# TODO: This should definitely be a macro eventually
+let TOK_SIZEOF: int = -1033;
+
 # "->" -- Function return type declarator
 let TOK_RARROW: int = -2001;
 

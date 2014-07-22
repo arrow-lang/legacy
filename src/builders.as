@@ -60,6 +60,23 @@ def boolean(g: ^mut generator_.Generator, node: ^ast.Node,
     code.make_value(target, code.VC_RVALUE, val);
 }
 
+# Size Of [TAG_SIZEOF]
+# -----------------------------------------------------------------------------
+def sizeof(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.SizeOf = (node^).unwrap() as ^ast.SizeOf;
+
+    # Resolve the type of the expression.
+    let mut typ: ^code.Handle;
+    typ = resolver.resolve_s(g, &x.type_, scope);
+    if code.isnil(typ) { return code.make_nil(); }
+
+    # Build and return the sizeof.
+    generator_util.build_sizeof(g^, typ);
+}
+
 # Integer [TAG_INTEGER]
 # -----------------------------------------------------------------------------
 def integer(g: ^mut generator_.Generator, node: ^ast.Node,
@@ -432,8 +449,10 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         argl.elements as ^^llvm.LLVMOpaqueValue;
 
     # If we are dealing with an "instance" function then push in self.
+    let mut self_idx: uint = 0;
     if type_.parameter_map.contains("self") {
         if not code.isnil(g.current_self) {
+            self_idx = 1;
             let self_param_idx: int =
                 type_.parameter_map.get_uint("self") as int;
             let self_param_han: ^code.Handle =
@@ -470,7 +489,7 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         if ast.isnull(a.name)
         {
             # An unnamed argument just corresponds to the sequence.
-            param_idx = i as uint - 1;
+            param_idx = (i as uint - 1) + self_idx;
         }
         else
         {
@@ -488,6 +507,9 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 return code.make_nil();
             }
 
+            # Pull the named argument index.
+            param_idx = type_.parameter_map.get_uint(id.name.data() as str);
+
             # Check if we already have one of these.
             if (argv + param_idx)^ <> 0 as ^llvm.LLVMOpaqueValue {
                 errors.begin_error();
@@ -497,9 +519,15 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 errors.end();
                 return code.make_nil();
             }
+        }
 
-            # Pull the named argument index.
-            param_idx = type_.parameter_map.get_uint(id.name.data() as str);
+        # Ensure that we haven't run off the parameter list.
+        if type_.parameters.size <= param_idx {
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                                "too many arguments in call" as ^int8);
+            errors.end();
+            return code.make_nil();
         }
 
         # Resolve the type of the argument expression.
@@ -624,6 +652,13 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 return code.make_nil();
             }
 
+            # Pull the named argument index.
+            let phan: ^code.Handle =
+                type_.member_map.get_ptr(id.name.data() as str) as
+                    ^code.Handle;
+            let pnode: ^code.Member = phan._object as ^code.Member;
+            param_idx = pnode.index;
+
             # Check if we already have one of these.
             if (argv + param_idx)^ <> 0 as ^llvm.LLVMOpaqueValue {
                 errors.begin_error();
@@ -633,13 +668,15 @@ def call_default_ctor(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 errors.end();
                 return code.make_nil();
             }
+        }
 
-            # Pull the named argument index.
-            let phan: ^code.Handle =
-                type_.member_map.get_ptr(id.name.data() as str) as
-                    ^code.Handle;
-            let pnode: ^code.Member = phan._object as ^code.Member;
-            param_idx = pnode.index;
+        # Ensure that we haven't run off the parameter list.
+        if type_.members.size <= param_idx {
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                                "too many arguments in call" as ^int8);
+            errors.end();
+            return code.make_nil();
         }
 
         # Resolve the type of the argument expression.
@@ -815,7 +852,6 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
         if fn_han.handle == 0 as ^llvm.LLVMOpaqueValue
         {
             # Add the function to the module.
-            # TODO: Set priv, vis, etc.
             fn_han.handle = llvm.LLVMAddFunction(
                 g.mod, fn_han.name.data(), type_.handle);
         }

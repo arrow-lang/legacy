@@ -60,6 +60,23 @@ def boolean(g: ^mut generator_.Generator, node: ^ast.Node,
     code.make_value(target, code.VC_RVALUE, val);
 }
 
+# Size Of [TAG_SIZEOF]
+# -----------------------------------------------------------------------------
+def sizeof(g: ^mut generator_.Generator, node: ^ast.Node,
+           scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.SizeOf = (node^).unwrap() as ^ast.SizeOf;
+
+    # Resolve the type of the expression.
+    let mut typ: ^code.Handle;
+    typ = resolver.resolve_s(g, &x.type_, scope);
+    if code.isnil(typ) { return code.make_nil(); }
+
+    # Build and return the sizeof.
+    generator_util.build_sizeof(g^, typ);
+}
+
 # Integer [TAG_INTEGER]
 # -----------------------------------------------------------------------------
 def integer(g: ^mut generator_.Generator, node: ^ast.Node,

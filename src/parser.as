@@ -364,6 +364,34 @@ def parse_break(&mut self) -> bool
     true;
 }
 
+# Size Of
+# -----------------------------------------------------------------------------
+def parse_sizeof(&mut self) -> bool
+{
+    # Declare the node.
+    let node: ast.Node = ast.make(ast.TAG_SIZEOF);
+    let expr: ^ast.SizeOf = node.unwrap() as ^ast.SizeOf;
+
+    # Pop the `size_of` token.
+    self.pop_token();
+
+    # Expect a `(`.
+    if not self.expect(tokens.TOK_LPAREN) { return false; }
+
+    # Parse and set the type.
+    if not self.parse_type() { return false; }
+    expr.type_ = self.stack.pop();
+
+    # Expect a `)`.
+    if not self.expect(tokens.TOK_RPAREN) { return false; }
+
+    # Push our node on the stack.
+    self.stack.push(node);
+
+    # Return success.
+    true;
+}
+
 # Continue
 # -----------------------------------------------------------------------------
 def parse_continue(&mut self) -> bool
@@ -1553,6 +1581,10 @@ def parse_primary_expr(&mut self) -> bool
     {
         # This is some kind of block.
         self.parse_block_expr();
+    }
+    else if tok.tag == tokens.TOK_SIZEOF
+    {
+        self.parse_sizeof();
     }
     else
     {

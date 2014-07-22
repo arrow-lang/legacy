@@ -852,7 +852,6 @@ def call(g: ^mut generator_.Generator, node: ^ast.Node,
         if fn_han.handle == 0 as ^llvm.LLVMOpaqueValue
         {
             # Add the function to the module.
-            # TODO: Set priv, vis, etc.
             fn_han.handle = llvm.LLVMAddFunction(
                 g.mod, fn_han.name.data(), type_.handle);
         }

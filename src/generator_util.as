@@ -105,6 +105,8 @@ def declare_assert(&mut g: generator_.Generator) {
     # Build the LLVM function declaration.
     let val: ^llvm.LLVMOpaqueValue;
     val = llvm.LLVMAddFunction(g.mod, "assert" as ^int8, type_obj);
+    llvm.LLVMSetLinkage(val, 9);  # LLVMPrivateLinkage
+    llvm.LLVMSetVisibility(val, 1);  # LLVMHiddenVisibility
 
     # Create a `solid` handle to the function.
     let mut ns: list.List = list.make(types.STR);

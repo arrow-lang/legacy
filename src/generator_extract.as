@@ -239,9 +239,16 @@ def extract_import(&mut g: generator_.Generator, x: ^ast.Import)
     # Build the filename to import.
     # TODO: Handle importing folders and ./index.as, etc.
     # TODO: Implement a "PATH" system like PYTHON
-    let mut filename: string.String = string.make();
     let id0_node: ast.Node = x.ids.get(0);
     let id0: ^ast.Ident = id0_node.unwrap() as ^ast.Ident;
+
+    # Check if this module (from its name) has been imported before.
+    if g.imported_modules.contains(id0.name.data() as str) {
+        # Yes; just skip out. We're done here.
+        return;
+    }
+
+    let mut filename: string.String = string.make();
     filename.extend(id0.name.data() as str);
     filename.extend(".as");
 
@@ -284,6 +291,9 @@ def extract_import(&mut g: generator_.Generator, x: ^ast.Import)
     let mut ns: list.List = list.make(types.STR);
     let mut old_ns: list.List = g.ns;
     g.ns = ns;
+
+    # Push us in the as an "imported module".
+    g.imported_modules.set_i8(id0.name.data() as str, 1);
 
     # Pass us on to the module extractor.
     extract_module(g, unit.unwrap() as ^ast.ModuleDecl);

@@ -73,6 +73,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     let ptr_size: uint = types.sizeof(types.PTR);
     g.items = dict.make(65535);
     g.nodes = dict.make(65535);
+    g.imported_modules = dict.make(65535);
     g.ns = list.make(types.STR);
     g.top_ns = string.make();
     g.loops = list.make_generic(generator_.LOOP_SIZE);

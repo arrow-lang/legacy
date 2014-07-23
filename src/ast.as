@@ -259,7 +259,8 @@ type FuncParam {
     mut id: Node,
     type_: Node,
     mutable: bool,
-    default: Node
+    default: Node,
+    variadic: bool
 }
 
 # External static slot.
@@ -1087,6 +1088,8 @@ def dump_delegate(stream: ^libc._IO_FILE, node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_func_param(stream: ^libc._IO_FILE, node: ^Node) {
     let x: ^FuncParam = unwrap(node^) as ^FuncParam;
+    if x.variadic { libc.fprintf(stream, "Variadic " as ^int8); }
+    if x.mutable { libc.fprintf(stream, "Mutable " as ^int8); }
     libc.fprintf(stream, "FuncParam <?>" as ^int8);
     if x.mutable { libc.fprintf(stream, " mut" as ^int8); }
     if not isnull(x.id) {

@@ -410,7 +410,8 @@ def make_array_type(element: ^Handle, size: uint, handle: ^LLVMOpaqueType) -> ^H
 type Parameter {
     mut name: string.String,
     type_: ^mut Handle,
-    default: ^mut Handle
+    default: ^mut Handle,
+    variadic: bool
 }
 
 type FunctionType {
@@ -429,7 +430,7 @@ let PARAMETER_SIZE: uint = ((0 as ^Parameter) + 1) - (0 as ^Parameter);
 let FUNCTION_TYPE_SIZE: uint = ((0 as ^FunctionType) + 1) - (0 as ^FunctionType);
 
 def make_parameter(name: str, type_: ^Handle,
-                   default: ^Handle) -> ^Handle {
+                   default: ^Handle, variadic: bool) -> ^Handle {
     # Build the parameter.
     let param: ^Parameter = libc.malloc(PARAMETER_SIZE as int64) as ^Parameter;
     param.name = string.make();
@@ -438,6 +439,7 @@ def make_parameter(name: str, type_: ^Handle,
     }
     param.type_ = type_;
     param.default = default;
+    param.variadic = variadic;
 
     # Wrap in a handle.
     make(TAG_PARAMETER, param as ^void);

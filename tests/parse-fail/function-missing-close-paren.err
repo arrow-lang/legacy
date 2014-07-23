@@ -1,1 +1,2 @@
+<stdin>:1:5-9: error: expected `;` but found `identifier`
 error: expected `,` or `)` but found `{`

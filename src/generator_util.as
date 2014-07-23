@@ -94,7 +94,7 @@ def declare_assert(&mut g: generator_.Generator) {
     # Create a `solid` handle to the parameters.
     let mut params: list.List = list.make(types.PTR);
     params.push_ptr(code.make_parameter(
-        "condition", phandle, code.make_nil()) as ^void);
+        "condition", phandle, code.make_nil(), false) as ^void);
 
     # Create a `solid` handle to the function type.
     let type_: ^code.Handle = code.make_function_type(

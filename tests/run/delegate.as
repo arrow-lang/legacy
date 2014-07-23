@@ -1,5 +1,5 @@
-extern def puts(str);
-extern def printf(str, int);
+extern let puts(str);
+extern let printf(str, int);
 
 # Declare a function that prints something.
 let printer() -> { puts("Hello"); }

@@ -475,6 +475,9 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
     # Iterate through each argument, build, and push them into
     # their appropriate position in the argument list.
     let mut i: int = 0;
+    let mut param_idx: uint = self_idx;
+    let mut variadic_index: uint = 0;
+    let mut variadic: bool = false;
     while i as uint < node.arguments.size()
     {
         # Get the specific argument.
@@ -485,13 +488,7 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         # Find the parameter index.
         # NOTE: The parser handles making sure no positional arg
         #   comes after a keyword arg.
-        let mut param_idx: uint = 0;
-        if ast.isnull(a.name)
-        {
-            # An unnamed argument just corresponds to the sequence.
-            param_idx = (i as uint - 1) + self_idx;
-        }
-        else
+        if not ast.isnull(a.name)
         {
             # Get the name data for the id.
             let id: ^ast.Ident = a.name.unwrap() as ^ast.Ident;
@@ -530,12 +527,24 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             return code.make_nil();
         }
 
+        # Get the parameter.
+        let prm_han: ^code.Handle = type_.parameters.at_ptr(
+            param_idx as int) as ^code.Handle;
+        let prm: ^code.Parameter = prm_han._object as ^code.Parameter;
+
         # Resolve the type of the argument expression.
-        let param_typ: ^code.Handle = code.type_of(
-            type_.parameters.at_ptr(param_idx as int) as ^code.Handle);
-        let typ: ^code.Handle = resolver.resolve_st(
-            g, &a.expression, scope, param_typ);
-        if code.isnil(typ) { return code.make_nil(); }
+        let mut typ: ^code.Handle = code.make_nil();
+        let mut param_typ: ^code.Handle = code.make_nil();
+        if not prm.variadic {
+            param_typ = code.type_of(prm_han);
+            typ = resolver.resolve_st(g, &a.expression, scope, param_typ);
+            if code.isnil(typ) { return code.make_nil(); }
+        } else {
+            variadic = true;
+            typ = resolver.resolve_st(g, &a.expression, scope,
+                                      code.make_nil());
+            if code.isnil(typ) { return code.make_nil(); }
+        }
 
         # Build the argument expression node.
         let han: ^code.Handle = builder.build(g, &a.expression, scope, typ);
@@ -545,18 +554,42 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         let val_han: ^code.Handle = generator_def.to_value(
             g^, han, code.VC_RVALUE, false);
 
-        # Cast the value to the target type.
-        let cast_han: ^code.Handle = generator_util.cast(
-            g^, val_han, param_typ, false);
-        if code.isnil(cast_han) { return code.make_nil(); }
-        let cast_val: ^code.Value = cast_han._object as ^code.Value;
+        if not prm.variadic {
+            # Cast the value to the target type.
+            let cast_han: ^code.Handle = generator_util.cast(
+                g^, val_han, param_typ, false);
+            if code.isnil(cast_han) { return code.make_nil(); }
+            let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
-        # Emplace in the argument list.
-        (argv + param_idx)^ = cast_val.handle;
+            # Emplace in the argument list.
+            (argv + param_idx)^ = cast_val.handle;
+
+            # Dispose.
+            code.dispose(cast_han);
+        } else {
+            # Get the value handle
+            let val: ^code.Value = val_han._object as ^code.Value;
+
+            # Make more room.
+            if variadic_index > 0 {
+                argl.reserve(argl.size + 1);
+                argv = argl.elements as ^^llvm.LLVMOpaqueValue;
+                argl.size = argl.size + 1;
+            }
+
+            # Emplace in the argument list.
+            (argv + param_idx + variadic_index)^ = val.handle;
+            variadic_index = variadic_index + 1;
+            void; # HACK
+        }
 
         # Dispose.
         code.dispose(val_han);
-        code.dispose(cast_han);
+
+        if ast.isnull(a.name) and not variadic {
+            # Increment parameter index.
+            param_idx = param_idx + 1;
+        }
     }
 
     # Check for missing arguments.
@@ -571,6 +604,12 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 type_.parameters.at_ptr(i) as ^code.Handle;
             let prm: ^code.Parameter =
                 prm_han._object as ^code.Parameter;
+
+            if prm.variadic {
+                # Decrement size and break.
+                argl.size = argl.size - 1;
+                break;
+            }
 
             # Report
             errors.begin_error();

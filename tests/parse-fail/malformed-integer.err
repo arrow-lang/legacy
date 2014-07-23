@@ -1,5 +1,5 @@
-error: expected `;` but found `identifier`
-error: expected `;` but found `identifier`
-error: expected `;` but found `identifier`
-error: expected `;` but found `identifier`
-error: expected `;` but found `identifier`
+<stdin>:1:2-3: error: expected `;` but found `identifier`
+<stdin>:2:2-3: error: expected `;` but found `identifier`
+<stdin>:3:2-4: error: expected `;` but found `identifier`
+<stdin>:4:2-4: error: expected `;` but found `identifier`
+<stdin>:5:4-6: error: expected `;` but found `identifier`

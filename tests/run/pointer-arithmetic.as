@@ -1,6 +1,6 @@
 
-extern def malloc(uint): *mut uint8;
-extern def free(*uint8);
+extern let malloc(uint) -> *mut uint8;
+extern let free(*uint8);
 
 let magic(m_: *mut uint8): uint -> {
     # Get the pointer.

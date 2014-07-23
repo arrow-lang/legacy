@@ -1,4 +1,4 @@
-extern def printf(str, int);
+extern let printf(str, int);
 
 struct Point { x: int, y: int }
 

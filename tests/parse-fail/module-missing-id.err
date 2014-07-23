@@ -1,1 +1,1 @@
-error: expected `identifier` but found `{`
+<stdin>:1:8-9: error: expected `identifier` but found `{`

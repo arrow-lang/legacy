@@ -71,10 +71,10 @@ def generate_handle(&mut g: generator_.Generator, qname: str,
     {
         generate_extern_function(g, qname, handle._object as ^code.ExternFunction);
     }
-    # else if handle._tag == code.TAG_EXTERN_STATIC
-    # {
-        # generate_extern_static(g, qname, handle._object as ^code.ExternStaticSlot);
-    # }
+    else if handle._tag == code.TAG_EXTERN_STATIC
+    {
+        generate_extern_static(g, qname, handle._object as ^code.ExternStatic);
+    }
     else
     {
         errors.begin_error();
@@ -402,6 +402,29 @@ def generate_struct_member(&mut g: generator_.Generator,
 
     # Return the type.
     type_handle;
+}
+
+# Generate the type for the external `static`.
+# -----------------------------------------------------------------------------
+def generate_extern_static(&mut g: generator_.Generator,
+                           qname: str, x: ^code.ExternStatic)
+    -> ^code.Handle
+{
+    # Return our type if it is resolved.
+    if not code.isnil(x.type_) { return x.type_; }
+
+    # Return nil if we have been poisioned from a previous failure.
+    if code.ispoison(x.type_) { return code.make_nil(); }
+
+    # Get and resolve the type node.
+    let han: ^code.Handle;
+    han = resolver.resolve_in(
+        &g, &x.context.type_, &x.namespace,
+        code.make_nil_scope(),
+        code.make_nil());
+
+    # Store and return our type handle (or poision if we failed).
+    x.type_ = code.make_poison() if code.isnil(han) else han;
 }
 
 # Generate the type for the external `function`.

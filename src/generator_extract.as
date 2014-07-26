@@ -192,11 +192,24 @@ def extract_extern_function(&mut g: generator_.Generator, x: ^ast.ExternFunc)
 
 # Extract external "static" item.
 # -----------------------------------------------------------------------------
-def extract_extern_static(&mut g: generator_.Generator, x: ^ast.ExternStaticSlot)
+def extract_extern_static(&mut g: generator_.Generator,
+                          x: ^ast.ExternStaticSlot)
 {
-    errors.begin_error();
-    errors.libc.fprintf(errors.libc.stderr, "not implemented: extract_extern_static" as ^int8);
-    errors.end();
+    # Build the qual name for this function "item".
+    let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+    let mut qname: string.String = generator_util.qualify_name(
+        g, id.name.data() as str);
+
+    # Create a `code` handle for the function (ignoring the type for now).
+    let han: ^code.Handle = code.make_extern_static(
+        x, id.name.data() as str, g.ns, code.make_nil(),
+        0 as ^llvm.LLVMOpaqueValue);
+
+    # Set us as an `item`.
+    g.items.set_ptr(qname.data() as str, han as ^void);
+
+    # Dispose of dynamic memory.
+    qname.dispose();
 }
 
 # Extract "implement" block.

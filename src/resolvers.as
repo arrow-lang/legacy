@@ -48,6 +48,13 @@ def _type_of(g: ^mut generator_.Generator, item: ^code.Handle)
                 g^, fn.qualified_name.data() as str,
                 item._object as ^code.ExternFunction);
         }
+        else if item._tag == code.TAG_EXTERN_STATIC
+        {
+            let slot: ^code.ExternStatic = item._object as ^code.ExternStatic;
+            generator_type.generate_extern_static(
+                g^, slot.qualified_name.data() as str,
+                item._object as ^code.ExternStatic);
+        }
         else if item._tag == code.TAG_MODULE
         {
             # This is a module; deal with it.

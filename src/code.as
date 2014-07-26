@@ -872,6 +872,42 @@ def make_attached_function(
     make(TAG_ATTACHED_FUNCTION, func as ^void);
 }
 
+# External static
+# -----------------------------------------------------------------------------
+
+type ExternStatic {
+    context: ^ast.ExternStaticSlot,
+    handle: ^LLVMOpaqueValue,
+    mut namespace: list.List,
+    mut name: string.String,
+    mut qualified_name: string.String,
+    mut type_: ^mut Handle
+}
+
+let EXTERN_STATIC_SIZE: uint = ((0 as ^ExternStatic) + 1) - (0 as ^ExternStatic);
+
+def make_extern_static(
+        context: ^ast.ExternStaticSlot,
+        name: str,
+        &mut namespace: list.List,
+        type_: ^Handle,
+        handle: ^LLVMOpaqueValue) -> ^Handle {
+    # Build the function.
+    let slot: ^ExternStatic = libc.malloc(EXTERN_STATIC_SIZE as int64) as ^ExternStatic;
+    slot.context = context;
+    slot.handle = handle;
+    slot.name = string.make();
+    slot.name.extend(name);
+    slot.namespace = namespace.clone();
+    slot.qualified_name = string.join(".", slot.namespace);
+    slot.qualified_name.append(".");
+    slot.qualified_name.extend(name);
+    slot.type_ = type_;
+
+    # Wrap in a handle.
+    make(TAG_EXTERN_STATIC, slot as ^void);
+}
+
 # External function
 # -----------------------------------------------------------------------------
 

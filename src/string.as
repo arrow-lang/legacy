@@ -149,6 +149,10 @@ implement String {
 # -----------------------------------------------------------------------------
 let ord(c: char): int8 -> { c as int8; }
 
+# Get the character from an ordinal value.
+# -----------------------------------------------------------------------------
+let chr(c: int64): char -> { c as char; }
+
 # Join a list of strings into one string separated by a character.
 # -----------------------------------------------------------------------------
 let join(separator: char, list: list.List): String -> {

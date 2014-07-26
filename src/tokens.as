@@ -312,10 +312,9 @@ let to_str(tok: int): str -> {
 
 # Test driver
 # ----------------------------------------------------------------------------
-extern def puts(str);
 let main() -> {
-    puts(to_str(TOK_IDENTIFIER));
-    puts(to_str(TOK_PERCENT_EQ));
-    puts(to_str(493690));
-    puts(to_str(TOK_SELF));
+    libc.puts(to_str(TOK_IDENTIFIER));
+    libc.puts(to_str(TOK_PERCENT_EQ));
+    libc.puts(to_str(493690));
+    libc.puts(to_str(TOK_SELF));
 }

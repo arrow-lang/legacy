@@ -1,4 +1,12 @@
 
+# ctype.h
+# -----------------------------------------------------------------------------
+
+extern let isalpha(int64) -> int64;
+extern let isalnum(int64) -> int64;
+extern let isdigit(int64) -> int64;
+extern let isxdigit(int64) -> int64;
+
 # string.h
 # -----------------------------------------------------------------------------
 
@@ -25,6 +33,9 @@ extern let calloc(n: uint, size: uint) -> *int8;
 extern let realloc(ptr: *int8, size: uint) -> *int8;
 extern let free(ptr: *int8);
 
+# Environment
+extern let exit(status: int64);
+
 # stdio.h
 # -----------------------------------------------------------------------------
 
@@ -36,9 +47,16 @@ extern let stdout: *FILE;
 extern let stdin: *FILE;
 extern let stderr: *FILE;
 
+# File access
+extern let fopen(filename: str, mode: str) -> *FILE;
+extern let fclose(*FILE);
+
 # Formatted input/output
 extern let fprintf(*FILE, str, ...) -> int64;
 extern let printf(str, ...) -> int64;
 
 # Character input/output
 extern let puts(str) -> int64;
+
+# Direct input/output
+extern let fread(*int8, size: uint, count: uint, stream: *FILE) -> uint;

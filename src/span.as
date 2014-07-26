@@ -17,6 +17,10 @@ implement Position {
     let isnull(self): bool -> {
         return self.column == -1 and self.row == -1;
     }
+
+    let clone(self): Position -> {
+        return Position(self.column, self.row);
+    }
 }
 
 # Span
@@ -34,8 +38,20 @@ struct Span {
 }
 
 implement Span {
+    let new(filename: str, begin: Position, end: Position): Span -> {
+        return Span(string.String.from_str(filename),
+                    begin.clone(),
+                    end.clone());
+    }
+
     let nil(): Span -> {
         return Span(string.String.new(), Position.nil(), Position.nil());
+    }
+
+    let clone(self): Span -> {
+        return Span(self.filename.clone(),
+                    self.begin.clone(),
+                    self.end.clone());
     }
 
     let dispose(mut self) -> {

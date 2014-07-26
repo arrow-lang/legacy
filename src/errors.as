@@ -29,7 +29,7 @@ let begin_error() -> {
 # begin_error_at
 # -----------------------------------------------------------------------------
 let begin_error_at(s: span.Span) -> {
-    if posix.isatty(2) <> 0 {
+    if posix.isatty(2) != 0 {
         libc.fprintf(libc.stderr, "\x1b[1;37m");
     };
     s.fprint(libc.stderr);

@@ -1163,6 +1163,7 @@ def relational(g: ^mut generator_.Generator, node: ^ast.Node,
     let val: ^llvm.LLVMOpaqueValue;
     if type_._tag == code.TAG_INT_TYPE
             or type_._tag == code.TAG_BOOL_TYPE
+            or type_._tag == code.TAG_CHAR_TYPE
     {
         # Switch to signed if neccessary.
         if node.tag <> ast.TAG_EQ and node.tag <> ast.TAG_NE {
@@ -1440,10 +1441,6 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
             code.dispose(lhs_han);
             code.dispose(rhs_han);
         }
-    }
-    else if target._tag == code.TAG_CHAR_TYPE
-    {
-        libc.exit(0);
     }
     else if target._tag == code.TAG_FLOAT_TYPE
     {

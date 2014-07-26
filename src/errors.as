@@ -1,6 +1,5 @@
-# foreign "C" import "stdio.h";
 import libc;
-foreign "C" import "unistd.h";
+import posix;
 import span;
 
 # Error count
@@ -15,7 +14,7 @@ def print_location() {
 # begin
 # -----------------------------------------------------------------------------
 def begin() {
-    if isatty(2) <> 0 {
+    if posix.isatty(2) <> 0 {
         libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);
     }
 }
@@ -30,7 +29,7 @@ def begin_error() {
 # begin_error_at
 # -----------------------------------------------------------------------------
 def begin_error_at(s: span.Span) {
-    if isatty(2) <> 0 {
+    if posix.isatty(2) <> 0 {
         libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);
     }
     s.fprint(libc.stderr);
@@ -41,7 +40,7 @@ def begin_error_at(s: span.Span) {
 # end
 # -----------------------------------------------------------------------------
 def end() {
-    if isatty(2) <> 0 {
+    if posix.isatty(2) <> 0 {
         libc.fprintf(libc.stderr, "\x1b[0m" as ^int8);
     }
     libc.fprintf(libc.stderr, "\n" as ^int8);
@@ -50,14 +49,14 @@ def end() {
 # print_error
 # -----------------------------------------------------------------------------
 def print_error() {
-    if isatty(2) <> 0 {
+    if posix.isatty(2) <> 0 {
         libc.fprintf(libc.stderr, "\x1b[1;31m" as ^int8);
     }
 
     count = count + 1;
     libc.fprintf(libc.stderr, "error: " as ^int8);
 
-    if isatty(2) <> 0 {
+    if posix.isatty(2) <> 0 {
         libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);
     }
 }

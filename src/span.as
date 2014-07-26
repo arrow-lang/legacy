@@ -47,28 +47,28 @@ implement Span {
         return self.filename.size() == 0;
     }
 
-    # let print(self) -> {
-    #     self.fprint(libc.stdout);
-    # }
+    let print(self) -> {
+        self.fprint(libc.stdout);
+    }
 
-    # let fprint(self, stream: *libc.FILE) -> {
-    #     if self.isnil() {
-    #         libc.fprintf(stream, "(nil)");
-    #         return;
-    #     };
+    let fprint(self, stream: *libc.FILE) -> {
+        if self.isnil() {
+            libc.fprintf(stream, "(nil)");
+            return;
+        };
 
-    #     if libc.strcmp(self.filename.data(), "-") == 0 {
-    #         libc.fprintf(stream, "<stdin>:");
-    #     } else {
-    #         libc.fprintf(stream, "%s:", self.filename.data());
-    #     };
+        if libc.strcmp(self.filename.data(), "-") == 0 {
+            libc.fprintf(stream, "<stdin>:");
+        } else {
+            libc.fprintf(stream, "%s:", self.filename.data());
+        };
 
-    #     # TODO: Support multi-line span printing
-    #     if self.begin.row == self.end.row {
-    #         libc.fprintf(stream, "%d:%d-%d",
-    #             self.begin.row + 1,
-    #             self.begin.column + 1,
-    #             self.end.column + 1);
-    #     };
-    # }
+        # TODO: Support multi-line span printing
+        if self.begin.row == self.end.row {
+            libc.fprintf(stream, "%d:%d-%d",
+                self.begin.row + 1,
+                self.begin.column + 1,
+                self.end.column + 1);
+        };
+    }
 }

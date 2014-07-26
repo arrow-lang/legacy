@@ -37,7 +37,7 @@ extern let stdin: *FILE;
 extern let stderr: *FILE;
 
 # Formatted input/output
-extern let fprintf(FILE*, str, ...) -> int64;
+extern let fprintf(*FILE, str, ...) -> int64;
 extern let printf(str, ...) -> int64;
 
 # Character input/output

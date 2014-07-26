@@ -774,9 +774,11 @@ type Value {
 
 let VALUE_SIZE: uint = ((0 as ^Value) + 1) - (0 as ^Value);
 
-def make_value(type_: ^Handle,
-               category: int,
-               handle: ^LLVMOpaqueValue) -> ^Handle {
+
+def make_value_c(context: ^ast.Node,
+                 type_: ^Handle,
+                 category: int,
+                 handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the module.
     let val: ^Value = libc.malloc(VALUE_SIZE as int64) as ^Value;
     val.handle = handle;
@@ -784,7 +786,14 @@ def make_value(type_: ^Handle,
     val.category = category;
 
     # Wrap in a handle.
-    make(TAG_VALUE, val as ^void);
+    make_c(context, TAG_VALUE, val as ^void);
+}
+
+
+def make_value(type_: ^Handle,
+               category: int,
+               handle: ^LLVMOpaqueValue) -> ^Handle {
+    make_value_c(0 as ^ast.Node, type_, category, handle);
 }
 
 # Function
@@ -953,6 +962,7 @@ def make_extern_function(
 # frees their memory.
 
 type Handle {
+    _context: ^ast.Node,
     _tag: int,
     _object: ^void
 }
@@ -1051,9 +1061,14 @@ def dispose(&self: ^Handle) {
 # Create a handle allocation
 # -----------------------------------------------------------------------------
 def make(tag: int, object: ^void) -> ^Handle {
+    make_c(0 as ^ast.Node, tag, object);
+}
+
+def make_c(context: ^ast.Node, tag: int, object: ^void) -> ^Handle {
     let handle: ^Handle = libc.malloc(HANDLE_SIZE as int64) as ^Handle;
     handle._tag = tag;
     handle._object = object;
+    handle._context = context;
     handle;
 }
 

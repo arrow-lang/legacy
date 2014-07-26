@@ -131,6 +131,23 @@ def type_common(a_ctx: ^ast.Node, a: ^code.Handle,
     } else if b._tag == code.TAG_FLOAT_TYPE and a._tag == code.TAG_INT_TYPE {
         # No matter what the float or int type is the float has greater rank.
         b;
+    } else if b._tag == code.TAG_STR_TYPE and a._tag == code.TAG_CHAR_TYPE {
+        # A string will coerce to an explicit char if the string
+        # is a literal and exactly 1 in length
+        if b_ctx <> 0 as ^ast.Node {
+            if b_ctx.tag == ast.TAG_STRING {
+                let string_: ^ast.StringExpr = (b_ctx^).unwrap() as ^ast.StringExpr;
+                if string_.text.size() == 1 {
+                    a;
+                } else {
+                    code.make_nil();
+                }
+            } else {
+                code.make_nil();
+            }
+        } else {
+            code.make_nil();
+        }
     } else {
         # No common type resolution.
         # Return nil.

@@ -210,7 +210,7 @@ def string_(g: ^mut generator_.Generator, node: ^ast.Node,
     buffer.dispose();
 
     # Wrap and return the value.
-    code.make_value(target, code.VC_RVALUE, val);
+    code.make_value_c(node, target, code.VC_RVALUE, val);
 }
 
 # Local Slot [TAG_SLOT]
@@ -246,12 +246,12 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
         if code.isnil(type_han) {
             type_han = typ;
             type_ = type_han._object as ^code.Type;
-        } else {
-            # Ensure that the types are compatible.
-            if not generator_util.type_compatible(type_han, typ) {
-                return code.make_nil();
-            }
-        }
+        }# else {
+        #     # Ensure that the types are compatible.
+        #     if not generator_util.type_compatible(type_han, typ) {
+        #         return code.make_nil();
+        #     }
+        # }
 
         # Build the initializer
         let han: ^code.Handle;
@@ -1440,6 +1440,10 @@ def arithmetic_b(g: ^mut generator_.Generator, node: ^ast.Node,
             code.dispose(lhs_han);
             code.dispose(rhs_han);
         }
+    }
+    else if target._tag == code.TAG_CHAR_TYPE
+    {
+        libc.exit(0);
     }
     else if target._tag == code.TAG_FLOAT_TYPE
     {

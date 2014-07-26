@@ -369,7 +369,8 @@ def to_value(&mut g: generator_.Generator,
         if category == 0 or category == val.category
         {
             # Clone the value object.
-            code.make_value(val.type_, val.category, val.handle);
+            code.make_value_c(handle._context, val.type_, val.category,
+                              val.handle);
         }
         else if category == code.VC_RVALUE
         {

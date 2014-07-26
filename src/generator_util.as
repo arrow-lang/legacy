@@ -524,6 +524,25 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
             }
         }
     }
+    else if src_han._tag == code.TAG_STR_TYPE
+            and type_._tag == code.TAG_CHAR_TYPE
+    {
+        # Converting a string to a char only works if we are coming from
+        # a literal that is exactly 1 character
+        if handle._context <> 0 as ^ast.Node {
+            if handle._context.tag == ast.TAG_STRING {
+                let string_: ^ast.StringExpr = (handle._context^).unwrap() as ^ast.StringExpr;
+                if string_.text.size() == 1 {
+                    # Find the ASCII value of this string
+                    let c0: int8 = string_.text._data.at_i8(0);
+                    let ty: ^code.Type = type_._object as ^code.Type;
+
+                    # Create a constant int for this.
+                    val = llvm.LLVMConstInt(ty.handle, c0 as uint64, false);
+                }
+            }
+        }
+    }
 
     # If we got nothing, return nothing
     if val == 0 as ^llvm.LLVMOpaqueValue {

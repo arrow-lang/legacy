@@ -137,7 +137,7 @@ def type_common(a_ctx: ^ast.Node, a: ^code.Handle,
         if b_ctx <> 0 as ^ast.Node {
             if b_ctx.tag == ast.TAG_STRING {
                 let string_: ^ast.StringExpr = (b_ctx^).unwrap() as ^ast.StringExpr;
-                if string_.text.size() == 1 {
+                if (string_^).count() == 1 {
                     a;
                 } else {
                     code.make_nil();

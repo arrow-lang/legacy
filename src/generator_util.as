@@ -346,6 +346,7 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
 
     # Build the cast.
     let val: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
+    let mut lst: list.List;
     if src_han._tag == code.TAG_INT_TYPE and src_han._tag == type_._tag {
         # Get the int_ty out.
         let src_int: ^code.IntegerType = src as ^code.IntegerType;
@@ -532,14 +533,18 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
         if handle._context <> 0 as ^ast.Node {
             if handle._context.tag == ast.TAG_STRING {
                 let string_: ^ast.StringExpr = (handle._context^).unwrap() as ^ast.StringExpr;
-                if string_.text.size() == 1 {
+                let str_: ast.StringExpr = string_^;
+                lst = str_.unescape();  # HACK!
+                if lst.size == 1 {
                     # Find the ASCII value of this string
-                    let c0: int8 = string_.text._data.at_i8(0);
+                    let c0: int8 = lst.at_i8(0);
                     let ty: ^code.Type = type_._object as ^code.Type;
 
                     # Create a constant int for this.
                     val = llvm.LLVMConstInt(ty.handle, c0 as uint64, false);
                 }
+                lst.dispose();
+                val;
             }
         }
     }

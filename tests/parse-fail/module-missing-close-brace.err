@@ -1,1 +1,1 @@
-error: expected `}` but found end
+<stdin>:2:1-2: error: expected `}` but found end

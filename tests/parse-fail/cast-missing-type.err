@@ -1,1 +1,1 @@
-error: expected `*`, `identifier`, `(` or `delegate` but found end
+<stdin>:2:1-2: error: expected `*`, `identifier`, `(` or `delegate` but found end

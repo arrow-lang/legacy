@@ -1,4 +1,4 @@
-extern def puts(str);
+extern let puts(str);
 let main() -> {
     # Declare some strings.
     let empty: str = '';

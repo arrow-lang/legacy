@@ -1,3 +1,3 @@
-error: expected `{` but found `;`
-error: expected `{` but found `;`
-error: expected `{` but found `;`
+<stdin>:1:7-8: error: expected `{` but found `;`
+<stdin>:2:11-12: error: expected `{` but found `;`
+<stdin>:3:8-9: error: expected `{` but found `;`

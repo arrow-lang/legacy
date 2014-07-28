@@ -480,7 +480,7 @@ def parse_function(&mut self) -> bool
     if not self.parse_type_params(decl.type_params) { return false; }
 
     # Parse the parameter list.
-    if not self.parse_function_params(decl, true, false) {
+    if not self.parse_function_params(decl, true, false, false) {
         return false;
     }
 
@@ -519,7 +519,8 @@ def parse_function(&mut self) -> bool
 # -----------------------------------------------------------------------------
 def parse_function_params(&mut self, fn: ^ast.FuncDecl,
                           require_names: bool,
-                          self_: bool) -> bool
+                          self_: bool,
+                          variadic_: bool) -> bool
 {
     # Expect a `(` token to start the parameter list.
     if not self.expect(tokens.TOK_LPAREN) { return false; }
@@ -561,7 +562,10 @@ def parse_function_params(&mut self, fn: ^ast.FuncDecl,
         }
 
         # Parse the parameter.
-        if not self.parse_function_param(require_names) { return false; }
+        if not self.parse_function_param(require_names, variadic_) {
+            return false;
+        }
+
         fn.params.push(self.stack.pop());
 
         # Push the idx counter.
@@ -582,7 +586,7 @@ def parse_function_params(&mut self, fn: ^ast.FuncDecl,
 
 # Function parameter
 # -----------------------------------------------------------------------------
-def parse_function_param(&mut self, require_name: bool) -> bool
+def parse_function_param(&mut self, require_name: bool, variadic_: bool) -> bool
 {
     # Declare the function param node.
     let node: ast.Node = ast.make(ast.TAG_FUNC_PARAM);
@@ -596,6 +600,18 @@ def parse_function_param(&mut self, require_name: bool) -> bool
 
         # Make the slot mutable.
         param.mutable = true;
+    }
+
+    # If we are allowed to be "variadic" ..
+    if variadic_ {
+        # Check for a "..." to indicate the variadic parameter.
+        if self.peek_token_tag(1) == tokens.TOK_ELLIPSIS {
+            # We are now at a "variadic" parameter.
+            param.variadic = true;
+
+            # Pop the `...` token.
+            self.pop_token();
+        }
     }
 
     if require_name
@@ -620,6 +636,12 @@ def parse_function_param(&mut self, require_name: bool) -> bool
             if not self.parse_type() { return false; }
             param.type_ = self.stack.pop();
         }
+    }
+    else if (param.variadic and self.peek_token_tag(1) == tokens.TOK_COMMA
+             or self.peek_token_tag(1) == tokens.TOK_RPAREN) {
+        # "..." doesn't "need" a name or type
+        # do nothing
+        param.type_;
     }
     else
     {
@@ -1393,7 +1415,7 @@ def parse_delegate_type(&mut self) -> bool
     self.pop_token();
 
     # Parse the parameter list.
-    if not self.parse_function_params(expr as ^ast.FuncDecl, false, false) {
+    if not self.parse_function_params(expr as ^ast.FuncDecl, false, false, false) {
         return false;
     }
 
@@ -2390,7 +2412,7 @@ def parse_impl(&mut self) -> bool
         if not self.parse_type_params(decl.type_params) { return false; }
 
         # Parse the parameter list.
-        if not self.parse_function_params(decl, true, true) {
+        if not self.parse_function_params(decl, true, true, false) {
             return false;
         }
 
@@ -2504,12 +2526,16 @@ def parse_extern(&mut self) -> bool
     # Pop the `extern` token.
     self.pop_token();
 
-    # This could either be `static` or `def`.
     let tok: tokenizer.Token = self.peek_token(1);
-    let res: bool =
-        if      tok.tag == tokens.TOK_STATIC { self.parse_extern_static(); }
-        else if tok.tag == tokens.TOK_DEF { self.parse_extern_function(); }
-        else { false; };
+    let res: bool = false;
+    if tok.tag == tokens.TOK_LET {
+        if (self.peek_token_tag(2) == tokens.TOK_IDENTIFIER
+                and self.peek_token_tag(3) == tokens.TOK_LPAREN) {
+            res = self.parse_extern_function();
+        } else {
+            res = self.parse_extern_static();
+        }
+    }
     if not res { return false; }
 
     # Expect a semicolon to close us.
@@ -2574,7 +2600,7 @@ def parse_extern_function(&mut self) -> bool
     let node: ast.Node = ast.make(ast.TAG_EXTERN_FUNC);
     let decl: ^ast.ExternFunc =  node.unwrap() as ^ast.ExternFunc;
 
-    # Pop the `def` token.
+    # Pop the `let` token.
     self.pop_token();
 
     # Expect an `identifier` next.
@@ -2588,15 +2614,15 @@ def parse_extern_function(&mut self) -> bool
     decl.id = self.stack.pop();
 
     # Parse the parameter list.
-    if not self.parse_function_params(decl as ^ast.FuncDecl, false, false) {
+    if not self.parse_function_params(decl as ^ast.FuncDecl, false, false, true) {
         return false;
     }
 
-    # Check for a return type annotation which would again
-    # be preceeded by a `:` token.
-    if self.peek_token_tag(1) == tokens.TOK_COLON
+    # Check for a return type annotation which would
+    # be preceeded by a `->` token.
+    if self.peek_token_tag(1) == tokens.TOK_RARROW
     {
-        # Pop the `:` token.
+        # Pop the `->` token.
         self.pop_token();
 
         # Parse and set the type.

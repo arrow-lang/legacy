@@ -192,11 +192,24 @@ def extract_extern_function(&mut g: generator_.Generator, x: ^ast.ExternFunc)
 
 # Extract external "static" item.
 # -----------------------------------------------------------------------------
-def extract_extern_static(&mut g: generator_.Generator, x: ^ast.ExternStaticSlot)
+def extract_extern_static(&mut g: generator_.Generator,
+                          x: ^ast.ExternStaticSlot)
 {
-    errors.begin_error();
-    errors.libc.fprintf(errors.libc.stderr, "not implemented: extract_extern_static" as ^int8);
-    errors.end();
+    # Build the qual name for this function "item".
+    let id: ^ast.Ident = x.id.unwrap() as ^ast.Ident;
+    let mut qname: string.String = generator_util.qualify_name(
+        g, id.name.data() as str);
+
+    # Create a `code` handle for the function (ignoring the type for now).
+    let han: ^code.Handle = code.make_extern_static(
+        x, id.name.data() as str, g.ns, code.make_nil(),
+        0 as ^llvm.LLVMOpaqueValue);
+
+    # Set us as an `item`.
+    g.items.set_ptr(qname.data() as str, han as ^void);
+
+    # Dispose of dynamic memory.
+    qname.dispose();
 }
 
 # Extract "implement" block.
@@ -239,9 +252,16 @@ def extract_import(&mut g: generator_.Generator, x: ^ast.Import)
     # Build the filename to import.
     # TODO: Handle importing folders and ./index.as, etc.
     # TODO: Implement a "PATH" system like PYTHON
-    let mut filename: string.String = string.make();
     let id0_node: ast.Node = x.ids.get(0);
     let id0: ^ast.Ident = id0_node.unwrap() as ^ast.Ident;
+
+    # Check if this module (from its name) has been imported before.
+    if g.imported_modules.contains(id0.name.data() as str) {
+        # Yes; just skip out. We're done here.
+        return;
+    }
+
+    let mut filename: string.String = string.make();
     filename.extend(id0.name.data() as str);
     filename.extend(".as");
 
@@ -284,6 +304,9 @@ def extract_import(&mut g: generator_.Generator, x: ^ast.Import)
     let mut ns: list.List = list.make(types.STR);
     let mut old_ns: list.List = g.ns;
     g.ns = ns;
+
+    # Push us in the as an "imported module".
+    g.imported_modules.set_i8(id0.name.data() as str, 1);
 
     # Pass us on to the module extractor.
     extract_module(g, unit.unwrap() as ^ast.ModuleDecl);

@@ -14,7 +14,7 @@ let TOK_END: int = -2;
 let TOK_LINE: int = -3;
 
 # "def" -- Function declaration
-let TOK_DEF: int = -1001;
+# let TOK_DEF: int = -1001;
 
 # "let" -- Local slot declaration
 let TOK_LET: int = -1002;
@@ -218,6 +218,9 @@ let TOK_PIPE: int = -2034;
 # "=>" -- Fat arrow
 let TOK_RFARROW: int = -2035;
 
+# "..." -- Ellipsis
+let TOK_ELLIPSIS: int = -2036;
+
 # "identifier" -- Lexical identifier
 let TOK_IDENTIFIER: int = -3001;
 
@@ -235,9 +238,8 @@ let TOK_STRING: int = -4006;
 
 # Name of the token
 # ----------------------------------------------------------------------------
-let to_str(tok: int): str -> {
+def to_str(tok: int) -> str {
     if      tok == TOK_END                  { "end"; }
-    else if tok == TOK_DEF                  { "`def`"; }
     else if tok == TOK_LET                  { "`let`"; }
     else if tok == TOK_STATIC               { "`static`"; }
     else if tok == TOK_MUT                  { "`mut`"; }
@@ -307,14 +309,6 @@ let to_str(tok: int): str -> {
     else if tok == TOK_HEX_INTEGER          { "`integer`"; }
     else if tok == TOK_FLOAT                { "`float`"; }
     else if tok == TOK_STRING               { "`string`"; }
+    else if tok == TOK_ELLIPSIS             { "`...`"; }
     else                                    { "?"; };
-}
-
-# Test driver
-# ----------------------------------------------------------------------------
-let main() -> {
-    libc.puts(to_str(TOK_IDENTIFIER));
-    libc.puts(to_str(TOK_PERCENT_EQ));
-    libc.puts(to_str(493690));
-    libc.puts(to_str(TOK_SELF));
 }

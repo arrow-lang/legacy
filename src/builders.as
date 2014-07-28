@@ -134,68 +134,8 @@ def string_(g: ^mut generator_.Generator, node: ^ast.Node,
     # Get the type handle from the target.
     let typ: ^code.Type = target._object as ^code.Type;
 
-    # Iterate and construct bytes from the string.
-    let mut chars: list.List = x.text._data;
-    let mut bytes: list.List = list.make(types.I8);
-    bytes.reserve(1);
-    let mut buffer: list.List = list.make(types.I8);
-    let mut i: int = 0;
-    let mut in_escape: bool = false;
-    let mut in_utf8_escape: bool = false;
-    while i as uint < chars.size {
-        let c: int8 = chars.at_i8(i);
-        i = i + 1;
-
-        if in_utf8_escape {
-            # Get more characters
-            if buffer.size < 2 { buffer.push_i8(c); }
-            if buffer.size == 2 {
-                # We've gotten exactly 2 more characters.
-                # Parse a hexadecimal from the text.
-                let data: ^int8 = buffer.elements;
-                (data + 2)^ = 0;
-                let val: int64 = libc.strtol(data, 0 as ^^int8, 16);
-
-                # Write out this single byte into bytes.
-                bytes.push_i8(val as int8);
-
-                # Clear the temp buffer.
-                buffer.clear();
-
-                # No longer in a UTF-8 escape sequence.
-                in_utf8_escape = false;
-            }
-            void;
-        } else if in_escape {
-            # Check what do on the control character.
-            if      c == (('\\' as char) as int8) { bytes.push_i8(('\\' as char) as int8); }
-            else if c == (('n' as char) as int8)  { bytes.push_i8(('\n' as char) as int8); }
-            else if c == (('r' as char) as int8)  { bytes.push_i8(('\r' as char) as int8); }
-            else if c == (('f' as char) as int8)  { bytes.push_i8(('\f' as char) as int8); }
-            else if c == (('a' as char) as int8)  { bytes.push_i8(('\a' as char) as int8); }
-            else if c == (('b' as char) as int8)  { bytes.push_i8(('\b' as char) as int8); }
-            else if c == (('v' as char) as int8)  { bytes.push_i8(('\v' as char) as int8); }
-            else if c == (('t' as char) as int8)  { bytes.push_i8(('\t' as char) as int8); }
-            else if c == (('"' as char) as int8)  { bytes.push_i8(('\"' as char) as int8); }
-            else if c == (('\'' as char) as int8) { bytes.push_i8(('\'' as char) as int8); }
-            else if c == (('x' as char) as int8)  { in_utf8_escape = true; }
-            # else if (c == 'u')  { in_utf16_escape = true; }
-            # else if (c == 'U')  { in_utf32_escape = true; }
-
-            # No longer in an escape sequence.
-            in_escape = false;
-            void;
-        } else {
-            if c == (('\\' as char) as int8) {
-                # Mark that we are in an escape sequence.
-                in_escape = true;
-                void;
-            } else {
-                # Push the character.
-                bytes.push_i8(c);
-            }
-        }
-    }
+    # Unescape the string.
+    let mut bytes: list.List = (x^).unescape();
 
     # Close the text.
     let raw_bytes: ^int8 = bytes.elements;
@@ -207,10 +147,9 @@ def string_(g: ^mut generator_.Generator, node: ^ast.Node,
 
     # Dispose.
     bytes.dispose();
-    buffer.dispose();
 
     # Wrap and return the value.
-    code.make_value(target, code.VC_RVALUE, val);
+    code.make_value_c(node, target, code.VC_RVALUE, val);
 }
 
 # Local Slot [TAG_SLOT]
@@ -246,12 +185,12 @@ def local_slot(g: ^mut generator_.Generator, node: ^ast.Node,
         if code.isnil(type_han) {
             type_han = typ;
             type_ = type_han._object as ^code.Type;
-        } else {
-            # Ensure that the types are compatible.
-            if not generator_util.type_compatible(type_han, typ) {
-                return code.make_nil();
-            }
-        }
+        }# else {
+        #     # Ensure that the types are compatible.
+        #     if not generator_util.type_compatible(type_han, typ) {
+        #         return code.make_nil();
+        #     }
+        # }
 
         # Build the initializer
         let han: ^code.Handle;
@@ -475,6 +414,9 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
     # Iterate through each argument, build, and push them into
     # their appropriate position in the argument list.
     let mut i: int = 0;
+    let mut param_idx: uint = self_idx;
+    let mut variadic_index: uint = 0;
+    let mut variadic: bool = false;
     while i as uint < node.arguments.size()
     {
         # Get the specific argument.
@@ -485,13 +427,7 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         # Find the parameter index.
         # NOTE: The parser handles making sure no positional arg
         #   comes after a keyword arg.
-        let mut param_idx: uint = 0;
-        if ast.isnull(a.name)
-        {
-            # An unnamed argument just corresponds to the sequence.
-            param_idx = (i as uint - 1) + self_idx;
-        }
-        else
+        if not ast.isnull(a.name)
         {
             # Get the name data for the id.
             let id: ^ast.Ident = a.name.unwrap() as ^ast.Ident;
@@ -530,12 +466,24 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
             return code.make_nil();
         }
 
+        # Get the parameter.
+        let prm_han: ^code.Handle = type_.parameters.at_ptr(
+            param_idx as int) as ^code.Handle;
+        let prm: ^code.Parameter = prm_han._object as ^code.Parameter;
+
         # Resolve the type of the argument expression.
-        let param_typ: ^code.Handle = code.type_of(
-            type_.parameters.at_ptr(param_idx as int) as ^code.Handle);
-        let typ: ^code.Handle = resolver.resolve_st(
-            g, &a.expression, scope, param_typ);
-        if code.isnil(typ) { return code.make_nil(); }
+        let mut typ: ^code.Handle = code.make_nil();
+        let mut param_typ: ^code.Handle = code.make_nil();
+        if not prm.variadic {
+            param_typ = code.type_of(prm_han);
+            typ = resolver.resolve_st(g, &a.expression, scope, param_typ);
+            if code.isnil(typ) { return code.make_nil(); }
+        } else {
+            variadic = true;
+            typ = resolver.resolve_st(g, &a.expression, scope,
+                                      code.make_nil());
+            if code.isnil(typ) { return code.make_nil(); }
+        }
 
         # Build the argument expression node.
         let han: ^code.Handle = builder.build(g, &a.expression, scope, typ);
@@ -545,18 +493,42 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
         let val_han: ^code.Handle = generator_def.to_value(
             g^, han, code.VC_RVALUE, false);
 
-        # Cast the value to the target type.
-        let cast_han: ^code.Handle = generator_util.cast(
-            g^, val_han, param_typ, false);
-        if code.isnil(cast_han) { return code.make_nil(); }
-        let cast_val: ^code.Value = cast_han._object as ^code.Value;
+        if not prm.variadic {
+            # Cast the value to the target type.
+            let cast_han: ^code.Handle = generator_util.cast(
+                g^, val_han, param_typ, false);
+            if code.isnil(cast_han) { return code.make_nil(); }
+            let cast_val: ^code.Value = cast_han._object as ^code.Value;
 
-        # Emplace in the argument list.
-        (argv + param_idx)^ = cast_val.handle;
+            # Emplace in the argument list.
+            (argv + param_idx)^ = cast_val.handle;
+
+            # Dispose.
+            code.dispose(cast_han);
+        } else {
+            # Get the value handle
+            let val: ^code.Value = val_han._object as ^code.Value;
+
+            # Make more room.
+            if variadic_index > 0 {
+                argl.reserve(argl.size + 1);
+                argv = argl.elements as ^^llvm.LLVMOpaqueValue;
+                argl.size = argl.size + 1;
+            }
+
+            # Emplace in the argument list.
+            (argv + param_idx + variadic_index)^ = val.handle;
+            variadic_index = variadic_index + 1;
+            void; # HACK
+        }
 
         # Dispose.
         code.dispose(val_han);
-        code.dispose(cast_han);
+
+        if ast.isnull(a.name) and not variadic {
+            # Increment parameter index.
+            param_idx = param_idx + 1;
+        }
     }
 
     # Check for missing arguments.
@@ -571,6 +543,12 @@ def call_function(g: ^mut generator_.Generator, node: ^ast.CallExpr,
                 type_.parameters.at_ptr(i) as ^code.Handle;
             let prm: ^code.Parameter =
                 prm_han._object as ^code.Parameter;
+
+            if prm.variadic {
+                # Decrement size and break.
+                argl.size = argl.size - 1;
+                break;
+            }
 
             # Report
             errors.begin_error();
@@ -1124,6 +1102,7 @@ def relational(g: ^mut generator_.Generator, node: ^ast.Node,
     let val: ^llvm.LLVMOpaqueValue;
     if type_._tag == code.TAG_INT_TYPE
             or type_._tag == code.TAG_BOOL_TYPE
+            or type_._tag == code.TAG_CHAR_TYPE
     {
         # Switch to signed if neccessary.
         if node.tag <> ast.TAG_EQ and node.tag <> ast.TAG_NE {
@@ -1635,7 +1614,7 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
     let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
 
     # Perform the assignment (based on what we have in the LHS).
-    if lhs._tag == code.TAG_STATIC_SLOT {
+    if (lhs._tag == code.TAG_STATIC_SLOT) or (lhs._tag == code.TAG_EXTERN_STATIC) {
         # Get the real object.
         let slot: ^code.StaticSlot = lhs._object as ^code.StaticSlot;
 

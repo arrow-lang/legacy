@@ -369,7 +369,8 @@ def to_value(&mut g: generator_.Generator,
         if category == 0 or category == val.category
         {
             # Clone the value object.
-            code.make_value(val.type_, val.category, val.handle);
+            code.make_value_c(handle._context, val.type_, val.category,
+                              val.handle);
         }
         else if category == code.VC_RVALUE
         {
@@ -419,6 +420,34 @@ def to_value(&mut g: generator_.Generator,
         # Create a handle of the function.
         code.make_value(fn_type_handle, code.VC_LVALUE, fn.handle);
     }
+    else if handle._tag == code.TAG_EXTERN_STATIC {
+        # Get the handle.
+        let slot: ^code.ExternStatic = handle._object as ^code.ExternStatic;
+
+        # Get the type of the handle.
+        let type_handle: ^code.Handle = slot.type_;
+        let type_: ^code.Type = type_handle._object as ^code.Type;
+
+        # Ensure our external handle has been declared.
+        # FIXME: This should be handled in a utility
+        if slot.handle == 0 as ^llvm.LLVMOpaqueValue
+        {
+            slot.handle = llvm.LLVMAddGlobal(
+                g.mod, type_.handle, slot.name.data());
+        }
+
+        let val: ^llvm.LLVMOpaqueValue;
+        if category == code.VC_RVALUE {
+            # Load the slot value.
+            val = llvm.LLVMBuildLoad(g.irb, slot.handle, "" as ^int8);
+        } else {
+            # Use the slot handle.
+            val = slot.handle;
+        }
+
+        # Create a handle of the function.
+        code.make_value(type_handle, code.VC_LVALUE, val);
+    }
     else if handle._tag == code.TAG_EXTERN_FUNC {
         # Get the function handle.
         let fn: ^code.ExternFunction = handle._object as ^code.ExternFunction;
@@ -428,6 +457,7 @@ def to_value(&mut g: generator_.Generator,
         let fn_type: ^code.Type = fn_type_handle._object as ^code.Type;
 
         # Ensure our external handle has been declared.
+        # FIXME: This should be handled in a utility
         if fn.handle == 0 as ^llvm.LLVMOpaqueValue
         {
             # Add the function to the module.

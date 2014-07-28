@@ -71,10 +71,10 @@ def generate_handle(&mut g: generator_.Generator, qname: str,
     {
         generate_extern_function(g, qname, handle._object as ^code.ExternFunction);
     }
-    # else if handle._tag == code.TAG_EXTERN_STATIC
-    # {
-        # generate_extern_static(g, qname, handle._object as ^code.ExternStaticSlot);
-    # }
+    else if handle._tag == code.TAG_EXTERN_STATIC
+    {
+        generate_extern_static(g, qname, handle._object as ^code.ExternStatic);
+    }
     else
     {
         errors.begin_error();
@@ -270,7 +270,7 @@ def generate_attached_function(&mut g: generator_.Generator,
         let param: ^code.Handle = code.make_parameter(
             "self",
             self_type_handle,
-            code.make_nil());
+            code.make_nil(), false);
         params.push_ptr(param as ^void);
     }
 
@@ -404,6 +404,29 @@ def generate_struct_member(&mut g: generator_.Generator,
     type_handle;
 }
 
+# Generate the type for the external `static`.
+# -----------------------------------------------------------------------------
+def generate_extern_static(&mut g: generator_.Generator,
+                           qname: str, x: ^code.ExternStatic)
+    -> ^code.Handle
+{
+    # Return our type if it is resolved.
+    if not code.isnil(x.type_) { return x.type_; }
+
+    # Return nil if we have been poisioned from a previous failure.
+    if code.ispoison(x.type_) { return code.make_nil(); }
+
+    # Get and resolve the type node.
+    let han: ^code.Handle;
+    han = resolver.resolve_in(
+        &g, &x.context.type_, &x.namespace,
+        code.make_nil_scope(),
+        code.make_nil());
+
+    # Store and return our type handle (or poision if we failed).
+    x.type_ = code.make_poison() if code.isnil(han) else han;
+}
+
 # Generate the type for the external `function`.
 # -----------------------------------------------------------------------------
 def generate_extern_function(&mut g: generator_.Generator,
@@ -436,11 +459,17 @@ def generate_extern_function(&mut g: generator_.Generator,
     let mut params: list.List = list.make(types.PTR);
     let mut param_type_handles: list.List = list.make(types.PTR);
     let mut i: int = 0;
+    let mut variadic: bool = false;
     while i as uint < x.context.params.size()
     {
         let pnode: ast.Node = x.context.params.get(i);
         i = i + 1;
         let p: ^ast.FuncParam = pnode.unwrap() as ^ast.FuncParam;
+
+        if p.variadic {
+            variadic = true;
+        }
+
         if not _generate_func_param(
             g, p, &x.namespace, code.make_nil_scope(),
             params, param_type_handles, false)
@@ -448,6 +477,11 @@ def generate_extern_function(&mut g: generator_.Generator,
              # Failed to resolve type; mark us as poisioned.
              x.type_ = code.make_poison();
              return code.make_poison();
+        }
+
+        if variadic {
+            # This is now a "variadic" function and it is closed.
+            break;
         }
     }
 
@@ -457,7 +491,7 @@ def generate_extern_function(&mut g: generator_.Generator,
         ret_typ_han,
         param_type_handles.elements as ^^llvm.LLVMOpaqueType,
         param_type_handles.size as uint32,
-        0);
+        1 if variadic else 0);
 
     # Create and store our type.
     let han: ^code.Handle;
@@ -501,21 +535,24 @@ def _generate_func_param(
     &mut handles: list.List,
     arrow_cc: bool) -> bool
 {
-    # Resolve the type.
-    let mut ptype_handle: ^code.Handle = resolver.resolve_in(
-        &g, &x.type_, namespace, scope, code.make_nil());
-    if code.isnil(ptype_handle) { return false; }
-    if not code.is_type(ptype_handle) {
-        ptype_handle = code.type_of(ptype_handle);
+    let mut ptype_handle: ^code.Handle = code.make_nil();
+    if not x.variadic {
+        # Resolve the type.
+        ptype_handle = resolver.resolve_in(
+            &g, &x.type_, namespace, scope, code.make_nil());
+        if code.isnil(ptype_handle) { return false; }
+        if not code.is_type(ptype_handle) {
+            ptype_handle = code.type_of(ptype_handle);
+        }
+
+        ptype_handle = _generate_func_param_wrap(
+            ptype_handle, generator_util.alter_type_handle(ptype_handle));
+        let type_: ^code.Type = ptype_handle._object as ^code.Type;
+        let type_handle: ^llvm.LLVMOpaqueType = type_.handle;
+
+        # Emplace the type handle.
+        handles.push_ptr(type_handle as ^void);
     }
-
-    ptype_handle = _generate_func_param_wrap(
-        ptype_handle, generator_util.alter_type_handle(ptype_handle));
-    let type_: ^code.Type = ptype_handle._object as ^code.Type;
-    let type_handle: ^llvm.LLVMOpaqueType = type_.handle;
-
-    # Emplace the type handle.
-    handles.push_ptr(type_handle as ^void);
 
     if not ast.isnull(x.id)
     {
@@ -524,7 +561,8 @@ def _generate_func_param(
         types.push_ptr(code.make_parameter(
             param_id.name.data() as str,
             ptype_handle,
-            code.make_nil()) as ^void);
+            code.make_nil(),
+            x.variadic) as ^void);
     }
     else
     {
@@ -532,7 +570,8 @@ def _generate_func_param(
         types.push_ptr(code.make_parameter(
             (0 as ^int8) as str,
             ptype_handle,
-            code.make_nil()) as ^void);
+            code.make_nil(),
+            x.variadic) as ^void);
     }
 
     # Return success.

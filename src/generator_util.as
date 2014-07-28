@@ -94,7 +94,7 @@ def declare_assert(&mut g: generator_.Generator) {
     # Create a `solid` handle to the parameters.
     let mut params: list.List = list.make(types.PTR);
     params.push_ptr(code.make_parameter(
-        "condition", phandle, code.make_nil()) as ^void);
+        "condition", phandle, code.make_nil(), false) as ^void);
 
     # Create a `solid` handle to the function type.
     let type_: ^code.Handle = code.make_function_type(
@@ -346,6 +346,7 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
 
     # Build the cast.
     let val: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
+    let mut lst: list.List;
     if src_han._tag == code.TAG_INT_TYPE and src_han._tag == type_._tag {
         # Get the int_ty out.
         let src_int: ^code.IntegerType = src as ^code.IntegerType;
@@ -521,6 +522,29 @@ def cast(&mut g: generator_.Generator, handle: ^code.Handle,
             let int_ty: ^code.IntegerType = ptr_ty.pointee._object as ^code.IntegerType;
             if int_ty.bits == 8 {
                 val = src_val.handle;
+            }
+        }
+    }
+    else if src_han._tag == code.TAG_STR_TYPE
+            and type_._tag == code.TAG_CHAR_TYPE
+    {
+        # Converting a string to a char only works if we are coming from
+        # a literal that is exactly 1 character
+        if handle._context <> 0 as ^ast.Node {
+            if handle._context.tag == ast.TAG_STRING {
+                let string_: ^ast.StringExpr = (handle._context^).unwrap() as ^ast.StringExpr;
+                let str_: ast.StringExpr = string_^;
+                lst = str_.unescape();  # HACK!
+                if lst.size == 1 {
+                    # Find the ASCII value of this string
+                    let c0: int8 = lst.at_i8(0);
+                    let ty: ^code.Type = type_._object as ^code.Type;
+
+                    # Create a constant int for this.
+                    val = llvm.LLVMConstInt(ty.handle, c0 as uint64, false);
+                }
+                lst.dispose();
+                val;
             }
         }
     }

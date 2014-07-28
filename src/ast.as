@@ -1,5 +1,6 @@
 import libc;
 import list;
+import types;
 import string;
 
 # [ ] Add '.dispose' methods to dispose of memory
@@ -157,6 +158,89 @@ type BooleanExpr { value: bool }
 # Expression type for a string literal
 type StringExpr { mut text: string.String }
 
+implement StringExpr {
+
+    def count(mut self) -> uint {
+        let mut l: list.List = self.unescape();
+        let n: uint = l.size;
+        l.dispose();
+        return n;
+    }
+
+    def unescape(mut self) -> list.List {
+        # Unescape the textual content of the string into a list of bytes.
+        # Iterate and construct bytes from the string.
+        let mut chars: list.List = self.text._data;
+        let mut bytes: list.List = list.make(types.I8);
+        bytes.reserve(1);
+        let mut buffer: list.List = list.make(types.I8);
+        let mut i: int = 0;
+        let mut in_escape: bool = false;
+        let mut in_utf8_escape: bool = false;
+        while i as uint < chars.size {
+            let c: int8 = chars.at_i8(i);
+            i = i + 1;
+
+            if in_utf8_escape {
+                # Get more characters
+                if buffer.size < 2 { buffer.push_i8(c); }
+                if buffer.size == 2 {
+                    # We've gotten exactly 2 more characters.
+                    # Parse a hexadecimal from the text.
+                    let data: ^int8 = buffer.elements;
+                    (data + 2)^ = 0;
+                    let val: int64 = libc.strtol(data, 0 as ^^int8, 16);
+
+                    # Write out this single byte into bytes.
+                    bytes.push_i8(val as int8);
+
+                    # Clear the temp buffer.
+                    buffer.clear();
+
+                    # No longer in a UTF-8 escape sequence.
+                    in_utf8_escape = false;
+                }
+                void;
+            } else if in_escape {
+                # Check what do on the control character.
+                if      c == (('\\' as char) as int8) { bytes.push_i8(('\\' as char) as int8); }
+                else if c == (('n' as char) as int8)  { bytes.push_i8(('\n' as char) as int8); }
+                else if c == (('r' as char) as int8)  { bytes.push_i8(('\r' as char) as int8); }
+                else if c == (('f' as char) as int8)  { bytes.push_i8(('\f' as char) as int8); }
+                else if c == (('a' as char) as int8)  { bytes.push_i8(('\a' as char) as int8); }
+                else if c == (('b' as char) as int8)  { bytes.push_i8(('\b' as char) as int8); }
+                else if c == (('v' as char) as int8)  { bytes.push_i8(('\v' as char) as int8); }
+                else if c == (('t' as char) as int8)  { bytes.push_i8(('\t' as char) as int8); }
+                else if c == (('"' as char) as int8)  { bytes.push_i8(('\"' as char) as int8); }
+                else if c == (('\'' as char) as int8) { bytes.push_i8(('\'' as char) as int8); }
+                else if c == (('x' as char) as int8)  { in_utf8_escape = true; }
+                # else if (c == 'u')  { in_utf16_escape = true; }
+                # else if (c == 'U')  { in_utf32_escape = true; }
+
+                # No longer in an escape sequence.
+                in_escape = false;
+                void;
+            } else {
+                if c == (('\\' as char) as int8) {
+                    # Mark that we are in an escape sequence.
+                    in_escape = true;
+                    void;
+                } else {
+                    # Push the character.
+                    bytes.push_i8(c);
+                }
+            }
+        }
+
+        # Dispose.
+        buffer.dispose();
+
+        # Return the bytes.
+        bytes;
+    }
+
+}
+
 # "Generic" binary expression type.
 type BinaryExpr { mut lhs: Node, mut rhs: Node }
 
@@ -259,7 +343,8 @@ type FuncParam {
     mut id: Node,
     type_: Node,
     mutable: bool,
-    default: Node
+    default: Node,
+    variadic: bool
 }
 
 # External static slot.
@@ -1087,6 +1172,8 @@ def dump_delegate(stream: ^libc._IO_FILE, node: ^Node) {
 # -----------------------------------------------------------------------------
 def dump_func_param(stream: ^libc._IO_FILE, node: ^Node) {
     let x: ^FuncParam = unwrap(node^) as ^FuncParam;
+    if x.variadic { libc.fprintf(stream, "Variadic " as ^int8); }
+    if x.mutable { libc.fprintf(stream, "Mutable " as ^int8); }
     libc.fprintf(stream, "FuncParam <?>" as ^int8);
     if x.mutable { libc.fprintf(stream, " mut" as ^int8); }
     if not isnull(x.id) {

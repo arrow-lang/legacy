@@ -73,6 +73,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     let ptr_size: uint = types.sizeof(types.PTR);
     g.items = dict.make(65535);
     g.nodes = dict.make(65535);
+    g.imported_modules = dict.make(65535);
     g.ns = list.make(types.STR);
     g.top_ns = string.make();
     g.loops = list.make_generic(generator_.LOOP_SIZE);
@@ -238,11 +239,97 @@ def declare_main(&mut g: generator_.Generator) {
         # Does the module main function return?
         module_main_fn_returns =
             module_main_fn_type.return_type._tag <> code.TAG_VOID_TYPE;
+
+        # Does the module main function take arguments?
+        if module_main_fn_type.parameters.size > 3 {
+            # Yes; but too many.
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                                "too many parameters (4) for 'main': must be 0, 2, or 3" as ^int8);
+            errors.end();
+
+            return;
+        } else if module_main_fn_type.parameters.size == 1 {
+            # Yes; but not enough
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                                "only one parameter for 'main': must be 0, 2, or 3" as ^int8);
+            errors.end();
+
+            return;
+        } else if module_main_fn_type.parameters.size > 0 {
+            # Test the type of the first parameter of main.
+            let mut param_han: ^code.Handle = module_main_fn_type.parameters.at_ptr(0) as ^code.Handle;
+            let mut param: ^code.Parameter = param_han._object as ^code.Parameter;
+            let mut param_type_match: bool = false;
+            if param.type_._tag == code.TAG_INT_TYPE {
+                let int_ty: ^code.IntegerType = param.type_._object as ^code.IntegerType;
+                if int_ty.bits == 32 {
+                    param_type_match = true;
+                }
+            }
+            if not param_type_match {
+                errors.begin_error();
+                errors.libc.fprintf(errors.libc.stderr,
+                                    "first parameter of 'main' (argument count) must be of type 'int32'" as ^int8);
+                errors.end();
+
+                return;
+            }
+
+            # Test the type of the second parameter of main.
+            param_han = module_main_fn_type.parameters.at_ptr(1) as ^code.Handle;
+            param = param_han._object as ^code.Parameter;
+            param_type_match = false;
+            if param.type_._tag == code.TAG_POINTER_TYPE {
+                let ptrty: ^code.PointerType = param.type_._object as ^code.PointerType;
+                if ptrty.pointee._tag == code.TAG_STR_TYPE {
+                    param_type_match = true;
+                }
+            }
+            if not param_type_match {
+                errors.begin_error();
+                errors.libc.fprintf(errors.libc.stderr,
+                                    "second parameter of 'main' (argument array) must be of type '*str'" as ^int8);
+                errors.end();
+
+                return;
+            }
+
+            if module_main_fn_type.parameters.size == 3 {
+                # Test the type of the third parameter of main.
+                param_han = module_main_fn_type.parameters.at_ptr(2) as ^code.Handle;
+                param = param_han._object as ^code.Parameter;
+                param_type_match = false;
+                if param.type_._tag == code.TAG_POINTER_TYPE {
+                    let ptrty: ^code.PointerType = param.type_._object as ^code.PointerType;
+                    if ptrty.pointee._tag == code.TAG_STR_TYPE {
+                        param_type_match = true;
+                    }
+                }
+                if not param_type_match {
+                    errors.begin_error();
+                    errors.libc.fprintf(errors.libc.stderr,
+                                        "third parameter of 'main' (environment) must be of type '*str'" as ^int8);
+                    errors.end();
+
+                    return;
+                }
+            }
+        }
     }
+
+    # Build an array of argument types for the `main` fn.
+    let mut main_param_types: list.List = list.make(types.PTR);
+    main_param_types.push_ptr(llvm.LLVMInt32Type() as ^void);
+    main_param_types.push_ptr(llvm.LLVMPointerType(llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0), 0) as ^void);
+    main_param_types.push_ptr(llvm.LLVMPointerType(llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0), 0) as ^void);
 
     # Build the LLVM type for the `main` fn.
     let main_type: ^llvm.LLVMOpaqueType = llvm.LLVMFunctionType(
-        llvm.LLVMInt32Type(), 0 as ^^llvm.LLVMOpaqueType, 0, 0);
+        llvm.LLVMInt32Type(),
+        main_param_types.elements as ^^llvm.LLVMOpaqueType,
+        main_param_types.size as uint32, 0);
 
     # Build the LLVM function for `main`.
     let main_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMAddFunction(
@@ -253,14 +340,32 @@ def declare_main(&mut g: generator_.Generator) {
     entry_block = llvm.LLVMAppendBasicBlock(main_fn, "" as ^int8);
     llvm.LLVMPositionBuilderAtEnd(g.irb, entry_block);
 
+    # Iterate and add argument places for main arguments.
+    let mut main_args: list.List = list.make(types.PTR);
+    let mut arg_idx: uint = 0;
+    while arg_idx < module_main_fn_type.parameters.size {
+        # Get the parameter handle.
+        let prm_val: ^llvm.LLVMOpaqueValue;
+        prm_val = llvm.LLVMGetParam(main_fn, arg_idx as uint32);
+
+        # Push the parameter onto the argument list for main.
+        main_args.push_ptr(prm_val as ^void);
+        arg_idx = arg_idx + 1;
+    }
+
     let main_res: ^llvm.LLVMOpaqueValue;
     if module_main_fn <> 0 as ^llvm.LLVMOpaqueValue {
         # Create a `call` to the module main method.
         main_res = llvm.LLVMBuildCall(
             g.irb, module_main_fn,
-            0 as ^^llvm.LLVMOpaqueValue, 0,
+            main_args.elements as ^^llvm.LLVMOpaqueValue,
+            main_args.size as uint32,
             "" as ^int8);
     }
+
+    # Dispose
+    main_param_types.dispose();
+    main_args.dispose();
 
     # If the main is supposed to return ...
     if module_main_fn_returns

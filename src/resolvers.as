@@ -48,6 +48,13 @@ def _type_of(g: ^mut generator_.Generator, item: ^code.Handle)
                 g^, fn.qualified_name.data() as str,
                 item._object as ^code.ExternFunction);
         }
+        else if item._tag == code.TAG_EXTERN_STATIC
+        {
+            let slot: ^code.ExternStatic = item._object as ^code.ExternStatic;
+            generator_type.generate_extern_static(
+                g^, slot.qualified_name.data() as str,
+                item._object as ^code.ExternStatic);
+        }
         else if item._tag == code.TAG_MODULE
         {
             # This is a module; deal with it.
@@ -124,6 +131,23 @@ def type_common(a_ctx: ^ast.Node, a: ^code.Handle,
     } else if b._tag == code.TAG_FLOAT_TYPE and a._tag == code.TAG_INT_TYPE {
         # No matter what the float or int type is the float has greater rank.
         b;
+    } else if b._tag == code.TAG_STR_TYPE and a._tag == code.TAG_CHAR_TYPE {
+        # A string will coerce to an explicit char if the string
+        # is a literal and exactly 1 in length
+        if b_ctx <> 0 as ^ast.Node {
+            if b_ctx.tag == ast.TAG_STRING {
+                let string_: ^ast.StringExpr = (b_ctx^).unwrap() as ^ast.StringExpr;
+                if (string_^).count() == 1 {
+                    a;
+                } else {
+                    code.make_nil();
+                }
+            } else {
+                code.make_nil();
+            }
+        } else {
+            code.make_nil();
+        }
     } else {
         # No common type resolution.
         # Return nil.

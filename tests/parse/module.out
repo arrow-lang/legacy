@@ -23,7 +23,7 @@ ModuleDecl <?> _
           Parameters <?> 
             FuncParam <?> a
               Ident <?> float64
-            FuncParam <?> mut i
+            Mutable FuncParam <?> mut i
               Ident <?> uint
           Block <?>
             Nodes <?> 

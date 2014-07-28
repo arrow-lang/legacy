@@ -410,7 +410,8 @@ def make_array_type(element: ^Handle, size: uint, handle: ^LLVMOpaqueType) -> ^H
 type Parameter {
     mut name: string.String,
     type_: ^mut Handle,
-    default: ^mut Handle
+    default: ^mut Handle,
+    variadic: bool
 }
 
 type FunctionType {
@@ -429,7 +430,7 @@ let PARAMETER_SIZE: uint = ((0 as ^Parameter) + 1) - (0 as ^Parameter);
 let FUNCTION_TYPE_SIZE: uint = ((0 as ^FunctionType) + 1) - (0 as ^FunctionType);
 
 def make_parameter(name: str, type_: ^Handle,
-                   default: ^Handle) -> ^Handle {
+                   default: ^Handle, variadic: bool) -> ^Handle {
     # Build the parameter.
     let param: ^Parameter = libc.malloc(PARAMETER_SIZE as int64) as ^Parameter;
     param.name = string.make();
@@ -438,6 +439,7 @@ def make_parameter(name: str, type_: ^Handle,
     }
     param.type_ = type_;
     param.default = default;
+    param.variadic = variadic;
 
     # Wrap in a handle.
     make(TAG_PARAMETER, param as ^void);
@@ -772,9 +774,11 @@ type Value {
 
 let VALUE_SIZE: uint = ((0 as ^Value) + 1) - (0 as ^Value);
 
-def make_value(type_: ^Handle,
-               category: int,
-               handle: ^LLVMOpaqueValue) -> ^Handle {
+
+def make_value_c(context: ^ast.Node,
+                 type_: ^Handle,
+                 category: int,
+                 handle: ^LLVMOpaqueValue) -> ^Handle {
     # Build the module.
     let val: ^Value = libc.malloc(VALUE_SIZE as int64) as ^Value;
     val.handle = handle;
@@ -782,7 +786,14 @@ def make_value(type_: ^Handle,
     val.category = category;
 
     # Wrap in a handle.
-    make(TAG_VALUE, val as ^void);
+    make_c(context, TAG_VALUE, val as ^void);
+}
+
+
+def make_value(type_: ^Handle,
+               category: int,
+               handle: ^LLVMOpaqueValue) -> ^Handle {
+    make_value_c(0 as ^ast.Node, type_, category, handle);
 }
 
 # Function
@@ -870,6 +881,42 @@ def make_attached_function(
     make(TAG_ATTACHED_FUNCTION, func as ^void);
 }
 
+# External static
+# -----------------------------------------------------------------------------
+
+type ExternStatic {
+    context: ^ast.ExternStaticSlot,
+    mut name: string.String,
+    mut namespace: list.List,
+    mut qualified_name: string.String,
+    mut type_: ^mut Handle,
+    handle: ^LLVMOpaqueValue
+}
+
+let EXTERN_STATIC_SIZE: uint = ((0 as ^ExternStatic) + 1) - (0 as ^ExternStatic);
+
+def make_extern_static(
+        context: ^ast.ExternStaticSlot,
+        name: str,
+        &mut namespace: list.List,
+        type_: ^Handle,
+        handle: ^LLVMOpaqueValue) -> ^Handle {
+    # Build the function.
+    let slot: ^ExternStatic = libc.malloc(EXTERN_STATIC_SIZE as int64) as ^ExternStatic;
+    slot.context = context;
+    slot.handle = handle;
+    slot.name = string.make();
+    slot.name.extend(name);
+    slot.namespace = namespace.clone();
+    slot.qualified_name = string.join(".", slot.namespace);
+    slot.qualified_name.append(".");
+    slot.qualified_name.extend(name);
+    slot.type_ = type_;
+
+    # Wrap in a handle.
+    make(TAG_EXTERN_STATIC, slot as ^void);
+}
+
 # External function
 # -----------------------------------------------------------------------------
 
@@ -915,6 +962,7 @@ def make_extern_function(
 # frees their memory.
 
 type Handle {
+    _context: ^ast.Node,
     _tag: int,
     _object: ^void
 }
@@ -1013,9 +1061,14 @@ def dispose(&self: ^Handle) {
 # Create a handle allocation
 # -----------------------------------------------------------------------------
 def make(tag: int, object: ^void) -> ^Handle {
+    make_c(0 as ^ast.Node, tag, object);
+}
+
+def make_c(context: ^ast.Node, tag: int, object: ^void) -> ^Handle {
     let handle: ^Handle = libc.malloc(HANDLE_SIZE as int64) as ^Handle;
     handle._tag = tag;
     handle._object = object;
+    handle._context = context;
     handle;
 }
 

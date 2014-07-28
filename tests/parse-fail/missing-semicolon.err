@@ -1,1 +1,1 @@
-error: expected `;` but found `true`
+<stdin>:1:7-11: error: expected `;` but found `true`

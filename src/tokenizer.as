@@ -657,8 +657,7 @@ implement Tokenizer {
         # Check for and return keyword tokens instead of the identifier.
         # TODO: A hash-table would better serve this.
         let mut tag: int = 0;
-             if self.buffer.eq_str("def")       { tag = tokens.TOK_DEF; }
-        else if self.buffer.eq_str("let")       { tag = tokens.TOK_LET; }
+             if self.buffer.eq_str("let")       { tag = tokens.TOK_LET; }
         else if self.buffer.eq_str("static")    { tag = tokens.TOK_STATIC; }
         else if self.buffer.eq_str("mut")       { tag = tokens.TOK_MUT; }
         else if self.buffer.eq_str("true")      { tag = tokens.TOK_TRUE; }
@@ -727,7 +726,6 @@ implement Tokenizer {
         else if ch == "}" { tag = tokens.TOK_RBRACE; }
         else if ch == ";" { tag = tokens.TOK_SEMICOLON; }
         else if ch == "," { tag = tokens.TOK_COMMA; }
-        else if ch == "." { tag = tokens.TOK_DOT; }
         else if ch == "^" { tag = tokens.TOK_HAT; }
         else if ch == "&" { tag = tokens.TOK_AMPERSAND; }
         else if ch == "|" { tag = tokens.TOK_PIPE; }
@@ -739,7 +737,16 @@ implement Tokenizer {
         {
             # Start looking forward and attempt to disambiguate the
             # following punctuators.
-            if ch == "+" {
+            if ch == "." {
+                self.pop_char();
+                if self.peek_char(1) == "." and self.peek_char(2) == "." {
+                    self.pop_char();
+                    self.pop_char();
+                    tag = tokens.TOK_ELLIPSIS;
+                } else {
+                    tag = tokens.TOK_DOT;
+                };
+            } else if ch == "+" {
                 self.pop_char();
                 if self.peek_char(1) == "=" {
                     self.pop_char();

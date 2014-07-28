@@ -77,10 +77,7 @@ implement Token {
         else if self.tag > -2000 and self.tag < -1000 {
             # TODO: Replace this with a map or something
             libc.fprintf(stream, "keyword: '");
-            if self.tag == tokens.TOK_DEF {
-                libc.fprintf(stream, "def");
-            }
-            else if self.tag == tokens.TOK_LET {
+            if self.tag == tokens.TOK_LET {
                 libc.fprintf(stream, "let");
             }
             else if self.tag == tokens.TOK_STATIC {
@@ -247,6 +244,8 @@ implement Token {
                 libc.fprintf(stream, "//=");
             } else if self.tag == tokens.TOK_BANG {
                 libc.fprintf(stream, "!");
+            } else if self.tag == tokens.TOK_ELLIPSIS {
+                libc.fprintf(stream, "...");
             } else if self.tag == tokens.TOK_PIPE {
                 libc.fprintf(stream, "|");
             } else if self.tag == tokens.TOK_RFARROW {

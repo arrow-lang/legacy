@@ -10,25 +10,26 @@ extern let isatty(int) -> int;
 
 struct option {
     name: str,
-    has_arg: int,
-    flag: *int,
-    val: int,
+    has_arg: int32,
+    flag: *int32,
+    val: int32,
 }
 
-extern let mut optind: int;
+extern let mut optind: int32;
+extern let mut optarg: str;
 
-extern let getopt_long(argc: int, argv: *str,
+extern let getopt_long(argc: int32, argv: *str,
                        shortopts: str, longopts: *option,
-                       longind: *int) -> int;
+                       longind: *int32) -> int32;
 
 # poll.h
 # -----------------------------------------------------------------------------
 
 struct pollfd {
-    fd: int,
+    fd: int32,
     events: int16,
     revents: int16,
 }
 
 # wait for some event on a file descriptor
-extern let poll(*pollfd, int, int) -> int;
+extern let poll(*pollfd, int32, int32) -> int32;

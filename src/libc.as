@@ -60,3 +60,6 @@ extern let puts(str) -> int64;
 
 # Direct input/output
 extern let fread(*int8, size: uint, count: uint, stream: *FILE) -> uint;
+
+# Error-handling
+extern let perror(str);

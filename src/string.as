@@ -2,6 +2,13 @@ import libc;
 import types;
 import list;
 
+# Raw strings
+# -----------------------------------------------------------------------------
+let nil: str = (0 as *int8) as str;
+let isnil(s: str): bool -> {
+    return (s as *int8) == (0 as *int8);
+}
+
 # String
 # -----------------------------------------------------------------------------
 # A dynamic string that utilizes `list.as` internally.

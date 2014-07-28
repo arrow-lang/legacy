@@ -8,8 +8,13 @@ import shutil
 from subprocess import Popen, PIPE
 from glob import glob
 
+
 top = '.'
 out = 'build'
+
+VERSION = "0.1.0"
+SNAPSHOT_VERSION = "0.1.0"
+
 
 def distclean(ctx):
     try:
@@ -23,6 +28,7 @@ def distclean(ctx):
     # Clean the rest of the files.
     waflib.Scripting.distclean(ctx)
 
+
 def options(ctx):
     # Add an option to specify an existing arrow compiler for the boostrap
     # process.
@@ -34,6 +40,7 @@ def options(ctx):
         '--with-llvm-config', action='store', default='llvm-config',
         dest='llvm_config')
 
+
 def configure(ctx):
     # Load preconfigured tools.
     ctx.load('c_config')
@@ -42,7 +49,7 @@ def configure(ctx):
     if not ctx.options.arrow:
         # Attempt to get a snapshot for this platform.
         try:
-            ctx.env.ARROW = ws.snapshot.get_snapshot("0.0.0")
+            ctx.env.ARROW = ws.snapshot.get_snapshot(SNAPSHOT_VERSION)
 
         except ws.snapshot.SnapshotNotFound:
             ctx.fatal("An existing arrow compiler is needed for the "
@@ -67,11 +74,21 @@ def configure(ctx):
     ctx.check_cfg(path=ctx.options.llvm_config, package='',
                   args='--ldflags --libs all', uselib_store='LLVM')
 
+
 def build(ctx):
     # Compile the compiler to the llvm IL.
-    ctx(rule="${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}",
-        source="src/compiler.as",
-        target="compiler.ll")
+    if SNAPSHOT_VERSION == "0.0.0":
+        rule = "${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}"
+        ctx(rule=rule,
+            source="src/compiler.as",
+            target="compiler.ll")
+
+    else:
+        rule = "${ARROW} ${SRC} > ../build/${TGT}"
+        ctx(rule=rule,
+            source="src/compiler.as",
+            target="compiler.ll",
+            cwd="src")
 
     # Optimize the compiler.
     ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
@@ -89,6 +106,7 @@ def build(ctx):
         source="compiler.o",
         target="arrow")
 
+
 def test(ctx):
     print(ws.test._sep("test session starts", "="))
     print(ws.test._sep("tokenize", "-"))
@@ -102,6 +120,7 @@ def test(ctx):
     print(ws.test._sep("run-fail", "-"))
     ws.test._test_run_fail(ctx)
     ws.test._print_report()
+
 
 def _test_tokenize(ctx):
     print(ws.test._sep("test session starts", "="))

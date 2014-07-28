@@ -102,7 +102,7 @@ def build(ctx):
 
     # Link the compiler into a final executable.
     libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
-    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
+    ctx(rule="${GCC} -o${TGT} ${SRC} %s" % libs,
         source="compiler.o",
         target="arrow")
 

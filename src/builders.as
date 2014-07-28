@@ -1614,7 +1614,7 @@ def assign(g: ^mut generator_.Generator, node: ^ast.Node,
     let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
 
     # Perform the assignment (based on what we have in the LHS).
-    if lhs._tag == code.TAG_STATIC_SLOT {
+    if (lhs._tag == code.TAG_STATIC_SLOT) or (lhs._tag == code.TAG_EXTERN_STATIC) {
         # Get the real object.
         let slot: ^code.StaticSlot = lhs._object as ^code.StaticSlot;
 

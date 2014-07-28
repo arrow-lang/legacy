@@ -886,11 +886,11 @@ def make_attached_function(
 
 type ExternStatic {
     context: ^ast.ExternStaticSlot,
-    handle: ^LLVMOpaqueValue,
-    mut namespace: list.List,
     mut name: string.String,
+    mut namespace: list.List,
     mut qualified_name: string.String,
-    mut type_: ^mut Handle
+    mut type_: ^mut Handle,
+    handle: ^LLVMOpaqueValue
 }
 
 let EXTERN_STATIC_SIZE: uint = ((0 as ^ExternStatic) + 1) - (0 as ^ExternStatic);

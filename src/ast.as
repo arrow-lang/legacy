@@ -94,80 +94,82 @@ let TAG_SIZEOF          : int = 81;             # SizeOf
 
 # Generic AST "node" that can store a node generically.
 # NOTE: This is filthy polymorphism.
-type Node { tag: int, data: ^void }
+struct Node { tag: int, data: *int8 }
 
 implement Node {
-    def unwrap(&self) -> ^void { self.data; }
-    def _set_tag(&mut self, tag: int) { self.tag = tag; }
+    let unwrap(self): *int8 -> { self.data; }
+    let _set_tag(mut self, tag: int) -> { self.tag = tag; }
 }
 
 # Generic collection of AST "nodes" that can store a
 # heterogeneous linked-list of nodes.
-type Nodes { mut elements: list.List }
+struct Nodes { elements: list.List }
 
-def make_nodes() -> Nodes {
+let make_nodes(): Nodes -> {
     let nodes: Nodes;
     nodes.elements = list.make_generic(_sizeof(TAG_NODE));
     nodes;
 }
 
-def new_nodes() -> ^Nodes {
+let new_nodes(): *Nodes -> {
     let node: Node = make(TAG_NODES);
-    node.data as ^Nodes;
+    node.data as *Nodes;
 }
 
 implement Nodes {
 
-    def dispose(&mut self) { self.elements.dispose(); }
+    let dispose(mut self) -> { self.elements.dispose(); }
 
-    def size(&self) -> uint { self.elements.size; }
+    let size(self): uint -> { self.elements.size; }
 
-    def push(&mut self, el: Node) {
+    let push(mut self, el: Node) -> {
         # Ensure our `element_size` is set correctly.
         self.elements.element_size = _sizeof(TAG_NODE);
 
         # Push the node onto our list.
-        self.elements.push(&el as ^void);
+        self.elements.push(&el);
     }
 
-    def pop(&mut self) -> Node {
-        let ptr: ^Node = self.elements.at(-1) as ^Node;
-        let val: Node = ptr^;
+    let pop(mut self): Node -> {
+        let ptr: *Node = self.elements.get(-1) as *Node;
+        let val: Node = *ptr;
         self.elements.erase(-1);
         val;
     }
 
-    def get(&self, i: int) -> Node {
-        let ptr: ^Node = self.elements.at(i) as ^Node;
-        ptr^;
+    let get(self, i: int): Node -> {
+        let ptr: *Node = self.elements.get(i) as *Node;
+        *ptr;
     }
 
-    def clear(&mut self) { self.elements.clear(); }
+    let clear(mut self) -> {
+        self.elements.clear();
+    }
 
 }
 
 # Expression type for integral literals with a distinct base like "2321".
-type IntegerExpr { base: int8, mut text: string.String }
+struct IntegerExpr { base: int8, text: string.String }
 
 # Expression type for float literals.
-type FloatExpr { mut text: string.String }
+struct FloatExpr { text: string.String }
 
 # Expression type for a boolean literal
-type BooleanExpr { value: bool }
+struct BooleanExpr { value: bool }
 
 # Expression type for a string literal
-type StringExpr { mut text: string.String }
+struct StringExpr { text: string.String }
 
 implement StringExpr {
 
-    def count(mut self) -> uint {
+    let count(mut self): uint -> {
         let mut l: list.List = self.unescape();
         let n: uint = l.size;
         l.dispose();
         return n;
     }
 
-    def unescape(mut self) -> list.List {
+    let unescape(mut self): list.List -> {
         # Unescape the textual content of the string into a list of bytes.
         # Iterate and construct bytes from the string.
         let mut chars: list.List = self.text._data;
@@ -183,13 +185,13 @@ implement StringExpr {
 
             if in_utf8_escape {
                 # Get more characters
-                if buffer.size < 2 { buffer.push_i8(c); }
+                if buffer.size < 2 { buffer.push_i8(c); };
                 if buffer.size == 2 {
                     # We've gotten exactly 2 more characters.
                     # Parse a hexadecimal from the text.
-                    let data: ^int8 = buffer.elements;
-                    (data + 2)^ = 0;
-                    let val: int64 = libc.strtol(data, 0 as ^^int8, 16);
+                    let data: *int8 = buffer.elements;
+                    (data + 2)* = 0;
+                    let val: int64 = libc.strtol(data, 0, 16);
 
                     # Write out this single byte into bytes.
                     bytes.push_i8(val as int8);
@@ -199,8 +201,7 @@ implement StringExpr {
 
                     # No longer in a UTF-8 escape sequence.
                     in_utf8_escape = false;
-                }
-                void;
+                };
             } else if in_escape {
                 # Check what do on the control character.
                 if      c == (('\\' as char) as int8) { bytes.push_i8(('\\' as char) as int8); }
@@ -213,13 +214,12 @@ implement StringExpr {
                 else if c == (('t' as char) as int8)  { bytes.push_i8(('\t' as char) as int8); }
                 else if c == (('"' as char) as int8)  { bytes.push_i8(('\"' as char) as int8); }
                 else if c == (('\'' as char) as int8) { bytes.push_i8(('\'' as char) as int8); }
-                else if c == (('x' as char) as int8)  { in_utf8_escape = true; }
+                else if c == (('x' as char) as int8)  { in_utf8_escape = true; };
                 # else if (c == 'u')  { in_utf16_escape = true; }
                 # else if (c == 'U')  { in_utf32_escape = true; }
 
                 # No longer in an escape sequence.
                 in_escape = false;
-                void;
             } else {
                 if c == (('\\' as char) as int8) {
                     # Mark that we are in an escape sequence.
@@ -228,9 +228,9 @@ implement StringExpr {
                 } else {
                     # Push the character.
                     bytes.push_i8(c);
-                }
-            }
-        }
+                };
+            };
+        };
 
         # Dispose.
         buffer.dispose();
@@ -242,105 +242,105 @@ implement StringExpr {
 }
 
 # "Generic" binary expression type.
-type BinaryExpr { mut lhs: Node, mut rhs: Node }
+struct BinaryExpr { lhs: Node, rhs: Node }
 
 # Pointer type.
-type PointerType { mutable: bool, pointee: Node }
+struct PointerType { mutable: bool, pointee: Node }
 
 # Cast expression.
-type CastExpr { operand: Node, type_: Node }
+struct CastExpr { operand: Node, type_: Node }
 
 # Index expression type.
-type IndexExpr { expression: Node, subscript: Node }
+struct IndexExpr { expression: Node, subscript: Node }
 
 # Conditional expression.
-type ConditionalExpr { lhs: Node, rhs: Node, condition: Node }
+struct ConditionalExpr { lhs: Node, rhs: Node, condition: Node }
 
 # "Generic" unary expression type.
-type UnaryExpr { operand: Node }
+struct UnaryExpr { operand: Node }
 
 # Address of expression
-type AddressOfExpr { operand: Node, mutable: bool }
+struct AddressOfExpr { operand: Node, mutable: bool }
 
 # Module declaration that contains a sequence of nodes.
-type ModuleDecl { mut id: Node, mut nodes: Nodes }
+struct ModuleDecl { id: Node, nodes: Nodes }
 
 # Unsafe block.
-type UnsafeBlock { mut nodes: Nodes }
+struct UnsafeBlock { nodes: Nodes }
 
 # Block.
-type Block { mut nodes: Nodes }
+struct Block { nodes: Nodes }
 
 # ArrayExpr.
-type ArrayExpr { mut nodes: Nodes }
+struct ArrayExpr { nodes: Nodes }
 
 # PostfixExpr
-type PostfixExpr { operand: Node, expression: Node }
+struct PostfixExpr { operand: Node, expression: Node }
 
 # RecordExpr.
-type RecordExpr { mut nodes: Nodes }
+struct RecordExpr { nodes: Nodes }
 
 # SequenceExpr
-type SequenceExpr { mut nodes: Nodes }
+struct SequenceExpr { nodes: Nodes }
 
 # RecordExprMem
-type RecordExprMem { mut id: Node, expression: Node }
+struct RecordExprMem { id: Node, expression: Node }
 
 # TupleExpr.
-type TupleExpr { mut nodes: Nodes }
+struct TupleExpr { nodes: Nodes }
 
 # TupleExprMem
-type TupleExprMem { mut id: Node, expression: Node }
+struct TupleExprMem { id: Node, expression: Node }
 
 # TupleType.
-type TupleType { mut nodes: Nodes }
+struct TupleType { nodes: Nodes }
 
 # TupleTypeMem
-type TupleTypeMem { mut id: Node, type_: Node }
+struct TupleTypeMem { id: Node, type_: Node }
 
 # Return expression.
-type ReturnExpr { expression: Node }
+struct ReturnExpr { expression: Node }
 
 # Type expression.
-type TypeExpr { expression: Node }
+struct TypeExpr { expression: Node }
 
 # Selection expression.
-type SelectExpr { mut branches: Nodes }
+struct SelectExpr { branches: Nodes }
 
 # Selection branch.
-type SelectBranch { condition: Node, block: Node }
+struct SelectBranch { condition: Node, block: Node }
 
 # Loop
-type Loop { condition: Node, block: Node }
+struct Loop { condition: Node, block: Node }
 
 # Function declaration.
-type FuncDecl {
-    mut id: Node,
+struct FuncDecl {
+    id: Node,
     return_type: Node,
-    mut params: Nodes,
-    mut type_params: Nodes,
+    params: Nodes,
+    type_params: Nodes,
     instance: bool,
     mutable: bool,
     block: Node
 }
 
 # Function delegate
-type Delegate {
-    mut id: Node,
+struct Delegate {
+    id: Node,
     return_type: Node,
-    mut params: Nodes
+    params: Nodes
 }
 
 # External function declaration.
-type ExternFunc {
-    mut id: Node,
+struct ExternFunc {
+    id: Node,
     return_type: Node,
-    mut params: Nodes
+    params: Nodes
 }
 
 # Function parameter.
-type FuncParam {
-    mut id: Node,
+struct FuncParam {
+    id: Node,
     type_: Node,
     mutable: bool,
     default: Node,
@@ -348,72 +348,68 @@ type FuncParam {
 }
 
 # External static slot.
-type ExternStaticSlot {
-    mut id: Node,
+struct ExternStaticSlot {
+    id: Node,
     type_: Node,
     mutable: bool
 }
 
-type SizeOf {
+struct SizeOf {
     type_: Node
 }
 
 # Local slot declaration.
-type SlotDecl {
-    mut id: Node,
+struct SlotDecl {
+    id: Node,
     type_: Node,
     mutable: bool,
     initializer: Node
 }
 
 # TypeParam
-type TypeParam { mut id: Node, default: Node, variadic: bool, bounds: Node }
+struct TypeParam { id: Node, default: Node, variadic: bool, bounds: Node }
 
 # Struct
-type Struct { mut nodes: Nodes, mut id: Node, mut type_params: Nodes }
+struct Struct { nodes: Nodes, id: Node, type_params: Nodes }
 
 # StructMem
-type StructMem { mut id: Node, type_: Node, initializer: Node }
+struct StructMem { id: Node, type_: Node, initializer: Node }
 
 # Call expression
-type CallExpr { expression: Node, mut arguments: Nodes }
+struct CallExpr { expression: Node, arguments: Nodes }
 
 # Call arguments
-type Argument { expression: Node, mut name: Node }
+struct Argument { expression: Node, name: Node }
 
 # Identifier.
-type Ident { mut name: string.String }
+struct Ident { name: string.String }
 
 # Pointer type.
-type PointerType { mutable: bool, mut pointee: Node }
+struct PointerType { mutable: bool, pointee: Node }
 
 # Array type.
-type ArrayType { mut element: Node, mut size: Node }
+struct ArrayType { element: Node, size: Node }
 
 # Import
 # ids: ordered collection of the identifiers that make up the `x.y.z` name
 #      to import.
-type Import { mut ids: Nodes }
+struct Import { ids: Nodes }
 
 # Implement Block
-type Implement { mut type_: Node, mut methods: Nodes }
+struct Implement { type_: Node, methods: Nodes }
 
 # Global
-type Empty { }
+struct Empty { }
 
 # sizeof -- Get the size required for a specific node tag.
 # -----------------------------------------------------------------------------
-# FIXME: Replace this monster with type(T).size as soon as humanely possible
-def _sizeof(tag: int) -> uint {
+let _sizeof(tag: int): uint -> {
     if tag == TAG_INTEGER {
-        let tmp: IntegerExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(IntegerExpr);
     } else if tag == TAG_FLOAT {
-        let tmp: FloatExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(FloatExpr);
     } else if tag == TAG_STRING {
-        let tmp: StringExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(StringExpr);
     } else if tag == TAG_ADD
            or tag == TAG_SUBTRACT
            or tag == TAG_MULTIPLY
@@ -440,94 +436,77 @@ def _sizeof(tag: int) -> uint {
            or tag == TAG_ASSIGN_MOD
            or tag == TAG_SELECT_OP
            or tag == TAG_MEMBER {
-        let tmp: BinaryExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(BinaryExpr);
     } else if tag == TAG_CONDITIONAL {
-        let tmp: ConditionalExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(ConditionalExpr);
     } else if tag == TAG_PROMOTE
            or tag == TAG_NUMERIC_NEGATE
            or tag == TAG_BITNEG
            or tag == TAG_DEREF
            or tag == TAG_LOGICAL_NEGATE {
-        let tmp: UnaryExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(UnaryExpr);
     }
-    else if tag == TAG_MODULE  { let tmp: ModuleDecl; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_SIZEOF  { let tmp: SizeOf; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_ADDRESS_OF  { let tmp: AddressOfExpr; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_UNSAFE  { let tmp: UnsafeBlock; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_BLOCK   { let tmp: Block; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_ARRAY_EXPR { let tmp: ArrayExpr; ((&tmp + 1) - &tmp); }
-    # else if tag == TAG_SEQ_EXPR  { let tmp: SequenceExpr; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_TUPLE_EXPR { let tmp: TupleExpr; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_TUPLE_TYPE { let tmp: TupleType; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_IMPLEMENT { let tmp: Implement; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_NODE    { let tmp: Node; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_NODES   { let tmp: Nodes; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_BOOLEAN { let tmp: BooleanExpr; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_IDENT   { let tmp: Ident; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_POINTER_TYPE   { let tmp: PointerType; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_ARRAY_TYPE     { let tmp: ArrayType; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_IMPORT  { let tmp: Import; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_INDEX   { let tmp: IndexExpr; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_DELEGATE  { let tmp: Delegate; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_CAST    { let tmp: CastExpr; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_CALL    { let tmp: CallExpr; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_LOOP    { let tmp: Loop; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_CALL_ARG{ let tmp: Argument; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_TYPE_PARAM{ let tmp: TypeParam; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_EXTERN_STATIC { let tmp: ExternStaticSlot; ((&tmp + 1) - &tmp); }
-    else if tag == TAG_EXTERN_FUNC { let tmp: ExternFunc; ((&tmp + 1) - &tmp); }
+    else if tag == TAG_MODULE  { size_of(ModuleDecl); }
+    else if tag == TAG_SIZEOF  { size_of(SizeOf); }
+    else if tag == TAG_ADDRESS_OF  { size_of(AddressOfExpr); }
+    else if tag == TAG_UNSAFE  { size_of(UnsafeBlock); }
+    else if tag == TAG_BLOCK   { size_of(Block); }
+    else if tag == TAG_ARRAY_EXPR { size_of(ArrayExpr); }
+    else if tag == TAG_TUPLE_EXPR { size_of(TupleExpr); }
+    else if tag == TAG_TUPLE_TYPE { size_of(TupleType); }
+    else if tag == TAG_IMPLEMENT { size_of(Implement); }
+    else if tag == TAG_NODE    { size_of(Node); }
+    else if tag == TAG_NODES   { size_of(Nodes); }
+    else if tag == TAG_BOOLEAN { size_of(BooleanExpr); }
+    else if tag == TAG_IDENT   { size_of(Ident); }
+    else if tag == TAG_POINTER_TYPE   { size_of(PointerType); }
+    else if tag == TAG_ARRAY_TYPE     { size_of(ArrayType); }
+    else if tag == TAG_IMPORT  { size_of(Import); }
+    else if tag == TAG_INDEX   { size_of(IndexExpr); }
+    else if tag == TAG_DELEGATE  { size_of(Delegate); }
+    else if tag == TAG_CAST    { size_of(CastExpr); }
+    else if tag == TAG_CALL    { size_of(CallExpr); }
+    else if tag == TAG_LOOP    { size_of(Loop); }
+    else if tag == TAG_CALL_ARG{ size_of(Argument); }
+    else if tag == TAG_TYPE_PARAM{ size_of(TypeParam); }
+    else if tag == TAG_EXTERN_STATIC { size_of(ExternStaticSlot); }
+    else if tag == TAG_EXTERN_FUNC { size_of(ExternFunc); }
     else if tag == TAG_SLOT {
-        let tmp: SlotDecl;
-        ((&tmp + 1) - &tmp);
+        size_of(SlotDecl);
     } else if tag == TAG_SELECT {
-        let tmp: SelectExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(SelectExpr);
     } else if tag == TAG_SELECT_BRANCH {
-        let tmp: SelectBranch;
-        ((&tmp + 1) - &tmp);
+        size_of(SelectBranch);
     } else if tag == TAG_FUNC_DECL {
-        let tmp: FuncDecl;
-        ((&tmp + 1) - &tmp);
+        size_of(FuncDecl);
     } else if tag == TAG_FUNC_PARAM {
-        let tmp: FuncParam;
-        ((&tmp + 1) - &tmp);
+        size_of(FuncParam);
     } else if tag == TAG_RETURN {
-        let tmp: ReturnExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(ReturnExpr);
     } else if tag == TAG_TYPE_EXPR {
-        let tmp: TypeExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(TypeExpr);
     } else if tag == TAG_GLOBAL
            or tag == TAG_BREAK
            or tag == TAG_SELF
            or tag == TAG_CONTINUE {
-        let tmp: Empty;
-        ((&tmp + 1) - &tmp);
+        size_of(Empty);
     } else if tag == TAG_TUPLE_EXPR_MEM {
-        let tmp: TupleExprMem;
-        ((&tmp + 1) - &tmp);
+        size_of(TupleExprMem);
     } else if tag == TAG_TUPLE_TYPE_MEM {
-        let tmp: TupleTypeMem;
-        ((&tmp + 1) - &tmp);
+        size_of(TupleTypeMem);
     } else if tag == TAG_STRUCT {
-        let tmp: Struct;
-        ((&tmp + 1) - &tmp);
+        size_of(Struct);
     } else if tag == TAG_STRUCT_MEM {
-        let tmp: StructMem;
-        ((&tmp + 1) - &tmp);
+        size_of(StructMem);
     } else if tag == TAG_POSTFIX_EXPR {
-        let tmp: PostfixExpr;
-        ((&tmp + 1) - &tmp);
+        size_of(PostfixExpr);
     }
-    else { 0; }
+    else { 0; };
 }
 
 # make -- Allocate space for a node in the AST
 # -----------------------------------------------------------------------------
-def make(tag: int) -> Node {
+let make(tag: int): Node -> {
     # Create the node object.
     let node: Node;
     node.tag = tag;
@@ -541,28 +520,28 @@ def make(tag: int) -> Node {
 
 # unwrap -- Pull out the actual node data of a generic AST node.
 # -----------------------------------------------------------------------------
-def unwrap(&node: Node) -> ^void { node.unwrap(); }
+let unwrap(node: Node): *int8 -> { node.unwrap(); }
 
 # null -- Get a null node.
 # -----------------------------------------------------------------------------
-def null() -> Node {
+let null(): Node -> {
     let mut node: Node;
     node.tag = 0;
-    node.data = 0 as ^void;
+    node.data = 0;
     node;
 }
 
 # isnull -- Check for a null node.
 # -----------------------------------------------------------------------------
-def isnull(&node: Node) -> bool { node.tag == 0; }
+let isnull(node: Node): bool -> { node.tag == 0; }
 
 # dump -- Dump a textual representation of the node to stdout.
 # -----------------------------------------------------------------------------
-let mut dump_table: def(^libc._IO_FILE, ^Node)[100];
+let mut dump_table: delegate(*libc.FILE, Node)[100];
 let mut dump_indent: int = 0;
 let mut dump_initialized: bool = false;
-def dump(&node: Node) { fdump(libc.stdout, node); }
-def fdump(stream: ^libc._IO_FILE, &node: Node) {
+let dump(node: Node) -> { fdump(libc.stdout, node); }
+let fdump(stream: *libc.FILE, node: Node) -> {
     if not dump_initialized {
         dump_table[TAG_INTEGER] = dump_integer_expr;
         dump_table[TAG_FLOAT] = dump_float_expr;
@@ -644,109 +623,109 @@ def fdump(stream: ^libc._IO_FILE, &node: Node) {
         dump_table[TAG_IMPLEMENT] = dump_implement;
         dump_table[TAG_DELEGATE] = dump_delegate;
         dump_initialized = true;
-    }
+    };
 
     print_indent(stream);
-    let dump_fn: def(^libc._IO_FILE, ^Node) = dump_table[node.tag];
-    let node_ptr: ^Node = &node;
+    let dump_fn: delegate(*libc.FILE, Node) = dump_table[node.tag];
+    let node_ptr: *Node = &node;
     dump_fn(stream, node_ptr);
 }
 
 # print_indent
 # -----------------------------------------------------------------------------
-def print_indent(stream: ^libc._IO_FILE) {
+let print_indent(stream: *libc.FILE) -> {
     let mut dump_indent_i: int = 0;
     while dump_indent > dump_indent_i {
-        libc.fprintf(stream, "  " as ^int8);
+        libc.fprintf(stream, "  ");
         dump_indent_i = dump_indent_i + 1;
     }
 }
 
 # dump_boolean_expr
 # -----------------------------------------------------------------------------
-def dump_boolean_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^BooleanExpr = unwrap(node^) as ^BooleanExpr;
-    libc.fprintf(stream, "BooleanExpr <?> %s\n" as ^int8, "true" if x.value else "false");
+let dump_boolean_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *BooleanExpr = unwrap(node) as *BooleanExpr;
+    libc.fprintf(stream, "BooleanExpr <?> %s\n", "true" if x.value else "false");
 }
 
 # dump_integer_expr
 # -----------------------------------------------------------------------------
-def dump_integer_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^IntegerExpr = unwrap(node^) as ^IntegerExpr;
-    libc.fprintf(stream, "IntegerExpr <?> %s (%d)\n" as ^int8, x.text.data(), x.base);
+let dump_integer_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *IntegerExpr = unwrap(node) as *IntegerExpr;
+    libc.fprintf(stream, "IntegerExpr <?> %s (%d)\n", x.text.data(), x.base);
 }
 
 # dump_float_expr
 # -----------------------------------------------------------------------------
-def dump_float_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^FloatExpr = unwrap(node^) as ^FloatExpr;
-    libc.fprintf(stream, "FloatExpr <?> %s\n" as ^int8, x.text.data());
+let dump_float_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *FloatExpr = unwrap(node) as *FloatExpr;
+    libc.fprintf(stream, "FloatExpr <?> %s\n", x.text.data());
 }
 
 # dump_string_expr
 # -----------------------------------------------------------------------------
-def dump_string_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^StringExpr = unwrap(node^) as ^StringExpr;
-    libc.fprintf(stream, "StringExpr <?> %s\n" as ^int8, x.text.data());
+let dump_string_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *StringExpr = unwrap(node) as *StringExpr;
+    libc.fprintf(stream, "StringExpr <?> %s\n", x.text.data());
 }
 
 # dump_binop_expr
 # -----------------------------------------------------------------------------
-def dump_binop_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^BinaryExpr = unwrap(node^) as ^BinaryExpr;
+let dump_binop_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *BinaryExpr = unwrap(node) as *BinaryExpr;
     if node.tag == TAG_ADD {
-        libc.fprintf(stream, "AddExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "AddExpr <?>\n");
     } else if node.tag == TAG_SUBTRACT {
-        libc.fprintf(stream, "SubtractExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "SubtractExpr <?>\n");
     } else if node.tag == TAG_MULTIPLY {
-        libc.fprintf(stream, "MultiplyExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "MultiplyExpr <?>\n");
     } else if node.tag == TAG_DIVIDE {
-        libc.fprintf(stream, "DivideExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "DivideExpr <?>\n");
     }  else if node.tag == TAG_INTEGER_DIVIDE {
-        libc.fprintf(stream, "IntDivideExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "IntDivideExpr <?>\n");
     } else if node.tag == TAG_MODULO {
-        libc.fprintf(stream, "ModuloExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "ModuloExpr <?>\n");
     } else if node.tag == TAG_LOGICAL_AND {
-        libc.fprintf(stream, "LogicalAndExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "LogicalAndExpr <?>\n");
     } else if node.tag == TAG_LOGICAL_OR {
-        libc.fprintf(stream, "LogicalOrExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "LogicalOrExpr <?>\n");
     } else if node.tag == TAG_EQ {
-        libc.fprintf(stream, "EQExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "EQExpr <?>\n");
     } else if node.tag == TAG_NE {
-        libc.fprintf(stream, "NEExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "NEExpr <?>\n");
     } else if node.tag == TAG_LT {
-        libc.fprintf(stream, "LTExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "LTExpr <?>\n");
     } else if node.tag == TAG_LE {
-        libc.fprintf(stream, "LEExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "LEExpr <?>\n");
     } else if node.tag == TAG_GT {
-        libc.fprintf(stream, "GTExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "GTExpr <?>\n");
     } else if node.tag == TAG_GE {
-        libc.fprintf(stream, "GEExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "GEExpr <?>\n");
     } else if node.tag == TAG_ASSIGN {
-        libc.fprintf(stream, "AssignExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "AssignExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_ADD {
-        libc.fprintf(stream, "AssignAddExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "AssignAddExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_SUB {
-        libc.fprintf(stream, "AssignSubtractExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "AssignSubtractExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_MULT {
-        libc.fprintf(stream, "AssignMultiplyExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "AssignMultiplyExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_DIV {
-        libc.fprintf(stream, "AssignDivideExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "AssignDivideExpr <?>\n");
     }  else if node.tag == TAG_ASSIGN_INT_DIV {
-        libc.fprintf(stream, "AssignIntDivideExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "AssignIntDivideExpr <?>\n");
     } else if node.tag == TAG_ASSIGN_MOD {
-        libc.fprintf(stream, "AssignModuloExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "AssignModuloExpr <?>\n");
     } else if node.tag == TAG_SELECT_OP {
-        libc.fprintf(stream, "SelectOpExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "SelectOpExpr <?>\n");
     } else if node.tag == TAG_MEMBER {
-        libc.fprintf(stream, "MemberExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "MemberExpr <?>\n");
     } else if node.tag == TAG_BITOR {
-        libc.fprintf(stream, "BitOrExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "BitOrExpr <?>\n");
     } else if node.tag == TAG_BITXOR {
-        libc.fprintf(stream, "BitXorExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "BitXorExpr <?>\n");
     } else if node.tag == TAG_BITAND {
-        libc.fprintf(stream, "BitAndExpr <?>\n" as ^int8);
-    }
+        libc.fprintf(stream, "BitAndExpr <?>\n");
+    };
     dump_indent = dump_indent + 1;
     fdump(stream, x.lhs);
     fdump(stream, x.rhs);
@@ -755,9 +734,9 @@ def dump_binop_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_index_expr
 # -----------------------------------------------------------------------------
-def dump_index_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^IndexExpr = unwrap(node^) as ^IndexExpr;
-    libc.fprintf(stream, "IndexExpr <?>\n" as ^int8);
+let dump_index_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *IndexExpr = unwrap(node) as *IndexExpr;
+    libc.fprintf(stream, "IndexExpr <?>\n");
     dump_indent = dump_indent + 1;
     fdump(stream, x.expression);
     fdump(stream, x.subscript);
@@ -766,9 +745,9 @@ def dump_index_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_cast_expr
 # -----------------------------------------------------------------------------
-def dump_cast_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^CastExpr = unwrap(node^) as ^CastExpr;
-    libc.fprintf(stream, "CastExpr <?>\n" as ^int8);
+let dump_cast_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *CastExpr = unwrap(node) as *CastExpr;
+    libc.fprintf(stream, "CastExpr <?>\n");
     dump_indent = dump_indent + 1;
     fdump(stream, x.operand);
     fdump(stream, x.type_);
@@ -777,14 +756,14 @@ def dump_cast_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_call_arg
 # -----------------------------------------------------------------------------
-def dump_call_arg(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^Argument = unwrap(node^) as ^Argument;
-    libc.fprintf(stream, "Argument <?>" as ^int8);
+let dump_call_arg(stream: *libc.FILE, node: Node) -> {
+    let x: *Argument = unwrap(node) as *Argument;
+    libc.fprintf(stream, "Argument <?>");
     if not isnull(x.name) {
-        let id: ^Ident = unwrap(x.name) as ^Ident;
-        libc.fprintf(stream, " %s" as ^int8, id.name.data());
-    }
-    libc.fprintf(stream, "\n" as ^int8);
+        let id: *Ident = unwrap(x.name) as *Ident;
+        libc.fprintf(stream, " %s", id.name.data());
+    };
+    libc.fprintf(stream, "\n");
     dump_indent = dump_indent + 1;
     fdump(stream, x.expression);
     dump_indent = dump_indent - 1;
@@ -792,9 +771,9 @@ def dump_call_arg(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_call_expr
 # -----------------------------------------------------------------------------
-def dump_call_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^CallExpr = unwrap(node^) as ^CallExpr;
-    libc.fprintf(stream, "CallExpr <?>\n" as ^int8);
+let dump_call_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *CallExpr = unwrap(node) as *CallExpr;
+    libc.fprintf(stream, "CallExpr <?>\n");
     dump_indent = dump_indent + 1;
     fdump(stream, x.expression);
     dump_nodes(stream, "Arguments", x.arguments);
@@ -803,19 +782,19 @@ def dump_call_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_unary_expr
 # -----------------------------------------------------------------------------
-def dump_unary_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^UnaryExpr = unwrap(node^) as ^UnaryExpr;
+let dump_unary_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *UnaryExpr = unwrap(node) as *UnaryExpr;
     if node.tag == TAG_PROMOTE {
-        libc.fprintf(stream, "NumericPromoteExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "NumericPromoteExpr <?>\n");
     } else if node.tag == TAG_NUMERIC_NEGATE {
-        libc.fprintf(stream, "NumericNegateExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "NumericNegateExpr <?>\n");
     } else if node.tag == TAG_LOGICAL_NEGATE {
-        libc.fprintf(stream, "LogicalNegateExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "LogicalNegateExpr <?>\n");
     } else if node.tag == TAG_BITNEG {
-        libc.fprintf(stream, "BitNegExpr <?>\n" as ^int8);
+        libc.fprintf(stream, "BitNegExpr <?>\n");
     } else if node.tag == TAG_DEREF {
-        libc.fprintf(stream, "DerefExpr <?>\n" as ^int8);
-    }
+        libc.fprintf(stream, "DerefExpr <?>\n");
+    };
     dump_indent = dump_indent + 1;
     fdump(stream, x.operand);
     dump_indent = dump_indent - 1;
@@ -823,11 +802,11 @@ def dump_unary_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_address_of
 # -----------------------------------------------------------------------------
-def dump_address_of(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^AddressOfExpr = unwrap(node^) as ^AddressOfExpr;
-    libc.fprintf(stream, "AddressOfExpr <?>" as ^int8);
-    if x.mutable { libc.fprintf(stream, " mut" as ^int8); }
-    libc.fprintf(stream, "\n" as ^int8);
+let dump_address_of(stream: *libc.FILE, node: Node) -> {
+    let x: *AddressOfExpr = unwrap(node) as *AddressOfExpr;
+    libc.fprintf(stream, "AddressOfExpr <?>");
+    if x.mutable { libc.fprintf(stream, " mut"); };
+    libc.fprintf(stream, "\n");
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.operand);
@@ -836,12 +815,12 @@ def dump_address_of(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_module
 # -----------------------------------------------------------------------------
-def dump_module(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^ModuleDecl = unwrap(node^) as ^ModuleDecl;
-    libc.fprintf(stream, "ModuleDecl <?> " as ^int8);
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    libc.fprintf(stream, "%s" as ^int8, id.name.data());
-    libc.fprintf(stream, "\n" as ^int8);
+let dump_module(stream: *libc.FILE, node: Node) -> {
+    let x: *ModuleDecl = unwrap(node) as *ModuleDecl;
+    libc.fprintf(stream, "ModuleDecl <?> ");
+    let id: *Ident = unwrap(x.id) as *Ident;
+    libc.fprintf(stream, "%s", id.name.data());
+    libc.fprintf(stream, "\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Nodes", x.nodes);
@@ -850,9 +829,9 @@ def dump_module(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_unsafe_block
 # -----------------------------------------------------------------------------
-def dump_unsafe_block(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^UnsafeBlock = unwrap(node^) as ^UnsafeBlock;
-    libc.fprintf(stream, "UnsafeBlock <?>\n" as ^int8);
+let dump_unsafe_block(stream: *libc.FILE, node: Node) -> {
+    let x: *UnsafeBlock = unwrap(node) as *UnsafeBlock;
+    libc.fprintf(stream, "UnsafeBlock <?>\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Nodes", x.nodes);
@@ -861,9 +840,9 @@ def dump_unsafe_block(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_block_expr
 # -----------------------------------------------------------------------------
-def dump_block_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^Block = unwrap(node^) as ^Block;
-    libc.fprintf(stream, "Block <?>\n" as ^int8);
+let dump_block_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *Block = unwrap(node) as *Block;
+    libc.fprintf(stream, "Block <?>\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Nodes", x.nodes);
@@ -872,9 +851,9 @@ def dump_block_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_seq_expr
 # -----------------------------------------------------------------------------
-def dump_seq_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^SequenceExpr = unwrap(node^) as ^SequenceExpr;
-    libc.fprintf(stream, "SequenceExpr <?>\n" as ^int8);
+let dump_seq_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *SequenceExpr = unwrap(node) as *SequenceExpr;
+    libc.fprintf(stream, "SequenceExpr <?>\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Members", x.nodes);
@@ -883,9 +862,9 @@ def dump_seq_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_array_expr
 # -----------------------------------------------------------------------------
-def dump_array_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^ArrayExpr = unwrap(node^) as ^ArrayExpr;
-    libc.fprintf(stream, "ArrayExpr <?>\n" as ^int8);
+let dump_array_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *ArrayExpr = unwrap(node) as *ArrayExpr;
+    libc.fprintf(stream, "ArrayExpr <?>\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Elements", x.nodes);
@@ -894,18 +873,18 @@ def dump_array_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_tuple_expr_mem
 # -----------------------------------------------------------------------------
-def dump_tuple_expr_mem(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^TupleExprMem = unwrap(node^) as ^TupleExprMem;
-    libc.fprintf(stream, "TupleExprMem <?>" as ^int8);
+let dump_tuple_expr_mem(stream: *libc.FILE, node: Node) -> {
+    let x: *TupleExprMem = unwrap(node) as *TupleExprMem;
+    libc.fprintf(stream, "TupleExprMem <?>");
     if not isnull(x.id)
     {
-        let id: ^Ident = unwrap(x.id) as ^Ident;
-        libc.fprintf(stream, " %s\n" as ^int8, id.name.data());
+        let id: *Ident = unwrap(x.id) as *Ident;
+        libc.fprintf(stream, " %s\n", id.name.data());
     }
     else
     {
-        libc.fprintf(stream, "\n" as ^int8);
-    }
+        libc.fprintf(stream, "\n");
+    };
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.expression);
@@ -914,18 +893,18 @@ def dump_tuple_expr_mem(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_tuple_type_mem
 # -----------------------------------------------------------------------------
-def dump_tuple_type_mem(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^TupleTypeMem = unwrap(node^) as ^TupleTypeMem;
-    libc.fprintf(stream, "TupleTypeMem <?>" as ^int8);
+let dump_tuple_type_mem(stream: *libc.FILE, node: Node) -> {
+    let x: *TupleTypeMem = unwrap(node) as *TupleTypeMem;
+    libc.fprintf(stream, "TupleTypeMem <?>");
     if not isnull(x.id)
     {
-        let id: ^Ident = unwrap(x.id) as ^Ident;
-        libc.fprintf(stream, " %s\n" as ^int8, id.name.data());
+        let id: *Ident = unwrap(x.id) as *Ident;
+        libc.fprintf(stream, " %s\n", id.name.data());
     }
     else
     {
-        libc.fprintf(stream, "\n" as ^int8);
-    }
+        libc.fprintf(stream, "\n");
+    };
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.type_);
@@ -934,9 +913,9 @@ def dump_tuple_type_mem(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_postfix_expr
 # -----------------------------------------------------------------------------
-def dump_postfix_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^PostfixExpr = unwrap(node^) as ^PostfixExpr;
-    libc.fprintf(stream, "PostfixExpr <?>\n" as ^int8);
+let dump_postfix_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *PostfixExpr = unwrap(node) as *PostfixExpr;
+    libc.fprintf(stream, "PostfixExpr <?>\n");
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.operand);
@@ -946,12 +925,12 @@ def dump_postfix_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_struct
 # -----------------------------------------------------------------------------
-def dump_struct(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^Struct = unwrap(node^) as ^Struct;
-    libc.fprintf(stream, "Struct <?> " as ^int8);
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    libc.fprintf(stream, "%s" as ^int8, id.name.data());
-    libc.fprintf(stream, "\n" as ^int8);
+let dump_struct(stream: *libc.FILE, node: Node) -> {
+    let x: *Struct = unwrap(node) as *Struct;
+    libc.fprintf(stream, "Struct <?> ");
+    let id: *Ident = unwrap(x.id) as *Ident;
+    libc.fprintf(stream, "%s", id.name.data());
+    libc.fprintf(stream, "\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Type Parameters", x.type_params);
@@ -961,9 +940,9 @@ def dump_struct(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_implement
 # -----------------------------------------------------------------------------
-def dump_implement(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^Implement = unwrap(node^) as ^Implement;
-    libc.fprintf(stream, "Implement <?>\n" as ^int8);
+let dump_implement(stream: *libc.FILE, node: Node) -> {
+    let x: *Implement = unwrap(node) as *Implement;
+    libc.fprintf(stream, "Implement <?>\n");
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.type_);
@@ -973,39 +952,39 @@ def dump_implement(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_type_param
 # -----------------------------------------------------------------------------
-def dump_type_param(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^TypeParam = unwrap(node^) as ^TypeParam;
-    libc.fprintf(stream, "TypeParam <?> " as ^int8);
-    if x.variadic { libc.fprintf(stream, "variadic " as ^int8); }
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    libc.fprintf(stream, "%s" as ^int8, id.name.data());
-    libc.fprintf(stream, "\n" as ^int8);
+let dump_type_param(stream: *libc.FILE, node: Node) -> {
+    let x: *TypeParam = unwrap(node) as *TypeParam;
+    libc.fprintf(stream, "TypeParam <?> ");
+    if x.variadic { libc.fprintf(stream, "variadic "); };
+    let id: *Ident = unwrap(x.id) as *Ident;
+    libc.fprintf(stream, "%s", id.name.data());
+    libc.fprintf(stream, "\n");
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.default) { fdump(stream, x.default); }
-    if not isnull(x.bounds)  { fdump(stream, x.bounds);  }
+    if not isnull(x.default) { fdump(stream, x.default); };
+    if not isnull(x.bounds)  { fdump(stream, x.bounds);  };
     dump_indent = dump_indent - 1;
 }
 
 # dump_struct_mem
 # -----------------------------------------------------------------------------
-def dump_struct_mem(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^StructMem = unwrap(node^) as ^StructMem;
-    libc.fprintf(stream, "StructMem <?> " as ^int8);
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    libc.fprintf(stream, "%s\n" as ^int8, id.name.data());
+let dump_struct_mem(stream: *libc.FILE, node: Node) -> {
+    let x: *StructMem = unwrap(node) as *StructMem;
+    libc.fprintf(stream, "StructMem <?> ");
+    let id: *Ident = unwrap(x.id) as *Ident;
+    libc.fprintf(stream, "%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.type_);
-    if not isnull(x.initializer) { fdump(stream, x.initializer); }
+    if not isnull(x.initializer) { fdump(stream, x.initializer); };
     dump_indent = dump_indent - 1;
 }
 
 # dump_tuple_expr
 # -----------------------------------------------------------------------------
-def dump_tuple_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^TupleExpr = unwrap(node^) as ^TupleExpr;
-    libc.fprintf(stream, "TupleExpr <?>\n" as ^int8);
+let dump_tuple_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *TupleExpr = unwrap(node) as *TupleExpr;
+    libc.fprintf(stream, "TupleExpr <?>\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Elements", x.nodes);
@@ -1014,9 +993,9 @@ def dump_tuple_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_tuple_type
 # -----------------------------------------------------------------------------
-def dump_tuple_type(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^TupleType = unwrap(node^) as ^TupleType;
-    libc.fprintf(stream, "TupleType <?>\n" as ^int8);
+let dump_tuple_type(stream: *libc.FILE, node: Node) -> {
+    let x: *TupleType = unwrap(node) as *TupleType;
+    libc.fprintf(stream, "TupleType <?>\n");
 
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Elements", x.nodes);
@@ -1025,45 +1004,45 @@ def dump_tuple_type(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_ident
 # -----------------------------------------------------------------------------
-def dump_ident(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^Ident = unwrap(node^) as ^Ident;
-    libc.fprintf(stream, "Ident <?> %s\n" as ^int8, x.name.data());
+let dump_ident(stream: *libc.FILE, node: Node) -> {
+    let x: *Ident = unwrap(node) as *Ident;
+    libc.fprintf(stream, "Ident <?> %s\n", x.name.data());
 }
 
 # dump_extern_static_slot
 # -----------------------------------------------------------------------------
-def dump_extern_static_slot(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^ExternStaticSlot = unwrap(node^) as ^ExternStaticSlot;
-    libc.fprintf(stream, "ExternStaticSlot <?> " as ^int8);
-    if x.mutable { libc.fprintf(stream, "mut " as ^int8); }
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    libc.fprintf(stream, "%s\n" as ^int8, id.name.data());
+let dump_extern_static_slot(stream: *libc.FILE, node: Node) -> {
+    let x: *ExternStaticSlot = unwrap(node) as *ExternStaticSlot;
+    libc.fprintf(stream, "ExternStaticSlot <?> ");
+    if x.mutable { libc.fprintf(stream, "mut "); };
+    let id: *Ident = unwrap(x.id) as *Ident;
+    libc.fprintf(stream, "%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.type_) { fdump(stream, x.type_); }
+    if not isnull(x.type_) { fdump(stream, x.type_); };
     dump_indent = dump_indent - 1;
 }
 
 # dump_slot
 # -----------------------------------------------------------------------------
-def dump_slot(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^SlotDecl = unwrap(node^) as ^SlotDecl;
-    libc.fprintf(stream, "SlotDecl <?> " as ^int8);
-    if x.mutable { libc.fprintf(stream, "mut " as ^int8); }
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    libc.fprintf(stream, "%s\n" as ^int8, id.name.data());
+let dump_slot(stream: *libc.FILE, node: Node) -> {
+    let x: *SlotDecl = unwrap(node) as *SlotDecl;
+    libc.fprintf(stream, "SlotDecl <?> ");
+    if x.mutable { libc.fprintf(stream, "mut "); };
+    let id: *Ident = unwrap(x.id) as *Ident;
+    libc.fprintf(stream, "%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.type_) { fdump(stream, x.type_); }
-    if not isnull(x.initializer) { fdump(stream, x.initializer); }
+    if not isnull(x.type_) { fdump(stream, x.type_); };
+    if not isnull(x.initializer) { fdump(stream, x.initializer); };
     dump_indent = dump_indent - 1;
 }
 
 # dump_nodes
 # -----------------------------------------------------------------------------
-def dump_nodes(stream: ^libc._IO_FILE, name: str, &nodes: Nodes) {
+let dump_nodes(stream: *libc.FILE, name: str, nodes: Nodes) -> {
     print_indent(stream);
-    libc.fprintf(stream, "%s <?> \n" as ^int8, name);
+    libc.fprintf(stream, "%s <?> \n", name);
 
     # Enumerate through each node.
     dump_indent = dump_indent + 1;
@@ -1078,9 +1057,9 @@ def dump_nodes(stream: ^libc._IO_FILE, name: str, &nodes: Nodes) {
 
 # dump_select_expr
 # -----------------------------------------------------------------------------
-def dump_select_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^SelectExpr = unwrap(node^) as ^SelectExpr;
-    libc.fprintf(stream, "SelectExpr <?> \n" as ^int8);
+let dump_select_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *SelectExpr = unwrap(node) as *SelectExpr;
+    libc.fprintf(stream, "SelectExpr <?> \n");
 
     dump_indent = dump_indent + 1;
     dump_nodes(stream, "Branches", x.branches);
@@ -1089,33 +1068,33 @@ def dump_select_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_select_branch
 # -----------------------------------------------------------------------------
-def dump_select_branch(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^SelectBranch = unwrap(node^) as ^SelectBranch;
-    libc.fprintf(stream, "SelectBranch <?> \n" as ^int8);
+let dump_select_branch(stream: *libc.FILE, node: Node) -> {
+    let x: *SelectBranch = unwrap(node) as *SelectBranch;
+    libc.fprintf(stream, "SelectBranch <?> \n");
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.condition) { fdump(stream, x.condition); }
+    if not isnull(x.condition) { fdump(stream, x.condition); };
     fdump(stream, x.block);
     dump_indent = dump_indent - 1;
 }
 
 # dump_loop
 # -----------------------------------------------------------------------------
-def dump_loop(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^Loop = unwrap(node^) as ^Loop;
-    libc.fprintf(stream, "Loop <?> \n" as ^int8);
+let dump_loop(stream: *libc.FILE, node: Node) -> {
+    let x: *Loop = unwrap(node) as *Loop;
+    libc.fprintf(stream, "Loop <?> \n");
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.condition) { fdump(stream, x.condition); }
+    if not isnull(x.condition) { fdump(stream, x.condition); };
     fdump(stream, x.block);
     dump_indent = dump_indent - 1;
 }
 
 # dump_conditional_expr
 # -----------------------------------------------------------------------------
-def dump_conditional_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^ConditionalExpr = unwrap(node^) as ^ConditionalExpr;
-    libc.fprintf(stream, "ConditionalExpr <?> \n" as ^int8);
+let dump_conditional_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *ConditionalExpr = unwrap(node) as *ConditionalExpr;
+    libc.fprintf(stream, "ConditionalExpr <?> \n");
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.condition);
@@ -1126,30 +1105,30 @@ def dump_conditional_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_extern_func
 # -----------------------------------------------------------------------------
-def dump_extern_func(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^ExternFunc = unwrap(node^) as ^ExternFunc;
-    libc.fprintf(stream, "ExternFunc <?> " as ^int8);
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    libc.fprintf(stream, "%s\n" as ^int8, id.name.data());
+let dump_extern_func(stream: *libc.FILE, node: Node) -> {
+    let x: *ExternFunc = unwrap(node) as *ExternFunc;
+    libc.fprintf(stream, "ExternFunc <?> ");
+    let id: *Ident = unwrap(x.id) as *Ident;
+    libc.fprintf(stream, "%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.return_type) { fdump(stream, x.return_type); }
+    if not isnull(x.return_type) { fdump(stream, x.return_type); };
     dump_nodes(stream, "Parameters", x.params);
     dump_indent = dump_indent - 1;
 }
 
 # dump_func_decl
 # -----------------------------------------------------------------------------
-def dump_func_decl(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^FuncDecl = unwrap(node^) as ^FuncDecl;
-    if x.mutable { libc.fprintf(stream, "Mutable " as ^int8); }
-    if x.instance { libc.fprintf(stream, "Member " as ^int8); }
-    libc.fprintf(stream, "FuncDecl <?> " as ^int8);
-    let id: ^Ident = unwrap(x.id) as ^Ident;
-    libc.fprintf(stream, "%s\n" as ^int8, id.name.data());
+let dump_func_decl(stream: *libc.FILE, node: Node) -> {
+    let x: *FuncDecl = unwrap(node) as *FuncDecl;
+    if x.mutable { libc.fprintf(stream, "Mutable "); };
+    if x.instance { libc.fprintf(stream, "Member "); };
+    libc.fprintf(stream, "FuncDecl <?> ");
+    let id: *Ident = unwrap(x.id) as *Ident;
+    libc.fprintf(stream, "%s\n", id.name.data());
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.return_type) { fdump(stream, x.return_type); }
+    if not isnull(x.return_type) { fdump(stream, x.return_type); };
     dump_nodes(stream, "Type Parameters", x.type_params);
     dump_nodes(stream, "Parameters", x.params);
     fdump(stream, x.block);
@@ -1158,44 +1137,44 @@ def dump_func_decl(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_delegate
 # -----------------------------------------------------------------------------
-def dump_delegate(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^Delegate = unwrap(node^) as ^Delegate;
-    libc.fprintf(stream, "Delegate <?>\n" as ^int8);
+let dump_delegate(stream: *libc.FILE, node: Node) -> {
+    let x: *Delegate = unwrap(node) as *Delegate;
+    libc.fprintf(stream, "Delegate <?>\n");
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.return_type) { fdump(stream, x.return_type); }
+    if not isnull(x.return_type) { fdump(stream, x.return_type); };
     dump_nodes(stream, "Parameters", x.params);
     dump_indent = dump_indent - 1;
 }
 
 # dump_func_param
 # -----------------------------------------------------------------------------
-def dump_func_param(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^FuncParam = unwrap(node^) as ^FuncParam;
-    if x.variadic { libc.fprintf(stream, "Variadic " as ^int8); }
-    if x.mutable { libc.fprintf(stream, "Mutable " as ^int8); }
-    libc.fprintf(stream, "FuncParam <?>" as ^int8);
-    if x.mutable { libc.fprintf(stream, " mut" as ^int8); }
+let dump_func_param(stream: *libc.FILE, node: Node) -> {
+    let x: *FuncParam = unwrap(node) as *FuncParam;
+    if x.variadic { libc.fprintf(stream, "Variadic "); };
+    if x.mutable { libc.fprintf(stream, "Mutable "); };
+    libc.fprintf(stream, "FuncParam <?>");
+    if x.mutable { libc.fprintf(stream, " mut"); };
     if not isnull(x.id) {
-        let id: ^Ident = unwrap(x.id) as ^Ident;
-        libc.fprintf(stream, " %s\n" as ^int8, id.name.data());
+        let id: *Ident = unwrap(x.id) as *Ident;
+        libc.fprintf(stream, " %s\n", id.name.data());
     } else {
-        libc.fprintf(stream, "\n" as ^int8);
-    }
+        libc.fprintf(stream, "\n");
+    };
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.type_) { fdump(stream, x.type_); }
-    if not isnull(x.default) { fdump(stream, x.default); }
+    if not isnull(x.type_) { fdump(stream, x.type_); };
+    if not isnull(x.default) { fdump(stream, x.default); };
     dump_indent = dump_indent - 1;
 }
 
 # dump_pointer_type
 # -----------------------------------------------------------------------------
-def dump_pointer_type(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^PointerType = unwrap(node^) as ^PointerType;
-    libc.fprintf(stream, "PointerType <?>" as ^int8);
-    if x.mutable { libc.fprintf(stream, " mut" as ^int8); }
-    libc.fprintf(stream, "\n" as ^int8);
+let dump_pointer_type(stream: *libc.FILE, node: Node) -> {
+    let x: *PointerType = unwrap(node) as *PointerType;
+    libc.fprintf(stream, "PointerType <?>");
+    if x.mutable { libc.fprintf(stream, " mut"); };
+    libc.fprintf(stream, "\n");
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.pointee);
@@ -1204,9 +1183,9 @@ def dump_pointer_type(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_array_type
 # -----------------------------------------------------------------------------
-def dump_array_type(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^ArrayType = unwrap(node^) as ^ArrayType;
-    libc.fprintf(stream, "ArrayType <?>\n" as ^int8);
+let dump_array_type(stream: *libc.FILE, node: Node) -> {
+    let x: *ArrayType = unwrap(node) as *ArrayType;
+    libc.fprintf(stream, "ArrayType <?>\n");
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.size);
@@ -1216,20 +1195,20 @@ def dump_array_type(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_return_expr
 # -----------------------------------------------------------------------------
-def dump_return_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^ReturnExpr = unwrap(node^) as ^ReturnExpr;
-    libc.fprintf(stream, "ReturnExpr <?> \n" as ^int8);
+let dump_return_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *ReturnExpr = unwrap(node) as *ReturnExpr;
+    libc.fprintf(stream, "ReturnExpr <?> \n");
 
     dump_indent = dump_indent + 1;
-    if not isnull(x.expression) { fdump(stream, x.expression); }
+    if not isnull(x.expression) { fdump(stream, x.expression); };
     dump_indent = dump_indent - 1;
 }
 
 # dump_sizeof
 # -----------------------------------------------------------------------------
-def dump_sizeof(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^SizeOf = unwrap(node^) as ^SizeOf;
-    libc.fprintf(stream, "SizeOf <?> \n" as ^int8);
+let dump_sizeof(stream: *libc.FILE, node: Node) -> {
+    let x: *SizeOf = unwrap(node) as *SizeOf;
+    libc.fprintf(stream, "SizeOf <?> \n");
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.type_);
@@ -1238,9 +1217,9 @@ def dump_sizeof(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_type_expr
 # -----------------------------------------------------------------------------
-def dump_type_expr(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^TypeExpr = unwrap(node^) as ^TypeExpr;
-    libc.fprintf(stream, "TypeExpr <?> \n" as ^int8);
+let dump_type_expr(stream: *libc.FILE, node: Node) -> {
+    let x: *TypeExpr = unwrap(node) as *TypeExpr;
+    libc.fprintf(stream, "TypeExpr <?> \n");
 
     dump_indent = dump_indent + 1;
     fdump(stream, x.expression);
@@ -1249,48 +1228,48 @@ def dump_type_expr(stream: ^libc._IO_FILE, node: ^Node) {
 
 # dump_type_box
 # -----------------------------------------------------------------------------
-def dump_type_box(stream: ^libc._IO_FILE, node: ^Node) {
-    libc.fprintf(stream, "TypeBox <?> \n" as ^int8);
+let dump_type_box(stream: *libc.FILE, node: Node) -> {
+    libc.fprintf(stream, "TypeBox <?> \n");
 }
 
 # dump_global
 # -----------------------------------------------------------------------------
-def dump_global(stream: ^libc._IO_FILE, node: ^Node) {
-    libc.fprintf(stream, "Global <?> \n" as ^int8);
+let dump_global(stream: *libc.FILE, node: Node) -> {
+    libc.fprintf(stream, "Global <?> \n");
 }
 
 # dump_self
 # -----------------------------------------------------------------------------
-def dump_self(stream: ^libc._IO_FILE, node: ^Node) {
-    libc.fprintf(stream, "Self <?> \n" as ^int8);
+let dump_self(stream: *libc.FILE, node: Node) -> {
+    libc.fprintf(stream, "Self <?> \n");
 }
 
 # dump_break
 # -----------------------------------------------------------------------------
-def dump_break(stream: ^libc._IO_FILE, node: ^Node) {
-    libc.fprintf(stream, "Break <?> \n" as ^int8);
+let dump_break(stream: *libc.FILE, node: Node) -> {
+    libc.fprintf(stream, "Break <?> \n");
 }
 
 # dump_continue
 # -----------------------------------------------------------------------------
-def dump_continue(stream: ^libc._IO_FILE, node: ^Node) {
-    libc.fprintf(stream, "Continue <?> \n" as ^int8);
+let dump_continue(stream: *libc.FILE, node: Node) -> {
+    libc.fprintf(stream, "Continue <?> \n");
 }
 
 # dump_import
 # -----------------------------------------------------------------------------
-def dump_import(stream: ^libc._IO_FILE, node: ^Node) {
-    let x: ^Import = unwrap(node^) as ^Import;
-    libc.fprintf(stream, "Import <?> " as ^int8);
+let dump_import(stream: *libc.FILE, node: Node) -> {
+    let x: *Import = unwrap(node) as *Import;
+    libc.fprintf(stream, "Import <?> ");
 
     let mut i: int = 0;
     while i as uint < x.ids.size() {
         let node: Node = x.ids.get(i);
-        let id: ^Ident = node.unwrap() as ^Ident;
-        if i > 0 { libc.fprintf(stream, "." as ^int8); }
-        libc.fprintf(stream, "%s" as ^int8, id.name.data());
+        let id: *Ident = node.unwrap() as *Ident;
+        if i > 0 { libc.fprintf(stream, "."); };
+        libc.fprintf(stream, "%s", id.name.data());
         i = i + 1;
     }
 
-    libc.fprintf(stream, "\n" as ^int8);
+    libc.fprintf(stream, "\n");
 }

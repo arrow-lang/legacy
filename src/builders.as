@@ -2441,7 +2441,104 @@ def array(g: ^mut generator_.Generator, node: ^ast.Node,
 
 # Tuple [TAG_TUPLE_EXPR]
 # -----------------------------------------------------------------------------
-# def tuple(g: ^mut generator_.Generator, node: ^ast.Node,
-#           scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
-# {
-# }
+def tuple(g: ^mut generator_.Generator, node: ^ast.Node,
+          scope: ^mut code.Scope, target: ^code.Handle) -> ^code.Handle
+{
+    # Unwrap the node to its proper type.
+    let x: ^ast.TupleExpr = (node^).unwrap() as ^ast.TupleExpr;
+
+    # Get our target (tuple) type
+    # FIXME: Resolve our own type
+    let tuple_type: ^code.TupleType = target._object as ^code.TupleType;
+
+    # First we create and zero a list to hold the entire argument list.
+    let mut argl: list.List = list.make(types.PTR);
+    argl.reserve(tuple_type.elements.size);
+    argl.size = tuple_type.elements.size;
+    libc.memset(argl.elements as ^void, 0, (argl.size * argl.element_size) as int32);
+    let argv: ^mut ^llvm.LLVMOpaqueValue =
+        argl.elements as ^^llvm.LLVMOpaqueValue;
+
+    # Iterate through each argument, build, and push them into
+    # their appropriate position in the argument list.
+    let mut i: int = 0;
+    while i as uint < x.nodes.size()
+    {
+        # Get the specific element.
+        let enode: ast.Node = x.nodes.get(i);
+        let e: ^ast.TupleExprMem = enode.unwrap() as ^ast.TupleExprMem;
+
+        # Resolve the type of the element expression.
+        let param_typ: ^code.Handle = tuple_type.elements.at_ptr(i) as ^code.Handle;
+        let typ: ^code.Handle = resolver.resolve_st(
+            g, &e.expression, scope, param_typ);
+        if code.isnil(typ) { return code.make_nil(); }
+
+        # Build the element expression node.
+        let han: ^code.Handle = builder.build(g, &e.expression, scope, typ);
+        if code.isnil(han) { return code.make_nil(); }
+
+        # Coerce this to a value.
+        let val_han: ^code.Handle = generator_def.to_value(
+            g^, han, code.VC_RVALUE, false);
+
+        # Cast the value to the target type.
+        let cast_han: ^code.Handle = generator_util.cast(
+            g^, val_han, param_typ, false);
+        if code.isnil(cast_han) { return code.make_nil(); }
+        let cast_val: ^code.Value = cast_han._object as ^code.Value;
+
+        # Emplace in the argument list.
+        (argv + i)^ = cast_val.handle;
+        i = i + 1;
+
+        # Dispose.
+        code.dispose(val_han);
+        code.dispose(cast_han);
+    }
+
+    # We can only generate an initial "constant" structure for a
+    # purely constant literal.
+    # Collect indicies and values of non-constant members of the
+    # literal.
+    let mut nonconst_values: list.List = list.make(types.PTR);
+    let mut nonconst_indicies: list.List = list.make(types.INT);
+    i = 0;
+    while i as uint < argl.size {
+        let arg: ^llvm.LLVMOpaqueValue = (argv + i)^;
+        i = i + 1;
+
+        # Is this not some kind of "constant"?
+        if llvm.LLVMIsConstant(arg) == 0 {
+            # Yep; store and zero out the value.
+            nonconst_indicies.push_int(i - 1);
+            nonconst_values.push_ptr(arg as ^void);
+            (argv + (i - 1))^ = llvm.LLVMGetUndef(llvm.LLVMTypeOf(arg));
+        }
+    }
+
+    # Build the "call" instruction (and create the constant struct).
+    let mut val: ^llvm.LLVMOpaqueValue;
+    val = llvm.LLVMConstStruct(argv, argl.size as uint32, false);
+
+    # Iterate through our non-constant values and push them in.
+    i = 0;
+    while i as uint < nonconst_indicies.size {
+        let arg: ^llvm.LLVMOpaqueValue = nonconst_values.at_ptr(i) as
+            ^llvm.LLVMOpaqueValue;
+        let idx: int = nonconst_indicies.at_int(i);
+        i = i + 1;
+
+        # Build the `insertvalue` instruction.
+        val = llvm.LLVMBuildInsertValue(
+            g.irb, val, arg, idx as uint32, "" as ^int8);
+    }
+
+    # Dispose of dynamic memory.
+    nonconst_values.dispose();
+    nonconst_indicies.dispose();
+    argl.dispose();
+
+    # Wrap and return the value.
+    code.make_value(target, code.VC_RVALUE, val);
+}

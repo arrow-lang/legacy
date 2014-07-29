@@ -176,7 +176,7 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     # g.builders[ast.TAG_POINTER_TYPE] = builders.pointer_type;
     g.builders[ast.TAG_INDEX] = builders.index;
     g.builders[ast.TAG_ARRAY_EXPR] = builders.array;
-    # g.builders[ast.TAG_TUPLE_TYPE] = builders.tuple_type;
+    g.builders[ast.TAG_TUPLE_EXPR] = builders.tuple;
     g.builders[ast.TAG_STRING] = builders.string_;
     g.builders[ast.TAG_SELF] = builders.self_;
 

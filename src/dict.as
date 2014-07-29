@@ -15,7 +15,7 @@ import types;
 struct Bucket {
     key: *int8,
     tag: int,
-    value: *void,
+    value: *int8,
     next: *mut Bucket
 }
 
@@ -49,7 +49,7 @@ let hash_str(key: str): uint -> {
 
 implement Bucket {
 
-    let _set_value(mut self, tag: int, value: *void) -> {
+    let _set_value(mut self, tag: int, value: *int8) -> {
         if tag != types.PTR {
             # Deallocate the existing space.
             libc.free(self.value);
@@ -60,10 +60,10 @@ implement Bucket {
 
         if tag == types.STR {
             # Allocate space for the value in the bucket.
-            self.value = libc.calloc(libc.strlen(value as *int8) + 1, 1);
+            self.value = libc.calloc(libc.strlen(value) + 1, 1);
 
             # Copy in the value.
-            libc.strcpy(self.value as *int8, value as *int8);
+            libc.strcpy(self.value, value);
             0;
         } else if tag == types.PTR {
             # Set the value.
@@ -83,7 +83,7 @@ implement Bucket {
 
     let dispose(mut self) -> {
         # Deallocate `key` space.
-        libc.free(self.key as *void);
+        libc.free(self.key as *int8);
 
         # Deallocate `value` space.
         if self.tag != types.PTR { libc.free(self.value); };
@@ -108,7 +108,7 @@ implement Bucket {
         false;
     }
 
-    let get(self, key: str): *void -> {
+    let get(self, key: str): *int8 -> {
         # Check if this bucket is not empty.
         if self.key != 0 as *int8 {
             # Check if this _is_ the bucket in question.
@@ -124,10 +124,10 @@ implement Bucket {
         };
 
         # Found nothing.
-        0 as *void;
+        0 as *int8;
     }
 
-    let set(key: str, tag: int, value: *void) -> {
+    let set(key: str, tag: int, value: *int8) -> {
         # Check if this bucket is not empty.
         if self.key != 0 as *int8 {
             # Check if this _is_ the bucket in question.
@@ -172,7 +172,7 @@ implement Dictionary {
         }
 
         # Free the memory taken up by the buckets themselves.
-        libc.free(self.buckets as *void);
+        libc.free(self.buckets as *int8);
     }
 
     let contains(self, key: str): bool -> {
@@ -186,7 +186,7 @@ implement Dictionary {
         (*b).contains(key);
     }
 
-    let set(mut self, key: str, tag: int, value: *void) -> {
+    let set(mut self, key: str, tag: int, value: *int8) -> {
         # Hash the string key.
         let hash: uint = hash_str(key) & (self.capacity - 1);
 
@@ -201,62 +201,62 @@ implement Dictionary {
     }
 
     let set_i8(mut self, key: str, value: int8) -> {
-        self.set(key, types.I8, &value as *void);
+        self.set(key, types.I8, &value as *int128);
     }
 
     let set_i16(mut self, key: str, value: int16) -> {
-        self.set(key, types.I16, &value as *void);
+        self.set(key, types.I16, &value as *int8);
     }
 
     let set_i32(mut self, key: str, value: int32) -> {
-        self.set(key, types.I32, &value as *void);
+        self.set(key, types.I32, &value as *int8);
     }
 
     let set_i64(mut self, key: str, value: int64) -> {
-        self.set(key, types.I64, &value as *void);
+        self.set(key, types.I64, &value as *int8);
     }
 
     let set_i128(mut self, key: str, value: int128) -> {
-        self.set(key, types.I128, &value as *void);
+        self.set(key, types.I128, &value as *int8);
     }
 
     let set_u8(mut self, key: str, value: int8) -> {
-        self.set(key, types.U8, &value as *void);
+        self.set(key, types.U8, &value as *int8);
     }
 
     let set_u16(mut self, key: str, value: int16) -> {
-        self.set(key, types.U16, &value as *void);
+        self.set(key, types.U16, &value as *int8);
     }
 
     let set_u32(mut self, key: str, value: int32) -> {
-        self.set(key, types.U32, &value as *void);
+        self.set(key, types.U32, &value as *int8);
     }
 
     let set_u64(mut self, key: str, value: int64) -> {
-        self.set(key, types.U64, &value as *void);
+        self.set(key, types.U64, &value as *int8);
     }
 
     let set_u128(mut self, key: str, value: int128) -> {
-        self.set(key, types.U128, &value as *void);
+        self.set(key, types.U128, &value as *int8);
     }
 
     let set_int(mut self, key: str, value: int) -> {
-        self.set(key, types.INT, &value as *void);
+        self.set(key, types.INT, &value as *int8);
     }
 
     let set_uint(mut self, key: str, value: uint) -> {
-        self.set(key, types.UINT, &value as *void);
+        self.set(key, types.UINT, &value as *int8);
     }
 
     let set_str(mut self, key: str, value: str) -> {
-        self.set(key, types.STR, &value as *void);
+        self.set(key, types.STR, &value as *int8);
     }
 
-    let set_ptr(mut self, key: str, value: *void) -> {
-        self.set(key, types.PTR, value as *void);
+    let set_ptr(mut self, key: str, value: *int8) -> {
+        self.set(key, types.PTR, value as *int8);
     }
 
-    let get(self, key: str): *void -> {
+    let get(self, key: str): *int8 -> {
         # Hash the string key.
         let hash: uint = hash_str(key) & (self.capacity - 1);
 
@@ -264,7 +264,7 @@ implement Dictionary {
         let mut b: *mut Bucket = self.buckets + hash;
 
         # Get this from the bucket chain.
-        let value: *void = (*b).get(key) as *void;
+        let value: *int8 = (*b).get(key) as *int8;
         value;
     }
 
@@ -333,8 +333,8 @@ implement Dictionary {
         *p;
     }
 
-    let get_ptr(self, key: str): *void -> {
-        let p: *void = self.get(key) as *void;
+    let get_ptr(self, key: str): *int8 -> {
+        let p: *int8 = self.get(key) as *int8;
         p;
     }
 
@@ -354,7 +354,7 @@ implement Dictionary {
 
 implement Iterator {
 
-    let next(mut self): (str, *void) -> {
+    let next(mut self): (str, *int8) -> {
 
         # Get a bucket with contents.
         loop {
@@ -384,15 +384,15 @@ implement Iterator {
 
         # Get the `key` and `value` out of the bucket.
         let key_str: str = self.bucket.key as str;
-        let val: *void = self.bucket.value;
-        let res: (str, *void) = (key_str, val);
+        let val: *int8 = self.bucket.value;
+        let res: (str, *int8) = (key_str, val);
         res;
 
     }
 
     let next_i8(mut self): (str, int8) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *int8 = ptr as *int8;
         let res: (str, int8) = (key, *val);
@@ -401,7 +401,7 @@ implement Iterator {
 
     let next_i16(mut self): (str, int16) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *int16 = ptr as *int16;
         let res: (str, int16) = (key, *val);
@@ -410,7 +410,7 @@ implement Iterator {
 
     let next_i32(mut self): (str, int32) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *int32 = ptr as *int32;
         let res: (str, int32) = (key, *val);
@@ -419,7 +419,7 @@ implement Iterator {
 
     let next_i64(mut self): (str, int64) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *int64 = ptr as *int64;
         let res: (str, int64) = (key, *val);
@@ -428,7 +428,7 @@ implement Iterator {
 
     let next_i128(mut self): (str, int128) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *int128 = ptr as *int128;
         let res: (str, int128) = (key, *val);
@@ -437,7 +437,7 @@ implement Iterator {
 
     let next_u8(mut self): (str, uint8) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *uint8 = ptr as *uint8;
         let res: (str, uint8) = (key, *val);
@@ -446,7 +446,7 @@ implement Iterator {
 
     let next_u16(mut self): (str, uint16) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *uint16 = ptr as *uint16;
         let res: (str, uint16) = (key, *val);
@@ -455,7 +455,7 @@ implement Iterator {
 
     let next_u32(mut self): (str, uint32) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *uint32 = ptr as *uint32;
         let res: (str, uint32) = (key, *val);
@@ -464,7 +464,7 @@ implement Iterator {
 
     let next_u64(mut self): (str, uint64) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *uint64 = ptr as *uint64;
         let res: (str, uint64) = (key, *val);
@@ -473,7 +473,7 @@ implement Iterator {
 
     let next_u128(mut self): (str, uint128) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *uint128 = ptr as *uint128;
         let res: (str, uint128) = (key, *val);
@@ -482,7 +482,7 @@ implement Iterator {
 
     let next_int(mut self): (str, int) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *int = ptr as *int;
         let res: (str, int) = (key, *val);
@@ -491,7 +491,7 @@ implement Iterator {
 
     let next_uint(mut self): (str, uint) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *uint = ptr as *uint;
         let res: (str, uint) = (key, *val);
@@ -500,7 +500,7 @@ implement Iterator {
 
     let next_str(mut self): (str, str) -> {
         let key: str;
-        let ptr: *void;
+        let ptr: *int8;
         (key, ptr) = self.next();
         let val: *str = ptr as *str;
         let res: (str, str) = (key, *val);

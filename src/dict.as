@@ -12,22 +12,22 @@ import types;
 # - [ ] Implement .size()
 # - [ ] Implement .clear()
 
-type Bucket {
-    key: ^int8,
+struct Bucket {
+    key: *int8,
     tag: int,
-    value: ^void,
-    next: ^mut Bucket
+    value: *void,
+    next: *mut Bucket
 }
 
-type Dictionary {
+struct Dictionary {
     size: uint,
     capacity: uint,
-    buckets: ^Bucket
+    buckets: *Bucket
 }
 
-type Iterator {
-    buckets: ^Bucket,
-    bucket: ^Bucket,
+struct Iterator {
+    buckets: *Bucket,
+    bucket: *Bucket,
     key: str,
     index: uint,
     size: uint,
@@ -35,13 +35,13 @@ type Iterator {
     count: uint
 }
 
-let BUCKET_SIZE: uint = (((0 as ^Bucket) + 1) - (0 as ^Bucket));
+let BUCKET_SIZE: uint = (((0 as *Bucket) + 1) - (0 as *Bucket));
 
-def hash_str(key: str) -> uint {
+let hash_str(key: str): uint -> {
     let mut hash: uint = 2166136261;
-    let mut c: ^int8 = key as ^int8;
-    while c^ <> 0 {
-        hash = (16777619 * hash) bitxor (c^ as uint);
+    let mut c: *int8 = key as *int8;
+    while *c != 0 {
+        hash = (16777619 * hash) ^ (*c as uint);
         c = c + 1;
     }
     hash;
@@ -49,21 +49,21 @@ def hash_str(key: str) -> uint {
 
 implement Bucket {
 
-    def _set_value(&mut self, tag: int, value: ^void) {
-        if tag <> types.PTR {
+    let _set_value(mut self, tag: int, value: *void) -> {
+        if tag != types.PTR {
             # Deallocate the existing space.
             libc.free(self.value);
-        }
+        };
 
         # Set the tag.
         self.tag = tag;
 
         if tag == types.STR {
             # Allocate space for the value in the bucket.
-            self.value = libc.calloc(libc.strlen(value as ^int8) + 1, 1);
+            self.value = libc.calloc(libc.strlen(value as *int8) + 1, 1);
 
             # Copy in the value.
-            libc.strcpy(self.value as ^int8, value as ^int8);
+            libc.strcpy(self.value as *int8, value as *int8);
             0;
         } else if tag == types.PTR {
             # Set the value.
@@ -78,79 +78,80 @@ implement Bucket {
             libc.memcpy(self.value, value, size as int32);
             0;
         }
+        ;
     }
 
-    def dispose(&mut self) {
+    let dispose(mut self) -> {
         # Deallocate `key` space.
-        libc.free(self.key as ^void);
+        libc.free(self.key as *void);
 
         # Deallocate `value` space.
-        if self.tag <> types.PTR { libc.free(self.value); }
+        if self.tag != types.PTR { libc.free(self.value); };
     }
 
-    def contains(&self, key: str) -> bool {
+    let contains(self, key: str): bool -> {
         # Check if this bucket is not empty.
-        if self.key <> 0 as ^int8 {
+        if self.key != 0 as *int8 {
             # Check if this _is_ the bucket in question.
-            if libc.strcmp(self.key, key as ^int8) == 0 {
+            if libc.strcmp(self.key, key as *int8) == 0 {
                 # This _is_ the bucket.
                 return true;
-            }
+            };
 
             # This is not the bucket; check the next one.
-            if self.next <> 0 as ^Bucket {
-                return (self.next^).contains(key);
-            }
-        }
+            if self.next != 0 as *Bucket {
+                return (*(self.next)).contains(key);
+            };
+        };
 
         # Found nothing.
         false;
     }
 
-    def get(&self, key: str) -> ^void {
+    let get(self, key: str): *void -> {
         # Check if this bucket is not empty.
-        if self.key <> 0 as ^int8 {
+        if self.key != 0 as *int8 {
             # Check if this _is_ the bucket in question.
-            if libc.strcmp(self.key, key as ^int8) == 0 {
+            if libc.strcmp(self.key, key as *int8) == 0 {
                 # This _is_ the bucket. Just get the value.
                 return self.value;
-            }
+            };
 
             # This is not the bucket; check the next one.
-            if self.next <> 0 as ^Bucket {
-                return (self.next^).get(key);
-            }
-        }
+            if self.next != 0 as *Bucket {
+                return (*(self.next)).get(key);
+            };
+        };
 
         # Found nothing.
-        0 as ^void;
+        0 as *void;
     }
 
-    def set(&mut self, key: str, tag: int, value: ^void) {
+    let set(key: str, tag: int, value: *void) -> {
         # Check if this bucket is not empty.
-        if self.key <> 0 as ^int8 {
+        if self.key != 0 as *int8 {
             # Check if this _is_ the bucket in question.
-            if libc.strcmp(self.key, key as ^int8) == 0 {
+            if libc.strcmp(self.key, key as *int8) == 0 {
                 # This _is_ the bucket. Just set the value.
                 self._set_value(tag, value);
                 return;
-            }
+            };
 
             # This is not the bucket; check the next one.
-            if self.next == 0 as ^Bucket {
+            if self.next == 0 as *Bucket {
                 # The next bucket doesn't exist; lets make one.
-                self.next = libc.calloc(BUCKET_SIZE as int64, 1) as ^Bucket;
+                self.next = libc.calloc(BUCKET_SIZE as int64, 1) as *Bucket;
             }
 
             # Continue on the set the bucket.
-            (self.next^).set(key, tag, value);
+            (*(self.next)).set(key, tag, value);
             return;
-        }
+        };
 
         # This bucket is empty.
         # Allocate space for the key and copy in the key.
-        self.key = libc.malloc(libc.strlen(key as ^int8) + 1) as ^int8;
-        libc.strcpy(self.key, key as ^int8);
+        self.key = libc.malloc(libc.strlen(key as *int8) + 1) as *int8;
+        libc.strcpy(self.key, key as *int8);
 
         # Set the value.
         self._set_value(tag, value);
@@ -160,187 +161,187 @@ implement Bucket {
 
 implement Dictionary {
 
-    def dispose(&mut self) {
+    let dispose() -> {
         # Enumerate each bucket chain and free the key and values.
         let mut i: uint = 0;
-        let mut b: ^mut Bucket = self.buckets;
+        let mut b: *mut Bucket = self.buckets;
         while i < self.capacity {
-            (b^).dispose();
+            (*b).dispose();
             b = b + 1;
             i = i + 1;
         }
 
         # Free the memory taken up by the buckets themselves.
-        libc.free(self.buckets as ^void);
+        libc.free(self.buckets as *void);
     }
 
-    def contains(&self, key: str) -> bool {
+    let contains(key: str): bool -> {
         # Hash the string key.
-        let hash: uint = hash_str(key) bitand (self.capacity - 1);
+        let hash: uint = hash_str(key) & (self.capacity - 1);
 
         # Grab the bucket offset by the result of the bounded hash function.
-        let mut b: ^mut Bucket = self.buckets + hash;
+        let mut b: *mut Bucket = self.buckets + hash;
 
         # Check if the bucket contains us.
-        (b^).contains(key);
+        (*b).contains(key);
     }
 
-    def set(&mut self, key: str, tag: int, value: ^void) {
+    let set(key: str, tag: int, value: *void) -> {
         # Hash the string key.
-        let hash: uint = hash_str(key) bitand (self.capacity - 1);
+        let hash: uint = hash_str(key) & (self.capacity - 1);
 
         # Grab the bucket offset by the result of the bounded hash function.
-        let mut b: ^mut Bucket = self.buckets + hash;
+        let mut b: *mut Bucket = self.buckets + hash;
 
         # Increment size if its new.
-        if not ((b^).contains(key)) { self.size = self.size + 1; }
+        if not ((*b).contains(key)) { self.size = self.size + 1; }
 
         # Set this in the bucket chain.
-        (b^).set(key, tag, value);
+        (*b).set(key, tag, value);
     }
 
-    def set_i8(&mut self, key: str, value: int8) {
-        self.set(key, types.I8, &value as ^void);
+    let set_i8(key: str, value: int8) -> {
+        self.set(key, types.I8, &value as *void);
     }
 
-    def set_i16(&mut self, key: str, value: int16) {
-        self.set(key, types.I16, &value as ^void);
+    let set_i16(key: str, value: int16) -> {
+        self.set(key, types.I16, &value as *void);
     }
 
-    def set_i32(&mut self, key: str, value: int32) {
-        self.set(key, types.I32, &value as ^void);
+    let set_i32(key: str, value: int32) -> {
+        self.set(key, types.I32, &value as *void);
     }
 
-    def set_i64(&mut self, key: str, value: int64) {
-        self.set(key, types.I64, &value as ^void);
+    let set_i64(key: str, value: int64) -> {
+        self.set(key, types.I64, &value as *void);
     }
 
-    def set_i128(&mut self, key: str, value: int128) {
-        self.set(key, types.I128, &value as ^void);
+    let set_i128(key: str, value: int128) -> {
+        self.set(key, types.I128, &value as *void);
     }
 
-    def set_u8(&mut self, key: str, value: int8) {
-        self.set(key, types.U8, &value as ^void);
+    let set_u8(key: str, value: int8) -> {
+        self.set(key, types.U8, &value as *void);
     }
 
-    def set_u16(&mut self, key: str, value: int16) {
-        self.set(key, types.U16, &value as ^void);
+    let set_u16(key: str, value: int16) -> {
+        self.set(key, types.U16, &value as *void);
     }
 
-    def set_u32(&mut self, key: str, value: int32) {
-        self.set(key, types.U32, &value as ^void);
+    let set_u32(key: str, value: int32) -> {
+        self.set(key, types.U32, &value as *void);
     }
 
-    def set_u64(&mut self, key: str, value: int64) {
-        self.set(key, types.U64, &value as ^void);
+    let set_u64(key: str, value: int64) -> {
+        self.set(key, types.U64, &value as *void);
     }
 
-    def set_u128(&mut self, key: str, value: int128) {
-        self.set(key, types.U128, &value as ^void);
+    let set_u128(key: str, value: int128) -> {
+        self.set(key, types.U128, &value as *void);
     }
 
-    def set_int(&mut self, key: str, value: int) {
-        self.set(key, types.INT, &value as ^void);
+    let set_int(key: str, value: int) -> {
+        self.set(key, types.INT, &value as *void);
     }
 
-    def set_uint(&mut self, key: str, value: uint) {
-        self.set(key, types.UINT, &value as ^void);
+    let set_uint(key: str, value: uint) -> {
+        self.set(key, types.UINT, &value as *void);
     }
 
-    def set_str(&mut self, key: str, value: str) {
-        self.set(key, types.STR, &value as ^void);
+    let set_str(key: str, value: str) -> {
+        self.set(key, types.STR, &value as *void);
     }
 
-    def set_ptr(&mut self, key: str, value: ^void) {
-        self.set(key, types.PTR, value as ^void);
+    let set_ptr(key: str, value: *void) -> {
+        self.set(key, types.PTR, value as *void);
     }
 
-    def get(&self, key: str) -> ^void {
+    let get(key: str): *void -> {
         # Hash the string key.
-        let hash: uint = hash_str(key) bitand (self.capacity - 1);
+        let hash: uint = hash_str(key) & (self.capacity - 1);
 
         # Grab the bucket offset by the result of the bounded hash function.
-        let mut b: ^mut Bucket = self.buckets + hash;
+        let mut b: *mut Bucket = self.buckets + hash;
 
         # Get this from the bucket chain.
-        let value: ^void = (b^).get(key) as ^void;
+        let value: *void = (*b).get(key) as *void;
         value;
     }
 
-    def get_i8(&self, key: str) -> int8 {
-        let p: ^int8 = self.get(key) as ^int8;
-        p^;
+    let get_i8(key: str): int8 -> {
+        let p: *int8 = self.get(key) as *int8;
+        *p;
     }
 
-    def get_i16(&mut self, key: str) -> int16 {
-        let p: ^int16 = self.get(key) as ^int16;
-        p^;
+    let get_i16(key: str): int16 -> {
+        let p: *int16 = self.get(key) as *int16;
+        *p;
     }
 
-    def get_i32(&mut self, key: str) -> int32 {
-        let p: ^int32 = self.get(key) as ^int32;
-        p^;
+    let get_i32(key: str): int32 -> {
+        let p: *int32 = self.get(key) as *int32;
+        *p;
     }
 
-    def get_i64(&mut self, key: str) -> int64 {
-        let p: ^int64 = self.get(key) as ^int64;
-        p^;
+    let get_i64(key: str): int64 -> {
+        let p: *int64 = self.get(key) as *int64;
+        *p;
     }
 
-    def get_i128(&mut self, key: str) -> int128 {
-        let p: ^int128 = self.get(key) as ^int128;
-        p^;
+    let get_i128(key: str): int128 -> {
+        let p: *int128 = self.get(key) as *int128;
+        *p;
     }
 
-    def get_u8(&mut self, key: str) -> uint8 {
-        let p: ^uint8 = self.get(key) as ^uint8;
-        p^;
+    let get_u8(key: str): uint8 -> {
+        let p: *uint8 = self.get(key) as *uint8;
+        *p;
     }
 
-    def get_u16(&mut self, key: str) -> uint16 {
-        let p: ^uint16 = self.get(key) as ^uint16;
-        p^;
+    let get_u16(key: str): uint16 -> {
+        let p: *uint16 = self.get(key) as *uint16;
+        *p;
     }
 
-    def get_u32(&mut self, key: str) -> uint32 {
-        let p: ^uint32 = self.get(key) as ^uint32;
-        p^;
+    let get_u32(key: str): uint32 -> {
+        let p: *uint32 = self.get(key) as *uint32;
+        *p;
     }
 
-    def get_u64(&mut self, key: str) -> uint64 {
-        let p: ^uint64 = self.get(key) as ^uint64;
-        p^;
+    let get_u64(key: str): uint64 -> {
+        let p: *uint64 = self.get(key) as *uint64;
+        *p;
     }
 
-    def get_u128(&mut self, key: str) -> uint128 {
-        let p: ^uint128 = self.get(key) as ^uint128;
-        p^;
+    let get_u128(key: str): uint128 -> {
+        let p: *uint128 = self.get(key) as *uint128;
+        *p;
     }
 
-    def get_str(&mut self, key: str) -> str {
-        let p: ^str = self.get(key) as ^str;
-        p^;
+    let get_str(key: str): str -> {
+        let p: *str = self.get(key) as *str;
+        *p;
     }
 
-    def get_int(&mut self, key: str) -> int {
-        let p: ^int = self.get(key) as ^int;
-        p^;
+    let get_int(key: str): int -> {
+        let p: *int = self.get(key) as *int;
+        *p;
     }
 
-    def get_uint(&mut self, key: str) -> uint {
-        let p: ^uint = self.get(key) as ^uint;
-        p^;
+    let get_uint(key: str): uint -> {
+        let p: *uint = self.get(key) as *uint;
+        *p;
     }
 
-    def get_ptr(&mut self, key: str) -> ^void {
-        let p: ^void = self.get(key) as ^void;
+    let get_ptr(key: str): *void -> {
+        let p: *void = self.get(key) as *void;
         p;
     }
 
-    def iter(&mut self) -> Iterator {
+    let iter(): Iterator -> {
         let iter: Iterator;
         iter.buckets = self.buckets;
-        iter.bucket = 0 as ^Bucket;
+        iter.bucket = 0 as *Bucket;
         iter.index = 0;
         iter.count = 0;
         iter.capacity = self.capacity;
@@ -353,16 +354,16 @@ implement Dictionary {
 
 implement Iterator {
 
-    def next(&mut self) -> (str, ^void) {
+    let next(): (str, *void) -> {
 
         # Get a bucket with contents.
         loop {
             # printf("check: %p\n", self.bucket);
             # Is the current bucket empty? (Initial)
-            if self.bucket == 0 as ^Bucket {
+            if self.bucket == 0 as *Bucket {
                 # Move to the first bucket.
                 self.bucket = self.buckets;
-            } else if self.bucket.next == 0 as ^Bucket {
+            } else if self.bucket.next == 0 as *Bucket {
                 # Is the current bucket exhausted?
                 # Yes; move to the next bucket in the chain.
                 self.index = self.index + 1;
@@ -370,10 +371,10 @@ implement Iterator {
             } else {
                 # Move to `next` key in the bucket.
                 self.bucket = self.bucket.next;
-            }
+            };
 
             # Is there something in this bucket.
-            if self.bucket.key <> 0 as ^int8 { break; }
+            if self.bucket.key != 0 as *int8 { break; };
 
             # No; keep going.
         }
@@ -383,147 +384,147 @@ implement Iterator {
 
         # Get the `key` and `value` out of the bucket.
         let key_str: str = self.bucket.key as str;
-        let val: ^void = self.bucket.value;
-        let res: (str, ^void) = (key_str, val);
+        let val: *void = self.bucket.value;
+        let res: (str, *void) = (key_str, val);
         res;
 
     }
 
-    def next_i8(&mut self) -> (str, int8) {
+    let next_i8(): (str, int8) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^int8 = ptr as ^int8;
-        let res: (str, int8) = (key, val^);
+        let val: *int8 = ptr as *int8;
+        let res: (str, int8) = (key, *val);
         res;
     }
 
-    def next_i16(&mut self) -> (str, int16) {
+    let next_i16(): (str, int16) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^int16 = ptr as ^int16;
-        let res: (str, int16) = (key, val^);
+        let val: *int16 = ptr as *int16;
+        let res: (str, int16) = (key, *val);
         res;
     }
 
-    def next_i32(&mut self) -> (str, int32) {
+    let next_i32(): (str, int32) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^int32 = ptr as ^int32;
-        let res: (str, int32) = (key, val^);
+        let val: *int32 = ptr as *int32;
+        let res: (str, int32) = (key, *val);
         res;
     }
 
-    def next_i64(&mut self) -> (str, int64) {
+    let next_i64(): (str, int64) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^int64 = ptr as ^int64;
-        let res: (str, int64) = (key, val^);
+        let val: *int64 = ptr as *int64;
+        let res: (str, int64) = (key, *val);
         res;
     }
 
-    def next_i128(&mut self) -> (str, int128) {
+    let next_i128(): (str, int128) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^int128 = ptr as ^int128;
-        let res: (str, int128) = (key, val^);
+        let val: *int128 = ptr as *int128;
+        let res: (str, int128) = (key, *val);
         res;
     }
 
-    def next_u8(&mut self) -> (str, uint8) {
+    let next_u8(): (str, uint8) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^uint8 = ptr as ^uint8;
-        let res: (str, uint8) = (key, val^);
+        let val: *uint8 = ptr as *uint8;
+        let res: (str, uint8) = (key, *val);
         res;
     }
 
-    def next_u16(&mut self) -> (str, uint16) {
+    let next_u16(): (str, uint16) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^uint16 = ptr as ^uint16;
-        let res: (str, uint16) = (key, val^);
+        let val: *uint16 = ptr as *uint16;
+        let res: (str, uint16) = (key, *val);
         res;
     }
 
-    def next_u32(&mut self) -> (str, uint32) {
+    let next_u32(): (str, uint32) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^uint32 = ptr as ^uint32;
-        let res: (str, uint32) = (key, val^);
+        let val: *uint32 = ptr as *uint32;
+        let res: (str, uint32) = (key, *val);
         res;
     }
 
-    def next_u64(&mut self) -> (str, uint64) {
+    let next_u64(): (str, uint64) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^uint64 = ptr as ^uint64;
-        let res: (str, uint64) = (key, val^);
+        let val: *uint64 = ptr as *uint64;
+        let res: (str, uint64) = (key, *val);
         res;
     }
 
-    def next_u128(&mut self) -> (str, uint128) {
+    let next_u128(): (str, uint128) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^uint128 = ptr as ^uint128;
-        let res: (str, uint128) = (key, val^);
+        let val: *uint128 = ptr as *uint128;
+        let res: (str, uint128) = (key, *val);
         res;
     }
 
-    def next_int(&mut self) -> (str, int) {
+    let next_int(): (str, int) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^int = ptr as ^int;
-        let res: (str, int) = (key, val^);
+        let val: *int = ptr as *int;
+        let res: (str, int) = (key, *val);
         res;
     }
 
-    def next_uint(&mut self) -> (str, uint) {
+    let next_uint(): (str, uint) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^uint = ptr as ^uint;
-        let res: (str, uint) = (key, val^);
+        let val: *uint = ptr as *uint;
+        let res: (str, uint) = (key, *val);
         res;
     }
 
-    def next_str(&mut self) -> (str, str) {
+    let next_str(): (str, str) -> {
         let key: str;
-        let ptr: ^void;
+        let ptr: *void;
         (key, ptr) = self.next();
-        let val: ^str = ptr as ^str;
-        let res: (str, str) = (key, val^);
+        let val: *str = ptr as *str;
+        let res: (str, str) = (key, *val);
         res;
     }
 
-    def empty(&self) -> bool {
+    let empty(): bool -> {
         self.count >= self.size or
         self.index >= self.capacity;
     }
 
 }
 
-def make(size: uint) -> Dictionary {
+let make(size: uint): Dictionary -> {
     let table: Dictionary;
     # FIXME: This is a fixed-size dictionary. Make it double in size
     #        when it hits 60% full or something.
-    table.buckets = libc.calloc(size as int64, BUCKET_SIZE as int64) as ^Bucket;
+    table.buckets = libc.calloc(size as int64, BUCKET_SIZE as int64) as *Bucket;
     table.capacity = size;
     table.size = 0;
     table;
 }
 
-def main() {
+let main() -> {
     # Allocate a new table.
     let mut m: Dictionary = make(32);
     m.set_i8("bool", 10);

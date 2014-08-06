@@ -343,14 +343,16 @@ def declare_main(&mut g: generator_.Generator) {
     # Iterate and add argument places for main arguments.
     let mut main_args: list.List = list.make(types.PTR);
     let mut arg_idx: uint = 0;
-    while arg_idx < module_main_fn_type.parameters.size {
-        # Get the parameter handle.
-        let prm_val: ^llvm.LLVMOpaqueValue;
-        prm_val = llvm.LLVMGetParam(main_fn, arg_idx as uint32);
+    if module_main_fn <> 0 as ^llvm.LLVMOpaqueValue {
+        while arg_idx < module_main_fn_type.parameters.size {
+            # Get the parameter handle.
+            let prm_val: ^llvm.LLVMOpaqueValue;
+            prm_val = llvm.LLVMGetParam(main_fn, arg_idx as uint32);
 
-        # Push the parameter onto the argument list for main.
-        main_args.push_ptr(prm_val as ^void);
-        arg_idx = arg_idx + 1;
+            # Push the parameter onto the argument list for main.
+            main_args.push_ptr(prm_val as ^void);
+            arg_idx = arg_idx + 1;
+        }
     }
 
     let main_res: ^llvm.LLVMOpaqueValue;

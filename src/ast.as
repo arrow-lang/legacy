@@ -107,7 +107,7 @@ struct Nodes { elements: list.List }
 
 let make_nodes(): Nodes -> {
     let nodes: Nodes;
-    nodes.elements = list.make_generic(_sizeof(TAG_NODE));
+    nodes.elements = list.List.with_element_size(size_of(Node));
     nodes;
 }
 
@@ -173,9 +173,9 @@ implement StringExpr {
         # Unescape the textual content of the string into a list of bytes.
         # Iterate and construct bytes from the string.
         let mut chars: list.List = self.text._data;
-        let mut bytes: list.List = list.make(types.I8);
+        let mut bytes: list.List = list.List.new(types.I8);
         bytes.reserve(1);
-        let mut buffer: list.List = list.make(types.I8);
+        let mut buffer: list.List = list.List.new(types.I8);
         let mut i: int = 0;
         let mut in_escape: bool = false;
         let mut in_utf8_escape: bool = false;
@@ -527,7 +527,7 @@ let unwrap(node: Node): *int8 -> { node.unwrap(); }
 let null(): Node -> {
     let mut node: Node;
     node.tag = 0;
-    node.data = 0;
+    node.data = 0 as *int8;
     node;
 }
 
@@ -542,93 +542,94 @@ let mut dump_indent: int = 0;
 let mut dump_initialized: bool = false;
 let dump(node: Node) -> { fdump(libc.stdout, node); }
 let fdump(stream: *libc.FILE, node: Node) -> {
+    # FIXME: This array is causing problems
     if not dump_initialized {
-        dump_table[TAG_INTEGER] = dump_integer_expr;
-        dump_table[TAG_FLOAT] = dump_float_expr;
-        dump_table[TAG_BOOLEAN] = dump_boolean_expr;
-        dump_table[TAG_ADD] = dump_binop_expr;
-        dump_table[TAG_SUBTRACT] = dump_binop_expr;
-        dump_table[TAG_MULTIPLY] = dump_binop_expr;
-        dump_table[TAG_DIVIDE] = dump_binop_expr;
-        dump_table[TAG_INTEGER_DIVIDE] = dump_binop_expr;
-        dump_table[TAG_MODULO] = dump_binop_expr;
-        dump_table[TAG_MODULE] = dump_module;
-        dump_table[TAG_PROMOTE] = dump_unary_expr;
-        dump_table[TAG_BITNEG] = dump_unary_expr;
-        dump_table[TAG_NUMERIC_NEGATE] = dump_unary_expr;
-        dump_table[TAG_LOGICAL_NEGATE] = dump_unary_expr;
-        dump_table[TAG_DEREF] = dump_unary_expr;
-        dump_table[TAG_ADDRESS_OF] = dump_address_of;
-        dump_table[TAG_LOGICAL_AND] = dump_binop_expr;
-        dump_table[TAG_LOGICAL_OR] = dump_binop_expr;
-        dump_table[TAG_EQ] = dump_binop_expr;
-        dump_table[TAG_NE] = dump_binop_expr;
-        dump_table[TAG_LT] = dump_binop_expr;
-        dump_table[TAG_LE] = dump_binop_expr;
-        dump_table[TAG_GT] = dump_binop_expr;
-        dump_table[TAG_GE] = dump_binop_expr;
-        dump_table[TAG_BITOR] = dump_binop_expr;
-        dump_table[TAG_BITAND] = dump_binop_expr;
-        dump_table[TAG_BITXOR] = dump_binop_expr;
-        dump_table[TAG_SIZEOF] = dump_sizeof;
-        dump_table[TAG_ASSIGN] = dump_binop_expr;
-        dump_table[TAG_ASSIGN_ADD] = dump_binop_expr;
-        dump_table[TAG_ASSIGN_SUB] = dump_binop_expr;
-        dump_table[TAG_ASSIGN_MULT] = dump_binop_expr;
-        dump_table[TAG_ASSIGN_DIV] = dump_binop_expr;
-        dump_table[TAG_ASSIGN_INT_DIV] = dump_binop_expr;
-        dump_table[TAG_ASSIGN_MOD] = dump_binop_expr;
-        dump_table[TAG_SELECT_OP] = dump_binop_expr;
-        dump_table[TAG_EXTERN_STATIC] = dump_extern_static_slot;
-        dump_table[TAG_EXTERN_FUNC] = dump_extern_func;
-        dump_table[TAG_SLOT] = dump_slot;
-        dump_table[TAG_IDENT] = dump_ident;
-        dump_table[TAG_SELECT] = dump_select_expr;
-        dump_table[TAG_SELECT_BRANCH] = dump_select_branch;
-        dump_table[TAG_CONDITIONAL] = dump_conditional_expr;
-        dump_table[TAG_FUNC_DECL] = dump_func_decl;
-        dump_table[TAG_FUNC_PARAM] = dump_func_param;
-        dump_table[TAG_UNSAFE] = dump_unsafe_block;
-        dump_table[TAG_BLOCK] = dump_block_expr;
-        dump_table[TAG_RETURN] = dump_return_expr;
-        dump_table[TAG_MEMBER] = dump_binop_expr;
-        dump_table[TAG_IMPORT] = dump_import;
-        dump_table[TAG_INDEX] = dump_index_expr;
-        dump_table[TAG_CAST] = dump_cast_expr;
-        dump_table[TAG_CALL] = dump_call_expr;
-        dump_table[TAG_CALL_ARG] = dump_call_arg;
-        dump_table[TAG_TYPE_EXPR] = dump_type_expr;
-        dump_table[TAG_TYPE_BOX] = dump_type_box;
-        dump_table[TAG_GLOBAL] = dump_global;
-        dump_table[TAG_SELF] = dump_self;
-        dump_table[TAG_BREAK] = dump_break;
-        dump_table[TAG_CONTINUE] = dump_continue;
-        dump_table[TAG_ARRAY_EXPR] = dump_array_expr;
-        # dump_table[TAG_SEQ_EXPR] = dump_seq_expr;
-        dump_table[TAG_TUPLE_EXPR] = dump_tuple_expr;
-        dump_table[TAG_TUPLE_TYPE] = dump_tuple_type;
-        # dump_table[TAG_RECORD_EXPR] = dump_record_expr;
-        dump_table[TAG_TUPLE_EXPR_MEM] = dump_tuple_expr_mem;
-        dump_table[TAG_TUPLE_TYPE_MEM] = dump_tuple_type_mem;
-        dump_table[TAG_STRUCT] = dump_struct;
-        dump_table[TAG_STRUCT_MEM] = dump_struct_mem;
-        dump_table[TAG_POSTFIX_EXPR] = dump_postfix_expr;
-        dump_table[TAG_TYPE_PARAM] = dump_type_param;
-        dump_table[TAG_LOOP] = dump_loop;
-        dump_table[TAG_POINTER_TYPE] = dump_pointer_type;
-        dump_table[TAG_INDEX] = dump_index_expr;
-        dump_table[TAG_ARRAY_TYPE] = dump_array_type;
-        dump_table[TAG_STRING] = dump_string_expr;
-        dump_table[TAG_IMPORT] = dump_import;
-        dump_table[TAG_IMPLEMENT] = dump_implement;
-        dump_table[TAG_DELEGATE] = dump_delegate;
+        # dump_table[TAG_INTEGER] = dump_integer_expr;
+        # dump_table[TAG_FLOAT] = dump_float_expr;
+        # dump_table[TAG_BOOLEAN] = dump_boolean_expr;
+        # dump_table[TAG_ADD] = dump_binop_expr;
+        # dump_table[TAG_SUBTRACT] = dump_binop_expr;
+        # dump_table[TAG_MULTIPLY] = dump_binop_expr;
+        # dump_table[TAG_DIVIDE] = dump_binop_expr;
+        # dump_table[TAG_INTEGER_DIVIDE] = dump_binop_expr;
+        # dump_table[TAG_MODULO] = dump_binop_expr;
+        # dump_table[TAG_MODULE] = dump_module;
+        # dump_table[TAG_PROMOTE] = dump_unary_expr;
+        # dump_table[TAG_BITNEG] = dump_unary_expr;
+        # dump_table[TAG_NUMERIC_NEGATE] = dump_unary_expr;
+        # dump_table[TAG_LOGICAL_NEGATE] = dump_unary_expr;
+        # dump_table[TAG_DEREF] = dump_unary_expr;
+        # dump_table[TAG_ADDRESS_OF] = dump_address_of;
+        # dump_table[TAG_LOGICAL_AND] = dump_binop_expr;
+        # dump_table[TAG_LOGICAL_OR] = dump_binop_expr;
+        # dump_table[TAG_EQ] = dump_binop_expr;
+        # dump_table[TAG_NE] = dump_binop_expr;
+        # dump_table[TAG_LT] = dump_binop_expr;
+        # dump_table[TAG_LE] = dump_binop_expr;
+        # dump_table[TAG_GT] = dump_binop_expr;
+        # dump_table[TAG_GE] = dump_binop_expr;
+        # dump_table[TAG_BITOR] = dump_binop_expr;
+        # dump_table[TAG_BITAND] = dump_binop_expr;
+        # dump_table[TAG_BITXOR] = dump_binop_expr;
+        # dump_table[TAG_SIZEOF] = dump_sizeof;
+        # dump_table[TAG_ASSIGN] = dump_binop_expr;
+        # dump_table[TAG_ASSIGN_ADD] = dump_binop_expr;
+        # dump_table[TAG_ASSIGN_SUB] = dump_binop_expr;
+        # dump_table[TAG_ASSIGN_MULT] = dump_binop_expr;
+        # dump_table[TAG_ASSIGN_DIV] = dump_binop_expr;
+        # dump_table[TAG_ASSIGN_INT_DIV] = dump_binop_expr;
+        # dump_table[TAG_ASSIGN_MOD] = dump_binop_expr;
+        # dump_table[TAG_SELECT_OP] = dump_binop_expr;
+        # dump_table[TAG_EXTERN_STATIC] = dump_extern_static_slot;
+        # dump_table[TAG_EXTERN_FUNC] = dump_extern_func;
+        # dump_table[TAG_SLOT] = dump_slot;
+        # dump_table[TAG_IDENT] = dump_ident;
+        # dump_table[TAG_SELECT] = dump_select_expr;
+        # dump_table[TAG_SELECT_BRANCH] = dump_select_branch;
+        # dump_table[TAG_CONDITIONAL] = dump_conditional_expr;
+        # dump_table[TAG_FUNC_DECL] = dump_func_decl;
+        # dump_table[TAG_FUNC_PARAM] = dump_func_param;
+        # dump_table[TAG_UNSAFE] = dump_unsafe_block;
+        # dump_table[TAG_BLOCK] = dump_block_expr;
+        # dump_table[TAG_RETURN] = dump_return_expr;
+        # dump_table[TAG_MEMBER] = dump_binop_expr;
+        # dump_table[TAG_IMPORT] = dump_import;
+        # dump_table[TAG_INDEX] = dump_index_expr;
+        # dump_table[TAG_CAST] = dump_cast_expr;
+        # dump_table[TAG_CALL] = dump_call_expr;
+        # dump_table[TAG_CALL_ARG] = dump_call_arg;
+        # dump_table[TAG_TYPE_EXPR] = dump_type_expr;
+        # dump_table[TAG_TYPE_BOX] = dump_type_box;
+        # dump_table[TAG_GLOBAL] = dump_global;
+        # dump_table[TAG_SELF] = dump_self;
+        # dump_table[TAG_BREAK] = dump_break;
+        # dump_table[TAG_CONTINUE] = dump_continue;
+        # dump_table[TAG_ARRAY_EXPR] = dump_array_expr;
+        # # dump_table[TAG_SEQ_EXPR] = dump_seq_expr;
+        # dump_table[TAG_TUPLE_EXPR] = dump_tuple_expr;
+        # dump_table[TAG_TUPLE_TYPE] = dump_tuple_type;
+        # # dump_table[TAG_RECORD_EXPR] = dump_record_expr;
+        # dump_table[TAG_TUPLE_EXPR_MEM] = dump_tuple_expr_mem;
+        # dump_table[TAG_TUPLE_TYPE_MEM] = dump_tuple_type_mem;
+        # dump_table[TAG_STRUCT] = dump_struct;
+        # dump_table[TAG_STRUCT_MEM] = dump_struct_mem;
+        # dump_table[TAG_POSTFIX_EXPR] = dump_postfix_expr;
+        # dump_table[TAG_TYPE_PARAM] = dump_type_param;
+        # dump_table[TAG_LOOP] = dump_loop;
+        # dump_table[TAG_POINTER_TYPE] = dump_pointer_type;
+        # dump_table[TAG_INDEX] = dump_index_expr;
+        # dump_table[TAG_ARRAY_TYPE] = dump_array_type;
+        # dump_table[TAG_STRING] = dump_string_expr;
+        # dump_table[TAG_IMPORT] = dump_import;
+        # dump_table[TAG_IMPLEMENT] = dump_implement;
+        # dump_table[TAG_DELEGATE] = dump_delegate;
         dump_initialized = true;
     };
 
-    print_indent(stream);
-    let dump_fn: delegate(*libc.FILE, Node) = dump_table[node.tag];
-    let node_ptr: *Node = &node;
-    dump_fn(stream, node_ptr);
+    # print_indent(stream);
+    # let dump_fn: delegate(*libc.FILE, Node) = dump_table[node.tag];
+    # dump_fn(stream, node);
+    # dump_table[0];
 }
 
 # print_indent

@@ -38,6 +38,16 @@ implement List {
                     elements: 0 as *mut int8);
     }
 
+    # Construct a new list with a specific element size.
+    # -------------------------------------------------------------------------
+    let with_element_size(size: int): List -> {
+        return List(tag: 0,
+                    element_size: size,
+                    size: 0,
+                    capacity: 0,
+                    elements: 0 as *mut int8);
+    }
+
     # Perform a clone of the list and return the list.
     # -------------------------------------------------------------------------
     let clone(self): List -> {

@@ -256,6 +256,32 @@ def is_same_type(a: ^code.Handle, b: ^code.Handle) -> bool
         return a_type.size == b_type.size and
                is_same_type(a_type.element, b_type.element);
     }
+    else if a._tag == code.TAG_TUPLE_TYPE and a._tag == b._tag
+    {
+        # These are both tuples.
+        let a_type: ^code.TupleType = a._object as ^code.TupleType;
+        let b_type: ^code.TupleType = b._object as ^code.TupleType;
+
+        # Short-circuit if the count is unmatched.
+        if a_type.elements.size <> b_type.elements.size { return false; }
+
+        # Iterate through the elements and break if any element is
+        # unmatched.
+        let mut i: int = 0;
+        while i as uint < a_type.elements.size {
+            let a_el_han: ^code.Handle = a_type.elements.at_ptr(i) as
+                ^code.Handle;
+            let b_el_han: ^code.Handle = b_type.elements.at_ptr(i) as
+                ^code.Handle;
+            if not is_same_type(a_el_han, b_el_han) {
+                return false;
+            }
+            i = i + 1;
+        }
+
+        # These tuples seems to be equivalent.
+        return true;
+    }
     else if a._tag == code.TAG_FUNCTION_TYPE and a._tag == b._tag
     {
         # These are both functions.

@@ -1190,7 +1190,10 @@ def array_type(g: ^mut generator_.Generator, node: ^ast.Node,
 
         # Create the LLVM type.
         let handle: ^llvm.LLVMOpaqueType;
-        handle = llvm.LLVMArrayType(element_type.handle, val as uint32);
+        # handle = llvm.LLVMArrayType(element_type.handle, val as uint32);
+        handle = llvm.LLVMArrayType(
+            generator_util.alter_type_handle(element),
+            val as uint32);
 
         # Return the new pointer type.
         code.make_array_type(element, val, handle);

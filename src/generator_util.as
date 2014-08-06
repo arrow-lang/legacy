@@ -679,6 +679,7 @@ def alter_type_handle(type_handle: ^code.Handle) -> ^llvm.LLVMOpaqueType
 {
     let type_: ^code.Type = type_handle._object as ^code.Type;
     let mut handle: ^llvm.LLVMOpaqueType = type_.handle;
+    printf("%d\n", type_handle._tag);
     if type_handle._tag == code.TAG_FUNCTION_TYPE {
         # For functions we store them as function "pointers" but refer
         # to them as objects.

@@ -293,6 +293,15 @@ implement Tokenizer {
                          column: 0);
     }
 
+    let shallow_clone(self): Tokenizer -> {
+        return Tokenizer(filename: self.filename,
+                         stream: self.stream,
+                         chars: self.chars,
+                         buffer: self.buffer,
+                         row: self.row,
+                         column: self.column);
+    }
+
     let dispose(mut self) -> {
         # Dispose of contained resources.
         # FIXME: Need to close the file if this is not `stdin`

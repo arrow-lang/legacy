@@ -3,6 +3,7 @@ import posix;
 import errors;
 import string;
 import tokenizer;
+import parser;
 
 let show_help() -> {
     libc.printf(
@@ -20,6 +21,7 @@ let main(argc: int32, argv: *str): int32 -> {
     # Prepare flags and state.
     let mut show_version: bool = false;
     let mut tokenize_only: bool = false;
+    let mut parse_only: bool = false;
     let mut filename: str = string.nil;
     let mut output_filename: str = string.nil;
 
@@ -30,6 +32,9 @@ let main(argc: int32, argv: *str): int32 -> {
 
         # --tokenize
         posix.option("tokenize", 0, (&tokenize_only as *int), 1),
+
+        # --parse
+        posix.option("parse", 0, (&parse_only as *int), 1),
 
         # [end]
         posix.option(string.nil, 0, 0 as *int, 0)
@@ -143,6 +148,41 @@ let main(argc: int32, argv: *str): int32 -> {
             # Dispose of the token.
             tok.dispose();
         }
+
+        # Dispose
+        t.dispose();
+
+        # Return
+        return (-1 if errors.count > 0 else 0) as int32;
+    };
+
+    # # Determine the "module name"
+    # let module_name: str =
+    #     if string.isnil(output_filename) {
+    #         # HACK: HACK: HACK: nuff said
+    #         *((filename as *int8) + libc.strlen(filename) - 3) = 0;
+    #         filename as str;
+    #     } else {
+    #         "_";
+    #     };
+
+    # Declare the parser.
+    let mut p: parser.Parser = parser.parser_new("_", t);
+
+    # Parse the AST from the standard input.
+    let unit: ast.Node = p.parse();
+    if errors.count > 0 { libc.exit(-1); };
+
+    if parse_only {
+        # Print the AST.
+        ast.fdump(out_stream, unit);
+
+        # Dispose
+        t.dispose();
+        p.dispose();
+
+        # Return
+        return (-1 if errors.count > 0 else 0) as int32;
     };
 
     # Close the streams.

@@ -33,8 +33,8 @@ struct Parser {
 
 let parser_new(name: str, tokenizer_: tokenizer.Tokenizer): Parser -> {
     let parser: Parser;
-    parser.tokenizer = tokenizer_;
-    parser.tokens = list.make_generic(tokenizer.TOKEN_SIZE);
+    parser.tokenizer = tokenizer_.shallow_clone();
+    parser.tokens = list.List.with_element_size(size_of(tokenizer.Token));
     parser.stack = ast.make_nodes();
     parser.name = name;
     parser;
@@ -72,8 +72,8 @@ let peek_token(mut self, count: uint): tokenizer.Token -> {
     };
 
     # Return the requested token.
-    let tok: *tokenizer.Token;
-    tok = self.tokens.at((count as int) - (self.tokens.size as int) - 1) as
+    let mut tok: *tokenizer.Token;
+    tok = self.tokens.get((count as int) - (self.tokens.size as int) - 1) as
         *tokenizer.Token;
     *tok;
 }
@@ -102,9 +102,9 @@ let pop_token(mut self): tokenizer.Token -> {
 # -----------------------------------------------------------------------------
 let consume_until(mut self, token: int) -> {
     let mut tok: tokenizer.Token = self.pop_token();
-    while       tok.tag != token
-            and tok.tag != tokens.TOK_SEMICOLON
-            and tok.tag != tokens.TOK_END {
+    while     (tok.tag != token)
+            & (tok.tag != tokens.TOK_SEMICOLON)
+            & (tok.tag != tokens.TOK_END) {
         tok = self.pop_token();
     }
 }
@@ -184,7 +184,7 @@ let parse_module(mut self): bool -> {
     self.pop_token();
 
     # Expect and parse and the identifier.
-    if not self._expect_parse_ident_to(mod.id) {
+    if not self._expect_parse_ident_to(&mod.id) {
         self.consume_until(tokens.TOK_RBRACE);
         return false;
     };
@@ -272,7 +272,6 @@ let parse_unsafe(mut self): bool -> {
     # Return success.
     true;
 }
-
 
 # Module node
 # -----------------------------------------------------------------------------
@@ -492,7 +491,7 @@ let parse_function(mut self): bool ->
         decl.return_type = self.stack.pop();
     };
 
-    if not self.peek_token_tag(1) == tokens.TOK_RARROW {
+    if self.peek_token_tag(1) != tokens.TOK_RARROW {
         self.expect(tokens.TOK_RARROW);
         return false;
     };
@@ -523,13 +522,13 @@ let parse_function_params(mut self, fn: *ast.FuncDecl,
 
     # Iterate through and parse each parameter.
     let mut idx: uint = 0;
-    let found_self: bool = false;
+    let mut found_self: bool = false;
     while self.peek_token_tag(1) != tokens.TOK_RPAREN
     {
         # If we are allowed to have "self" ..
         if self_ and idx == 0 {
             # Check for `mut self` or `self` sequences.
-            let found: bool = false;
+            let mut found: bool = false;
             if self.peek_token_tag(1) == tokens.TOK_MUT and
                self.peek_token_tag(2) == tokens.TOK_SELF
             {
@@ -1084,7 +1083,7 @@ let parse_call_expr(mut self): bool ->
             and self.peek_token_tag(2) == tokens.TOK_COLON
         {
             # Expect and parse the identifier.
-            if not self._expect_parse_ident_to(arg.name) {
+            if not self._expect_parse_ident_to(&arg.name) {
                 self.consume_until(tokens.TOK_RPAREN);
                 return false;
             };
@@ -1265,6 +1264,7 @@ let parse_paren_type(mut self): bool ->
         # Parse an expression node.
         if not self.parse_type() { return false; };
         mem.expression = self.stack.pop();
+        0; # HACK!
     }
     # Check for a { ":" "identifier" } sequence that indicates a tuple (and
     # the initial member named).
@@ -1287,6 +1287,7 @@ let parse_paren_type(mut self): bool ->
 
         # Push the identifier as the expression.
         mem.type_ = mem.id;
+        0; # HACK!
     }
     # Could be a tuple with an initial member unnamed or just a
     # parenthetical expression.
@@ -1307,6 +1308,7 @@ let parse_paren_type(mut self): bool ->
 
             # Switch the node with the member node.
             mem.type_ = self.stack.pop();
+            0; # HACK!
         }
         else
         {
@@ -1352,6 +1354,7 @@ let parse_paren_type(mut self): bool ->
                     # Parse an expression node.
                     if not self.parse_type() { return false; };
                     mem.type_ = self.stack.pop();
+                    0; # HACK!
                 }
                 # Check for a { `:` "identifier" } sequence that indicates
                 # a named member and expression (shorthand).
@@ -1365,12 +1368,14 @@ let parse_paren_type(mut self): bool ->
                     if not self.parse_ident_expr() { return false; };
                     mem.id = self.stack.pop();
                     mem.type_ = mem.id;
+                    0; # HACK!
                 }
                 else
                 {
                     # Parse an expression node.
                     if not self.parse_type() { return false; };
                     mem.type_ = self.stack.pop();
+                    0; # HACK!
                 };
 
                 # Push the node.
@@ -1528,7 +1533,7 @@ let parse_member_expr(mut self): bool ->
     self.pop_token();
 
     # Expect and parse the identifier.
-    if not self._expect_parse_ident_to(expr.rhs) { return false; };
+    if not self._expect_parse_ident_to(&expr.rhs) { return false; };
 
     # Push our operand.
     self.stack.push(node);
@@ -1700,7 +1705,7 @@ let parse_string_expr(mut self): bool ->
     let expr: *ast.StringExpr = node.unwrap() as *ast.StringExpr;
 
     # Store the text for the string literal.
-    let tok: tokenizer.Token = self.pop_token();
+    let mut tok: tokenizer.Token = self.pop_token();
     expr.text.extend(tok.text.data() as str);
 
     # Iterate and consume any adjacent strings.
@@ -1817,6 +1822,8 @@ let parse_paren_expr(mut self): bool ->
         # Parse an expression node.
         if not self.parse_expr(false) { return false; };
         mem.expression = self.stack.pop();
+
+        0; # HACK!
     }
     # Check for a { ":" "identifier" } sequence that indicates a tuple (and
     # the initial member named).
@@ -1839,6 +1846,8 @@ let parse_paren_expr(mut self): bool ->
 
         # Push the identifier as the expression.
         mem.expression = mem.id;
+
+        0; # HACK!
     }
     # Could be a tuple with an initial member unnamed or just a
     # parenthetical expression.
@@ -1859,6 +1868,8 @@ let parse_paren_expr(mut self): bool ->
 
             # Switch the node with the member node.
             mem.expression = self.stack.pop();
+
+            0; # HACK!
         }
         else
         {
@@ -1904,6 +1915,7 @@ let parse_paren_expr(mut self): bool ->
                     # Parse an expression node.
                     if not self.parse_expr(false) { return false; };
                     mem.expression = self.stack.pop();
+                    0; # HACK!
                 }
                 # Check for a { `:` "identifier" } sequence that indicates
                 # a named member and expression (shorthand).
@@ -1917,12 +1929,14 @@ let parse_paren_expr(mut self): bool ->
                     if not self.parse_ident() { return false; };
                     mem.id = self.stack.pop();
                     mem.expression = mem.id;
+                    0; # HACK!
                 }
                 else
                 {
                     # Parse an expression node.
                     if not self.parse_expr(false) { return false; };
                     mem.expression = self.stack.pop();
+                    0; # HACK!
                 };
 
                 # Push the node.
@@ -2071,9 +2085,10 @@ let parse_select_expr(mut self): bool ->
 }
 
 let parse_select_expr_inner(
-    mut self, mut x: ast.SelectExpr, mut have_else: bool): bool ->
+    mut self, mut x: ast.SelectExpr, mut have_else_: bool): bool ->
 {
     # If we are already at `else` then drop.
+    let mut have_else = have_else_;
     if have_else { return true; };
 
     loop
@@ -2424,7 +2439,7 @@ let parse_impl(mut self): bool ->
         };
 
         # Expect an `->` token.
-        if not self.peek_token_tag(1) == tokens.TOK_RARROW {
+        if self.peek_token_tag(1) != tokens.TOK_RARROW {
             let tok: int = self.peek_token_tag(1);
             self.consume_until(tokens.TOK_RBRACE);
             errors.begin_error();
@@ -2522,7 +2537,7 @@ let parse_extern(mut self): bool ->
     self.pop_token();
 
     let tok: tokenizer.Token = self.peek_token(1);
-    let res: bool = false;
+    let mut res: bool = false;
     if tok.tag == tokens.TOK_LET {
         if (self.peek_token_tag(2) == tokens.TOK_IDENTIFIER
                 and self.peek_token_tag(3) == tokens.TOK_LPAREN) {
@@ -2543,7 +2558,7 @@ let parse_extern_static(mut self): bool ->
 {
     # Allocate space for the node
     let node: ast.Node = ast.make(ast.TAG_EXTERN_STATIC);
-    let slot: *ast.ExternStaticSlot =  node.unwrap() as *ast.ExternStaticSlot;
+    let mut slot: *mut ast.ExternStaticSlot =  node.unwrap() as *ast.ExternStaticSlot;
 
     # Pop the `static` token.
     self.pop_token();
@@ -2593,7 +2608,7 @@ let parse_extern_function(mut self): bool ->
 {
     # Allocate space for the node
     let node: ast.Node = ast.make(ast.TAG_EXTERN_FUNC);
-    let decl: *ast.ExternFunc =  node.unwrap() as *ast.ExternFunc;
+    let mut decl: *mut ast.ExternFunc =  node.unwrap() as *ast.ExternFunc;
 
     # Pop the `let` token.
     self.pop_token();
@@ -2634,19 +2649,19 @@ let parse_extern_function(mut self): bool ->
 
 # Expect a sequence continuation or the end of the sequence.
 # -----------------------------------------------------------------------------
-let _expect_sequence_continue(mut self, end: int): bool ->
+let _expect_sequence_continue(mut self, n: int): bool ->
 {
     let tok: tokenizer.Token = self.peek_token(1);
     if tok.tag == tokens.TOK_COMMA { self.pop_token(); return true; }
-    else if tok.tag != end {
+    else if tok.tag != n {
         # Expected a comma and didn't receive one.. consume tokens until
         # we reach the end.
-        self.consume_until(end);
+        self.consume_until(n);
         errors.begin_error();
         errors.libc.fprintf(errors.libc.stderr,
                        "expected %s or %s but found %s",
                        tokens.to_str(tokens.TOK_COMMA),
-                       tokens.to_str(end),
+                       tokens.to_str(n),
                        tokens.to_str(tok.tag));
         errors.end();
         return false;
@@ -2676,13 +2691,13 @@ let _expect_parse_ident(mut self): bool ->
 
 # Expect and parse an identifier node (into a passed slot).
 # -----------------------------------------------------------------------------
-let _expect_parse_ident_to(mut self, mut node: ast.Node): bool ->
+let _expect_parse_ident_to(mut self, node: *mut ast.Node): bool ->
 {
     # Expect and parse the identifier.
     if not self._expect_parse_ident() { return false; };
 
     # Push into the passed node.
-    node = self.stack.pop();
+    (*node) = self.stack.pop();
 
     # Return success.
     true;
@@ -2790,30 +2805,4 @@ let get_binop_tok_tag(self, tok: int): int ->
     else { 0; };
 }
 
-} # Parser
-
-# Test driver using `stdin`.
-# =============================================================================
-let main() -> {
-    # Declare the tokenizer.
-    let mut t: tokenizer.Tokenizer = tokenizer.tokenizer_new(
-        "-", libc.stdin);
-
-    # Declare the parser.
-    let mut p: Parser = parser_new("_", t);
-
-    # Walk the token stream and parse out the AST.
-    let unit: ast.Node = p.parse();
-    if errors.count > 0 { libc.exit(-1); };
-
-    # Print the AST to `stdout`.
-    # FIXME: unit.dump();
-    ast.dump(unit);
-
-    # Dispose of any resources used.
-    p.dispose();
-    # unit.dispose();
-
-    # Exit success back to the environment.
-    libc.exit(0);
-}
+}  # Parser

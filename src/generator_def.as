@@ -1,3 +1,7 @@
+import types;
+import libc;
+import string;
+import llvm;
 import ast;
 import list;
 import code;
@@ -5,7 +9,6 @@ import errors;
 import dict;
 import generator_;
 import generator_util;
-import llvm;
 import resolver;
 import builder;
 
@@ -297,6 +300,40 @@ def generate_attached_function(&mut g: generator_.Generator, qname: str,
 # Internal
 # =============================================================================
 
+# Check if this handle is an assignable l-value.
+# -----------------------------------------------------------------------------
+def is_assignable(&mut g: generator_.Generator, handle: ^code.Handle) -> bool
+{
+    if handle._tag == code.TAG_STATIC_SLOT { true; }
+    else if handle._tag == code.TAG_LOCAL_SLOT {
+        true;
+    }
+    else if handle._tag == code.TAG_VALUE {
+        let val: ^code.Value = handle._object as ^code.Value;
+        val.category == code.VC_LVALUE;
+    }
+    else if handle._tag == code.TAG_TUPLE {
+        let val: ^code.Tuple = handle._object as ^code.Tuple;
+        val.assignable;
+    }
+    else if handle._tag == code.TAG_FUNCTION {
+        false;
+    }
+    else if handle._tag == code.TAG_ATTACHED_FUNCTION {
+        false;
+    }
+    else if handle._tag == code.TAG_EXTERN_STATIC {
+        true;
+    }
+    else if handle._tag == code.TAG_EXTERN_FUNC {
+        false;
+    }
+    else {
+        # No idea how to handle this.
+        false;
+    }
+}
+
 # Coerce an arbitary handle to a value.
 # -----------------------------------------------------------------------------
 def to_value(&mut g: generator_.Generator,
@@ -468,8 +505,268 @@ def to_value(&mut g: generator_.Generator,
         # Create a handle of the function.
         code.make_value(fn_type_handle, code.VC_LVALUE, fn.handle);
     }
+    else if handle._tag == code.TAG_TUPLE {
+        # Get us as a tuple.
+        let tuple_: ^code.Tuple = handle._object as ^code.Tuple;
+
+        # Get our target (tuple) type
+        let type_: ^code.Handle = tuple_.type_;
+        let tuple_type: ^code.TupleType = type_._object as ^code.TupleType;
+
+        # Create and zero a list to hold the entire argument list.
+        let mut argl: list.List = list.make(types.PTR);
+        argl.reserve(tuple_type.elements.size);
+        argl.size = tuple_type.elements.size;
+        libc.memset(argl.elements as ^void, 0, (argl.size * argl.element_size) as int32);
+        let argv: ^mut ^llvm.LLVMOpaqueValue = argl.elements as ^^llvm.LLVMOpaqueValue;
+
+        # Iterate through each element in the tuple and push into the
+        # argument list.
+        let mut i: int = 0;
+        while i as uint < tuple_.handles.size
+        {
+            # Get the handle out.
+            let han: ^code.Handle = tuple_.handles.at_ptr(i) as ^code.Handle;
+
+            # Resolve the type of the element expression.
+            let el_type: ^code.Handle = tuple_type.elements.at_ptr(i) as ^code.Handle;
+
+            # Coerce this to a value.
+            let val_han: ^code.Handle = to_value(
+                g, han, code.VC_RVALUE, false);
+
+            # Cast the value to the target type.
+            let cast_han: ^code.Handle = generator_util.cast(
+                g, val_han, el_type, false);
+            if code.isnil(cast_han) { return code.make_nil(); }
+            let cast_val: ^code.Value = cast_han._object as ^code.Value;
+
+            # Emplace in the argument list.
+            (argv + i)^ = cast_val.handle;
+
+            # Dispose.
+            code.dispose(val_han);
+            code.dispose(cast_han);
+
+            # Increment
+            i = i + 1;
+        }
+
+        # We can only generate an initial "constant" structure for a
+        # purely constant literal.
+        # Collect indicies and values of non-constant members of the
+        # literal.
+        let mut nonconst_values: list.List = list.make(types.PTR);
+        let mut nonconst_indicies: list.List = list.make(types.INT);
+        i = 0;
+        while i as uint < argl.size {
+            let arg: ^llvm.LLVMOpaqueValue = (argv + i)^;
+            i = i + 1;
+
+            # Is this not some kind of "constant"?
+            if llvm.LLVMIsConstant(arg) == 0 {
+                # Yep; store and zero out the value.
+                nonconst_indicies.push_int(i - 1);
+                nonconst_values.push_ptr(arg as ^void);
+                (argv + (i - 1))^ = llvm.LLVMGetUndef(llvm.LLVMTypeOf(arg));
+            }
+        }
+
+        # Build the "call" instruction (and create the constant struct).
+        let mut val: ^llvm.LLVMOpaqueValue;
+        val = llvm.LLVMConstStruct(argv, argl.size as uint32, false);
+
+        # Iterate through our non-constant values and push them in.
+        i = 0;
+        while i as uint < nonconst_indicies.size {
+            let arg: ^llvm.LLVMOpaqueValue = nonconst_values.at_ptr(i) as
+                ^llvm.LLVMOpaqueValue;
+            let idx: int = nonconst_indicies.at_int(i);
+            i = i + 1;
+
+            # Build the `insertvalue` instruction.
+            val = llvm.LLVMBuildInsertValue(
+                g.irb, val, arg, idx as uint32, "" as ^int8);
+        }
+
+        # Dispose of dynamic memory.
+        nonconst_values.dispose();
+        nonconst_indicies.dispose();
+        argl.dispose();
+
+        if category == code.VC_LVALUE {
+            # Converting a `tuple` to an l-value really just involves
+            # temporarily storing the tuple and returning its address.
+            let slot_val: ^llvm.LLVMOpaqueValue =
+                llvm.LLVMBuildAlloca(g.irb, llvm.LLVMTypeOf(val),
+                                     "" as ^int8);
+
+            # Store this in the temp. slot.
+            llvm.LLVMBuildStore(g.irb, val, slot_val);
+
+            # Wrap and return the value.
+            code.make_value(type_, code.VC_LVALUE, slot_val);
+        } else {
+            # Wrap and return the value.
+            code.make_value(type_, code.VC_RVALUE, val);
+        }
+    }
     else {
         # No idea how to handle this.
         code.make_nil();
+    }
+}
+
+# Assignment
+# -----------------------------------------------------------------------------
+def assign(&mut g: generator_.Generator,
+           target: ^code.Handle,
+           lhs: ^code.Handle,
+           rhs: ^code.Handle) {
+
+    # Perform the assignment (based on what we have in the LHS).
+    if ((lhs._tag == code.TAG_STATIC_SLOT) or
+        (lhs._tag == code.TAG_EXTERN_STATIC))
+    {
+        # Coerce the operand to its value.
+        let rhs_val_han: ^code.Handle = to_value(g, rhs, code.VC_RVALUE, false);
+        if code.isnil(rhs_val_han) { return; }
+
+        # Cast the operand to the target type.
+        let rhs_han: ^code.Handle = generator_util.cast(
+            g, rhs_val_han, target, false);
+        if code.isnil(rhs_han) { return; }
+
+        # Cast to a value.
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+        # Get the real object.
+        let slot: ^code.StaticSlot = lhs._object as ^code.StaticSlot;
+
+        # Ensure that we are mutable.
+        if not slot.context.mutable {
+            # Report error and return nil.
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                           "cannot assign to immutable static item" as ^int8);
+            errors.end();
+            return;
+        }
+
+        # Build the `STORE` operation.
+        llvm.LLVMBuildStore(g.irb, rhs_val.handle, slot.handle);
+
+        # Dispose.
+        code.dispose(rhs_val_han);
+        code.dispose(rhs_han);
+    } else if lhs._tag == code.TAG_LOCAL_SLOT {
+        # Coerce the operand to its value.
+        let rhs_val_han: ^code.Handle = to_value(g, rhs, code.VC_RVALUE, false);
+        if code.isnil(rhs_val_han) { return; }
+
+        # Cast the operand to the target type.
+        let rhs_han: ^code.Handle = generator_util.cast(
+            g, rhs_val_han, target, false);
+        if code.isnil(rhs_han) { return; }
+
+        # Cast to a value.
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+        # Get the real object.
+        let slot: ^code.LocalSlot = lhs._object as ^code.LocalSlot;
+
+        # Ensure that we are mutable.
+        if not slot.mutable {
+            # Report error and return nil.
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                           "re-assignment to immutable local slot" as ^int8);
+            errors.end();
+            return;
+        }
+
+        # Build the `STORE` operation.
+        llvm.LLVMBuildStore(g.irb, rhs_val.handle, slot.handle);
+
+        # Dispose.
+        code.dispose(rhs_val_han);
+        code.dispose(rhs_han);
+    } else if lhs._tag == code.TAG_VALUE {
+        # Coerce the operand to its value.
+        let rhs_val_han: ^code.Handle = to_value(g, rhs, code.VC_RVALUE, false);
+        if code.isnil(rhs_val_han) { return; }
+
+        # Cast the operand to the target type.
+        let rhs_han: ^code.Handle = generator_util.cast(
+            g, rhs_val_han, target, false);
+        if code.isnil(rhs_han) { return; }
+
+        # Cast to a value.
+        let rhs_val: ^code.Value = rhs_han._object as ^code.Value;
+
+        # Get the value.
+        let value: ^code.Value = lhs._object as ^code.Value;
+        if value.category == code.VC_RVALUE {
+            # Report error and return nil.
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                           "left-hand side expression is not assignable" as ^int8);
+            errors.end();
+            return;
+        }
+
+        # Build the `STORE` operation.
+        llvm.LLVMBuildStore(g.irb, rhs_val.handle, value.handle);
+
+        # Dispose.
+        code.dispose(rhs_val_han);
+        code.dispose(rhs_han);
+    } else if lhs._tag == code.TAG_TUPLE {
+        # Get this as a tuple.
+        let tuple_: ^code.Tuple = lhs._object as ^code.Tuple;
+        if not tuple_.assignable {
+            # Report error and return nil.
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr,
+                           "left-hand side expression is not assignable" as ^int8);
+            errors.end();
+            return;
+        }
+
+        # Coerce the operand to its value.
+        let rhs_val_han: ^code.Handle = to_value(g, rhs, code.VC_LVALUE, false);
+        if code.isnil(rhs_val_han) { return; }
+
+        # Cast to a value.
+        let rhs_val: ^code.Value = rhs_val_han._object as ^code.Value;
+
+        # We know that we are assignable; perform the assignment for each
+        # element (LHS) to the correct offset of the tuple value (RHS).
+        let mut i: int = 0;
+        while i as uint < tuple_.handles.size {
+            # Build an accessor to the member of the tuple.
+            let val: ^llvm.LLVMOpaqueValue =
+                llvm.LLVMBuildStructGEP(
+                    g.irb, rhs_val.handle, i as uint32, "" as ^int8);
+
+            # Get the element handle.
+            let el: ^code.Handle = tuple_.handles.at_ptr(i) as ^code.Handle;
+
+            # Get the type of the element.
+            let el_type: ^code.Handle = code.type_of(el);
+
+            # Build the rhs handle
+            let rhs_el_han: ^code.Handle = code.make_value(
+                el_type, code.VC_LVALUE, val);
+
+            # Perform the assignment operation.
+            assign(g, el_type, el, rhs_el_han);
+
+            # Increment index.
+            i = i + 1;
+        }
+
+        # Dispose.
+        code.dispose(rhs_val_han);
     }
 }

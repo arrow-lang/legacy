@@ -36,6 +36,7 @@ let TAG_CHAR_TYPE: int = 21;
 let TAG_STR_TYPE: int = 23;
 let TAG_ATTACHED_FUNCTION: int = 22;
 let TAG_REFERENCE_TYPE: int = 24;
+let TAG_TUPLE: int = 25;
 
 # Value categories
 # -----------------------------------------------------------------------------
@@ -618,6 +619,9 @@ def type_of(handle: ^Handle) -> ^Handle {
     } else if handle._tag == TAG_ATTACHED_FUNCTION {
         let val: ^Function = handle._object as ^Function;
         val.type_;
+    } else if handle._tag == TAG_TUPLE {
+        let val: ^Tuple = handle._object as ^Tuple;
+        val.type_;
     } else {
         make_nil();
     }
@@ -740,6 +744,29 @@ implement Struct {
         self.namespace.dispose();
     }
 
+}
+
+# Tuple
+# -----------------------------------------------------------------------------
+
+type Tuple {
+    type_: ^Handle,
+    handles: list.List,
+    assignable: bool
+}
+
+let TUPLE_SIZE: uint = ((0 as ^Tuple) + 1) - (0 as ^Tuple);
+
+def make_tuple(type_: ^Handle, handles: list.List, assignable: bool) -> ^Handle
+{
+    # Build the module.
+    let tup: ^Tuple = libc.malloc(TUPLE_SIZE as int64) as ^Tuple;
+    tup.type_ = type_;
+    tup.handles = handles.clone();
+    tup.assignable = assignable;
+
+    # Wrap in a handle.
+    make(TAG_TUPLE, tup as ^void);
 }
 
 # Module

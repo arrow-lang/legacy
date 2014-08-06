@@ -483,10 +483,18 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
         let mut lhs: ^code.Handle = resolver.resolve_s(g, &x.lhs, scope);
         if code.isnil(lhs) { return code.make_nil(); }
 
-        # Pull out the reference if we are dealing with a reference type.
-        if lhs._tag == code.TAG_REFERENCE_TYPE {
-            let ref: ^code.ReferenceType = lhs._object as ^code.ReferenceType;
-            lhs = ref.pointee;
+        # If we are dealing with a pointer / reference.. obtain the type
+        # that is the right most pointee
+        while ((lhs._tag == code.TAG_POINTER_TYPE) or
+               (lhs._tag == code.TAG_REFERENCE_TYPE))
+        {
+            if lhs._tag == code.TAG_POINTER_TYPE {
+                let ptr: ^code.PointerType = lhs._object as ^code.PointerType;
+                lhs = ptr.pointee;
+            } else {
+                let ref: ^code.ReferenceType = lhs._object as ^code.ReferenceType;
+                lhs = ref.pointee;
+            }
         }
 
         # Attempt to get an `item` out of the LHS.

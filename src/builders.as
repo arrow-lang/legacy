@@ -261,15 +261,34 @@ def member(g: ^mut generator_.Generator, node: ^ast.Node,
         if code.isnil(lhs) { return code.make_nil(); }
 
         if lhs._tag <> code.TAG_MODULE {
-            # Pull out the reference if we are dealing with a reference type.
-            let lhs_type_handle: ^code.Handle = code.type_of(lhs);
-            if lhs_type_handle._tag == code.TAG_REFERENCE_TYPE {
-                let ref: ^code.ReferenceType = lhs_type_handle._object as
-                    ^code.ReferenceType;
-                let lhs_val: ^code.Value = lhs._object as ^code.Value;
-                let mut load_val: ^llvm.LLVMOpaqueValue =
-                    llvm.LLVMBuildLoad(g.irb, lhs_val.handle, "" as ^int8);
-                lhs = code.make_value(ref.pointee, code.VC_LVALUE, load_val);
+
+            # If we are dealing with a pointer / reference.. obtain the value
+            # that is the right most pointee
+            loop
+            {
+                let lhs_type_handle: ^code.Handle = code.type_of(lhs);
+                if lhs_type_handle._tag == code.TAG_POINTER_TYPE
+                {
+                    let ref: ^code.PointerType = lhs_type_handle._object as
+                        ^code.PointerType;
+                    let lhs_val: ^code.Value = lhs._object as ^code.Value;
+                    let mut load_val: ^llvm.LLVMOpaqueValue =
+                        llvm.LLVMBuildLoad(g.irb, lhs_val.handle, "" as ^int8);
+                    lhs = code.make_value(ref.pointee, code.VC_LVALUE, load_val);
+                }
+                else if lhs_type_handle._tag == code.TAG_REFERENCE_TYPE
+                {
+                    let ref: ^code.ReferenceType = lhs_type_handle._object as
+                        ^code.ReferenceType;
+                    let lhs_val: ^code.Value = lhs._object as ^code.Value;
+                    let mut load_val: ^llvm.LLVMOpaqueValue =
+                        llvm.LLVMBuildLoad(g.irb, lhs_val.handle, "" as ^int8);
+                    lhs = code.make_value(ref.pointee, code.VC_LVALUE, load_val);
+                }
+                else
+                {
+                    break;
+                }
             }
         }
 

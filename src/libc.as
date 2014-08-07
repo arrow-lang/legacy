@@ -27,6 +27,9 @@ extern let strlen(s: str) -> uint;
 # stdlib.h
 # -----------------------------------------------------------------------------
 
+# String conversion
+extern let strtol(str, *str, int) -> int64;
+
 # Dynamic memory management
 extern let malloc(size: uint) -> *int8;
 extern let calloc(n: uint, size: uint) -> *int8;

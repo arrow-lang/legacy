@@ -162,12 +162,12 @@ struct StringExpr { text: string.String }
 
 implement StringExpr {
 
-    let count(mut self): uint -> {
-        let mut l: list.List = self.unescape();
-        let n: uint = l.size;
-        l.dispose();
-        return n;
-    }
+    # let count(mut self): uint -> {
+    #     let mut l: list.List = self.unescape();
+    #     let n: uint = l.size;
+    #     l.dispose();
+    #     return n;
+    # }
 
     let unescape(mut self): list.List -> {
         # Unescape the textual content of the string into a list of bytes.
@@ -179,8 +179,8 @@ implement StringExpr {
         let mut i: int = 0;
         let mut in_escape: bool = false;
         let mut in_utf8_escape: bool = false;
-        while i as uint < chars.size {
-            let c: int8 = chars.at_i8(i);
+        while (i as uint64) < chars.size {
+            let c: int8 = chars.get_i8(i);
             i = i + 1;
 
             if in_utf8_escape {
@@ -190,8 +190,8 @@ implement StringExpr {
                     # We've gotten exactly 2 more characters.
                     # Parse a hexadecimal from the text.
                     let data: *int8 = buffer.elements;
-                    (data + 2)* = 0;
-                    let val: int64 = libc.strtol(data, 0, 16);
+                    *(data + 2) = 0;
+                    let val: int64 = libc.strtol(data as str, 0, 16);
 
                     # Write out this single byte into bytes.
                     bytes.push_i8(val as int8);
@@ -224,13 +224,12 @@ implement StringExpr {
                 if c == (('\\' as char) as int8) {
                     # Mark that we are in an escape sequence.
                     in_escape = true;
-                    void;
                 } else {
                     # Push the character.
                     bytes.push_i8(c);
                 };
             };
-        };
+        }
 
         # Dispose.
         buffer.dispose();

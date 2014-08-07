@@ -10,7 +10,7 @@ import types;
 import code;
 import tokenizer;
 import generator_;
-# import generator_util;
+import generator_util;
 # import generator_extract;
 # import generator_def;
 # import generator_decl;
@@ -78,8 +78,8 @@ let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
     g.attached_functions = list.List.new(types.PTR);
     g.current_self = code.make_nil();
 
-#     # Build the "type resolution" jump table.
-#     libc.memset(&g.type_resolvers[0] as *int8, 0, (100 * ptr_size) as int32);
+    # Build the "type resolution" jump table.
+    libc.memset(&g.type_resolvers[0] as *int8, 0, (100 * ptr_size) as int32);
 #     g.type_resolvers[ast.TAG_IDENT] = resolvers.ident;
 #     g.type_resolvers[ast.TAG_INTEGER] = resolvers.integer;
 #     g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
@@ -129,8 +129,8 @@ let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
 #     g.type_resolvers[ast.TAG_DELEGATE] = resolvers.delegate;
 #     g.type_resolvers[ast.TAG_SIZEOF] = resolvers.sizeof;
 
-#     # Build the "builder" jump table.
-#     libc.memset(&g.builders[0] as *int8, 0, (100 * ptr_size) as int32);
+    # Build the "builder" jump table.
+    libc.memset(&g.builders[0] as *int8, 0, (100 * ptr_size) as int32);
 #     g.builders[ast.TAG_IDENT] = builders.ident;
 #     g.builders[ast.TAG_SIZEOF] = builders.sizeof;
 #     g.builders[ast.TAG_INTEGER] = builders.integer;
@@ -178,11 +178,11 @@ let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
 #     g.builders[ast.TAG_STRING] = builders.string_;
 #     g.builders[ast.TAG_SELF] = builders.self_;
 
-#     # Add basic type definitions.
-#     generator_util.declare_basic_types(g);
+    # Add basic type definitions.
+    generator_util.declare_basic_types(g);
 
-#     # Add `assert` built-in.
-#     generator_util.declare_assert(g);
+    # Add `assert` built-in.
+    generator_util.declare_assert(g);
 
 #     # Generation is a complex beast. So we first need to break apart
 #     # the declarations or "items" from the nodes. As all nodes are owned

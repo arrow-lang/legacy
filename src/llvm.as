@@ -40,6 +40,9 @@ extern let LLVMSetTarget(*LLVMOpaqueModule, str);
 extern let LLVMAddFunction(*LLVMOpaqueModule, name: str, *LLVMOpaqueType)
     -> *LLVMOpaqueValue;
 
+# Obtain a "void" type.
+extern let LLVMVoidType() -> *LLVMOpaqueType;
+
 # Obtain an integer type from the global context with a specified bit
 # width.
 extern let LLVMInt1Type() -> *LLVMOpaqueType;
@@ -48,6 +51,10 @@ extern let LLVMInt16Type() -> *LLVMOpaqueType;
 extern let LLVMInt32Type() -> *LLVMOpaqueType;
 extern let LLVMInt64Type() -> *LLVMOpaqueType;
 extern let LLVMIntType(uint32) -> *LLVMOpaqueType;
+
+# Optain a floating-point type from the global context.
+extern let LLVMFloatType() -> *LLVMOpaqueType;
+extern let LLVMDoubleType() -> *LLVMOpaqueType;
 
 # Obtain the length of an array type.
 extern let LLVMGetArrayLength(*LLVMOpaqueType) -> uint32;
@@ -67,19 +74,64 @@ extern let LLVMGetParam(*LLVMOpaqueValue, index: uint) -> *LLVMOpaqueValue;
 extern let LLVMAppendBasicBlock(*LLVMOpaqueValue, name: str)
     -> *LLVMOpaqueBasicBlock;
 
-# Obtain a constant value for an integer type.
+# Obtain the terminator instruction for a basic block.
+extern let LLVMGetBasicBlockTerminator(*LLVMOpaqueBasicBlock) -> *LLVMOpaqueValue;
+
+# Constant expressions.
 extern let LLVMConstInt(*LLVMOpaqueType, uint128, bool) -> *LLVMOpaqueValue;
+extern let LLVMSizeOf(*LLVMOpaqueType) -> *LLVMOpaqueValue;
+extern let LLVMIsConstant(*LLVMOpaqueValue) -> int64;
+
+# This group contains functions that operate on global values.
+extern let LLVMGetLinkage(*LLVMOpaqueValue) -> int32;
+extern let LLVMSetLinkage(*LLVMOpaqueValue, int32);
+extern let LLVMGetSection(*LLVMOpaqueValue) -> str;
+extern let LLVMSetSection(*LLVMOpaqueValue, str);
+extern let LLVMGetVisibility(*LLVMOpaqueValue) -> int32;
+extern let LLVMSetVisibility(*LLVMOpaqueValue, int32);
+
+# Obtain the code opcode for an individual instruction.
+extern let LLVMGetInstructionOpcode(*LLVMOpaqueValue) -> uint32;
+
+# Remove and delete an instruction.
+extern let LLVMInstructionEraseFromParent(*LLVMOpaqueValue);
+
+# Obtain an operand at a specific index in a llvm::User value.
+extern let LLVMGetOperand(*LLVMOpaqueValue, uint32) -> *LLVMOpaqueValue;
 
 # Instruction builders
 extern let LLVMCreateBuilder() -> *LLVMOpaqueBuilder;
 extern let LLVMDisposeBuilder(*LLVMOpaqueBuilder);
 extern let LLVMPositionBuilderAtEnd(*LLVMOpaqueBuilder, *LLVMOpaqueBasicBlock);
 extern let LLVMGetInsertBlock(*LLVMOpaqueBuilder) -> *LLVMOpaqueBuilder;
+extern let LLVMBuildAlloca(*LLVMOpaqueBuilder, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildStore(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue) -> *LLVMOpaqueValue;
 extern let LLVMBuildCall(*LLVMOpaqueBuilder, *LLVMOpaqueValue,
                          *LLVMOpaqueValue, uint,
                          str) -> *LLVMOpaqueValue;
 extern let LLVMBuildRetVoid(*LLVMOpaqueBuilder) -> *LLVMOpaqueValue;
 extern let LLVMBuildRet(*LLVMOpaqueBuilder, *LLVMOpaqueValue) -> *LLVMOpaqueValue;
+extern let LLVMBuildBr(*LLVMOpaqueBuilder, *LLVMOpaqueBasicBlock);
+extern let LLVMBuildCondBr(*LLVMOpaqueBuilder,
+                           *LLVMOpaqueValue,
+                           *LLVMOpaqueBasicBlock,
+                           *LLVMOpaqueBasicBlock) -> *LLVMOpaqueValue;
+extern let LLVMBuildPointerCast(*LLVMOpaqueBuilder,
+                                *LLVMOpaqueValue,
+                                *LLVMOpaqueType,
+                                str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildTrunc(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildZExt(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildSExt(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildFPToUI(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildFPToSI(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildUIToFP(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildSIToFP(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildFPTrunc(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildFPExt(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildPtrToInt(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildIntToPtr(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
 
 
 # TargetMachine.h
@@ -121,3 +173,7 @@ extern let LLVMInitializeX86TargetInfo();
 
 # Converts target data to a target layout string.
 extern let LLVMCopyStringRepOfTargetData(*LLVMOpaqueTargetData) -> str;
+
+# Computes the ABI size of a type in bytes for a target.
+extern let LLVMABISizeOfType(*LLVMOpaqueTargetData, *LLVMOpaqueType)
+    -> uint128;

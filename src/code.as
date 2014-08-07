@@ -20,7 +20,7 @@ let TAG_FUNCTION_TYPE: int = 7;
 let TAG_FUNCTION: int = 8;
 let TAG_PARAMETER: int = 9;
 let TAG_BOOL_TYPE: int = 10;
-let TAG_INT8_TYPE: int = 11;
+let TAG_VOID_TYPE: int = 11;
 let TAG_LOCAL_SLOT: int = 12;
 let TAG_TUPLE_TYPE: int = 13;
 let TAG_STRUCT: int = 14;
@@ -182,7 +182,7 @@ let make_int8_type(handle: *llvm.LLVMOpaqueType): *Handle -> {
     ty.handle = handle;
 
     # Wrap in a handle.
-    make(TAG_INT8_TYPE, ty as *int8);
+    make(TAG_VOID_TYPE, ty as *int8);
 }
 
 let make_float_type(handle: *llvm.LLVMOpaqueType, bits: int64): *Handle -> {
@@ -245,7 +245,7 @@ let typename(handle: *Handle): string.String -> {
     let mut name: string.String = string.String.new();
 
     # Figure out what we are.
-    if      handle._tag == TAG_INT8_TYPE { name.extend("nothing"); }
+    if      handle._tag == TAG_VOID_TYPE { name.extend("nothing"); }
     else if handle._tag == TAG_BOOL_TYPE { name.extend("bool"); }
     else if handle._tag == TAG_CHAR_TYPE { name.extend("char"); }
     else if handle._tag == TAG_STR_TYPE  { name.extend("str"); }
@@ -334,7 +334,7 @@ let typename(handle: *Handle): string.String -> {
         name.append(")");
 
         if not isnil(fn_ty.return_type) {
-            if fn_ty.return_type._tag != TAG_INT8_TYPE {
+            if fn_ty.return_type._tag != TAG_VOID_TYPE {
                 name.extend(" -> ");
                 let mut ret_name: string.String = typename(fn_ty.return_type);
                 name.extend(ret_name.data() as str);

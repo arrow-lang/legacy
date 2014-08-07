@@ -36,6 +36,10 @@ extern let LLVMSetDataLayout(*LLVMOpaqueModule, str);
 # Set the target triple for a module.
 extern let LLVMSetTarget(*LLVMOpaqueModule, str);
 
+# Add a function to a module under a specified name.
+extern let LLVMAddFunction(*LLVMOpaqueModule, name: str, *LLVMOpaqueType)
+    -> *LLVMOpaqueValue;
+
 # Obtain an integer type from the global context with a specified bit
 # width.
 extern let LLVMInt1Type() -> *LLVMOpaqueType;
@@ -51,9 +55,32 @@ extern let LLVMGetArrayLength(*LLVMOpaqueType) -> uint32;
 # Create a pointer type that points to a defined type.
 extern let LLVMPointerType(*LLVMOpaqueType, uint32) -> *LLVMOpaqueType;
 
+# Obtain a function type consisting of a specified signature.
+extern let LLVMFunctionType(
+    *LLVMOpaqueTargetData, *LLVMOpaqueTargetData, uint32, uint32)
+        -> *LLVMOpaqueType;
+
+# Obtain the parameter at the specified index.
+extern let LLVMGetParam(*LLVMOpaqueValue, index: uint) -> *LLVMOpaqueValue;
+
+# Append a basic block to the end of a function using the global context.
+extern let LLVMAppendBasicBlock(*LLVMOpaqueValue, name: str)
+    -> *LLVMOpaqueBasicBlock;
+
+# Obtain a constant value for an integer type.
+extern let LLVMConstInt(*LLVMOpaqueType, uint128, bool) -> *LLVMOpaqueValue;
+
 # Instruction builders
 extern let LLVMCreateBuilder() -> *LLVMOpaqueBuilder;
 extern let LLVMDisposeBuilder(*LLVMOpaqueBuilder);
+extern let LLVMPositionBuilderAtEnd(*LLVMOpaqueBuilder, *LLVMOpaqueBasicBlock);
+extern let LLVMGetInsertBlock(*LLVMOpaqueBuilder) -> *LLVMOpaqueBuilder;
+extern let LLVMBuildCall(*LLVMOpaqueBuilder, *LLVMOpaqueValue,
+                         *LLVMOpaqueValue, uint,
+                         str) -> *LLVMOpaqueValue;
+extern let LLVMBuildRetVoid(*LLVMOpaqueBuilder) -> *LLVMOpaqueValue;
+extern let LLVMBuildRet(*LLVMOpaqueBuilder, *LLVMOpaqueValue) -> *LLVMOpaqueValue;
+
 
 # TargetMachine.h
 # -----------------------------------------------------------------------------

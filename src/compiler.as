@@ -4,6 +4,8 @@ import errors;
 import string;
 import tokenizer;
 import parser;
+import generator;
+import generator_;
 
 let show_help() -> {
     libc.printf(
@@ -156,7 +158,7 @@ let main(argc: int32, argv: *str): int32 -> {
         return (-1 if errors.count > 0 else 0) as int32;
     };
 
-    # # Determine the "module name"
+    # TODO: Determine the "module name"
     # let module_name: str =
     #     if string.isnil(output_filename) {
     #         # HACK: HACK: HACK: nuff said
@@ -185,12 +187,29 @@ let main(argc: int32, argv: *str): int32 -> {
         return (-1 if errors.count > 0 else 0) as int32;
     };
 
+    # Die if we had errors.
+    if errors.count > 0 { libc.exit(-1); };
+
+    # Declare the generator.
+    let mut g: generator_.Generator;
+
+    # Walk the AST and generate the LLVM IR.
+    generator.generate(g, "_", unit);
+    if errors.count > 0 { libc.exit(-1); };
+
+    # Output the generated LLVM IR.
+    let data = llvm.LLVMPrintModuleToString(g.mod);
+    libc.fprintf(out_stream, "%s", data);
+    llvm.LLVMDisposeMessage(data);
+
     # Close the streams.
     if has_stream { libc.fclose(stream); };
     if has_out_stream { libc.fclose(out_stream); };
 
     # Dispose
     t.dispose();
+    p.dispose();
+    g.dispose();
 
     # Return
     return (-1 if errors.count > 0 else 0) as int32;

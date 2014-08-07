@@ -54,6 +54,7 @@ extern let fclose(*FILE);
 # Formatted input/output
 extern let fprintf(*FILE, str, ...) -> int64;
 extern let printf(str, ...) -> int64;
+extern let snprintf(str, uint64, str, ...) -> int32;
 
 # Character input/output
 extern let puts(str) -> int64;

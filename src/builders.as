@@ -1984,9 +1984,16 @@ def address_of(g: ^mut generator_.Generator, node: ^ast.Node,
     # Cast to values.
     let operand_val: ^code.Value = operand_val_han._object as ^code.Value;
 
+    # If we are dealing with a reference; load its value
+    let mut val: ^llvm.LLVMOpaqueValue = operand_val.handle;
+    if operand_ty._tag == code.TAG_REFERENCE_TYPE
+    {
+        val = llvm.LLVMBuildLoad(g.irb, val, "" as ^int8);
+    }
+
     # Wrap and return the value (the direct address).
     let han: ^code.Handle;
-    han = code.make_value(target, code.VC_RVALUE, operand_val.handle);
+    han = code.make_value(target, code.VC_RVALUE, val);
 
     # Dispose.
     code.dispose(operand_val_han);

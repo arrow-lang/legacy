@@ -21,9 +21,9 @@ let show_help() -> {
 
 let main(argc: int32, argv: *str): int32 -> {
     # Prepare flags and state.
-    let mut show_version: bool = false;
-    let mut tokenize_only: bool = false;
-    let mut parse_only: bool = false;
+    let mut show_version: int32 = 0;
+    let mut tokenize_only: int32 = 0;
+    let mut parse_only: int32 = 0;
     let mut filename: str = string.nil;
     let mut output_filename: str = string.nil;
 
@@ -74,7 +74,7 @@ let main(argc: int32, argv: *str): int32 -> {
                 show_help();
                 return 0;
             } else if (c as char) == "V" {
-                show_version = true;
+                show_version = 1;
             } else if (c as char) == "o" {
                 output_filename = posix.optarg;
             };
@@ -82,7 +82,7 @@ let main(argc: int32, argv: *str): int32 -> {
     }
 
     # Check for set flags.
-    if show_version {
+    if show_version != 0 {
         libc.printf("Arrow 0.1.0\n");
         return 0;
     };
@@ -135,7 +135,7 @@ let main(argc: int32, argv: *str): int32 -> {
     # Declare the tokenizer.
     let mut t: tokenizer.Tokenizer = tokenizer.Tokenizer.new(filename, stream);
 
-    if tokenize_only {
+    if tokenize_only != 0 {
         # Iterate through each token in the input stream.
         loop {
             # Get the next token
@@ -159,23 +159,23 @@ let main(argc: int32, argv: *str): int32 -> {
     };
 
     # TODO: Determine the "module name"
-    # let module_name: str =
-    #     if string.isnil(output_filename) {
-    #         # HACK: HACK: HACK: nuff said
-    #         *((filename as *int8) + libc.strlen(filename) - 3) = 0;
-    #         filename as str;
-    #     } else {
-    #         "_";
-    #     };
+    let module_name: str =
+        if string.isnil(output_filename) {
+            # HACK: HACK: HACK: nuff said
+            *((filename as *int8) + libc.strlen(filename) - 3) = 0;
+            filename as str;
+        } else {
+            "_";
+        };
 
     # Declare the parser.
-    let mut p: parser.Parser = parser.parser_new("_", t);
+    let mut p: parser.Parser = parser.parser_new(module_name, t);
 
     # Parse the AST from the standard input.
     let unit: ast.Node = p.parse();
     if errors.count > 0 { libc.exit(-1); };
 
-    if parse_only {
+    if parse_only != 0 {
         # Print the AST.
         ast.fdump(out_stream, unit);
 
@@ -194,7 +194,7 @@ let main(argc: int32, argv: *str): int32 -> {
     let mut g: generator_.Generator;
 
     # Walk the AST and generate the LLVM IR.
-    generator.generate(g, "_", unit);
+    generator.generate(g, module_name, unit);
     if errors.count > 0 { libc.exit(-1); };
 
     # Output the generated LLVM IR.

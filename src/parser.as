@@ -2074,8 +2074,8 @@ let parse_select_expr(mut self): bool ->
     let mut else_: bool = false;
 
     # Parse the selection expression
-    if not self.parse_select_expr_inner(*select, else_) { return false; };
-    if not self.parse_select_expr_else(*select, else_) { return false; };
+    if not self.parse_select_expr_inner(*select, &else_) { return false; };
+    if not self.parse_select_expr_else(*select, &else_) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -2085,11 +2085,10 @@ let parse_select_expr(mut self): bool ->
 }
 
 let parse_select_expr_inner(
-    mut self, mut x: ast.SelectExpr, mut have_else_: bool): bool ->
+    mut self, mut x: ast.SelectExpr, have_else: *mut bool): bool ->
 {
     # If we are already at `else` then drop.
-    let mut have_else = have_else_;
-    if have_else { return true; };
+    if *have_else { return true; };
 
     loop
     {
@@ -2105,7 +2104,7 @@ let parse_select_expr_inner(
 
         # Check for an "else" branch.
         if self.peek_token_tag(1) == tokens.TOK_ELSE {
-            have_else = true;
+            *have_else = true;
 
             # Consume the "else" token.
             self.pop_token();
@@ -2113,7 +2112,7 @@ let parse_select_expr_inner(
             # Check for an adjacent "if" token (which would make this
             # an "else if" and part of this selection expression).
             if self.peek_token_tag(1) == tokens.TOK_IF {
-                have_else = false;
+                *have_else = false;
 
                 # Loop back and parse another branch.
                 continue;
@@ -2129,10 +2128,10 @@ let parse_select_expr_inner(
 }
 
 let parse_select_expr_else(
-    mut self, mut x: ast.SelectExpr, mut have_else: bool): bool ->
+    mut self, mut x: ast.SelectExpr, have_else: *mut bool): bool ->
 {
     # Parse the trailing "else" (if we have one).
-    if have_else {
+    if *have_else {
         # Parse the condition-less branch.
         let branch: ast.Node = self.parse_select_branch(false);
         if ast.isnull(branch) { return false; };

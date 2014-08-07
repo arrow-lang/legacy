@@ -625,7 +625,7 @@ let fdump(stream: *libc.FILE, node: Node) -> {
         dump_initialized = true;
     };
 
-    # print_indent(stream);
+    print_indent(stream);
     let dump_fn: delegate(*libc.FILE, Node) = dump_table[node.tag];
     dump_fn(stream, node);
     dump_table[0];

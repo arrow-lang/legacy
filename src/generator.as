@@ -11,11 +11,11 @@ import code;
 import tokenizer;
 import generator_;
 import generator_util;
-# import generator_extract;
+import generator_extract;
 # import generator_def;
 # import generator_decl;
 # import generator_type;
-# import generator_realize;
+import generator_realize;
 # import builders;
 # import resolvers;
 
@@ -184,16 +184,16 @@ let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
     # Add `assert` built-in.
     generator_util.declare_assert(g);
 
-#     # Generation is a complex beast. So we first need to break apart
-#     # the declarations or "items" from the nodes. As all nodes are owned
-#     # by "some" declaration (`module`, `function`, `struct`, etc.) this
-#     # effectually removes the AST structure.
-#     generator_extract.extract(g, node);
-#     if errors.count > 0 { return; }
+    # Generation is a complex beast. So we first need to break apart
+    # the declarations or "items" from the nodes. As all nodes are owned
+    # by "some" declaration (`module`, `function`, `struct`, etc.) this
+    # effectually removes the AST structure.
+    generator_extract.extract(g, node);
+    if errors.count > 0 { return; };
 
-#     # Next we realize the type of each item that we extracted.
-#     generator_realize.generate(g);
-#     if errors.count > 0 { return; }
+    # Next we realize the type of each item that we extracted.
+    generator_realize.generate(g);
+    if errors.count > 0 { return; };
 
 #     # Next we resolve the type of each item that we extracted.
 #     generator_type.generate(g);

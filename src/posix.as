@@ -5,6 +5,9 @@
 # isatty - test whether a file descriptor refers to a terminal
 extern let isatty(int) -> int;
 
+# access - determine accessibility of a file
+extern let access(str, int32) -> int32;
+
 # getopt.h
 # -----------------------------------------------------------------------------
 

@@ -13,11 +13,11 @@ import generator_;
 import generator_util;
 import generator_extract;
 import generator_def;
-# import generator_decl;
+import generator_decl;
 import generator_type;
 import generator_realize;
 # import builders;
-# import resolvers;
+import resolvers;
 
 # Begin the generation process seeded by the passed AST node.
 # =============================================================================
@@ -80,54 +80,54 @@ let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
 
     # Build the "type resolution" jump table.
     libc.memset(&g.type_resolvers[0] as *int8, 0, (100 * ptr_size) as int32);
-#     g.type_resolvers[ast.TAG_IDENT] = resolvers.ident;
-#     g.type_resolvers[ast.TAG_INTEGER] = resolvers.integer;
-#     g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
-#     g.type_resolvers[ast.TAG_FLOAT] = resolvers.float;
-#     g.type_resolvers[ast.TAG_CALL] = resolvers.call;
-#     g.type_resolvers[ast.TAG_LOGICAL_AND] = resolvers.logical;
-#     g.type_resolvers[ast.TAG_LOGICAL_OR] = resolvers.logical;
-#     g.type_resolvers[ast.TAG_PROMOTE] = resolvers.arithmetic_u;
-#     g.type_resolvers[ast.TAG_NUMERIC_NEGATE] = resolvers.arithmetic_u;
-#     g.type_resolvers[ast.TAG_LOGICAL_NEGATE] = resolvers.arithmetic_u;
-#     g.type_resolvers[ast.TAG_BITNEG] = resolvers.arithmetic_u;
-#     g.type_resolvers[ast.TAG_ADD] = resolvers.arithmetic_b;
-#     g.type_resolvers[ast.TAG_SUBTRACT] = resolvers.arithmetic_b;
-#     g.type_resolvers[ast.TAG_MULTIPLY] = resolvers.arithmetic_b;
-#     g.type_resolvers[ast.TAG_DIVIDE] = resolvers.divide;
-#     g.type_resolvers[ast.TAG_INTEGER_DIVIDE] = resolvers.arithmetic_b;
-#     g.type_resolvers[ast.TAG_MODULO] = resolvers.arithmetic_b;
-#     g.type_resolvers[ast.TAG_BITAND] = resolvers.arithmetic_b;
-#     g.type_resolvers[ast.TAG_BITOR] = resolvers.arithmetic_b;
-#     g.type_resolvers[ast.TAG_BITXOR] = resolvers.arithmetic_b;
-#     g.type_resolvers[ast.TAG_EQ] = resolvers.relational;
-#     g.type_resolvers[ast.TAG_NE] = resolvers.relational;
-#     g.type_resolvers[ast.TAG_LT] = resolvers.relational;
-#     g.type_resolvers[ast.TAG_LE] = resolvers.relational;
-#     g.type_resolvers[ast.TAG_GT] = resolvers.relational;
-#     g.type_resolvers[ast.TAG_GE] = resolvers.relational;
-#     g.type_resolvers[ast.TAG_TUPLE_EXPR] = resolvers.tuple;
-#     g.type_resolvers[ast.TAG_TUPLE_TYPE] = resolvers.tuple_type;
-#     g.type_resolvers[ast.TAG_RETURN] = resolvers.return_;
-#     g.type_resolvers[ast.TAG_ASSIGN] = resolvers.assign;
-#     g.type_resolvers[ast.TAG_SLOT] = resolvers.pass;
-#     g.type_resolvers[ast.TAG_CONDITIONAL] = resolvers.conditional;
-#     g.type_resolvers[ast.TAG_SELECT] = resolvers.select;
-#     g.type_resolvers[ast.TAG_MEMBER] = resolvers.member;
-#     g.type_resolvers[ast.TAG_POINTER_TYPE] = resolvers.pointer_type;
-#     g.type_resolvers[ast.TAG_ADDRESS_OF] = resolvers.address_of;
-#     g.type_resolvers[ast.TAG_DEREF] = resolvers.dereference;
-#     g.type_resolvers[ast.TAG_CAST] = resolvers.cast;
-#     g.type_resolvers[ast.TAG_LOOP] = resolvers.loop_;
-#     g.type_resolvers[ast.TAG_BREAK] = resolvers.pass;
-#     g.type_resolvers[ast.TAG_CONTINUE] = resolvers.pass;
-#     g.type_resolvers[ast.TAG_ARRAY_TYPE] = resolvers.array_type;
-#     g.type_resolvers[ast.TAG_INDEX] = resolvers.index;
-#     g.type_resolvers[ast.TAG_ARRAY_EXPR] = resolvers.array;
-#     g.type_resolvers[ast.TAG_STRING] = resolvers.string_;
-#     g.type_resolvers[ast.TAG_SELF] = resolvers.self_;
-#     g.type_resolvers[ast.TAG_DELEGATE] = resolvers.delegate;
-#     g.type_resolvers[ast.TAG_SIZEOF] = resolvers.sizeof;
+    g.type_resolvers[ast.TAG_IDENT] = resolvers.ident;
+    g.type_resolvers[ast.TAG_INTEGER] = resolvers.integer;
+    g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
+    g.type_resolvers[ast.TAG_FLOAT] = resolvers.float;
+    g.type_resolvers[ast.TAG_CALL] = resolvers.call;
+    g.type_resolvers[ast.TAG_LOGICAL_AND] = resolvers.logical;
+    g.type_resolvers[ast.TAG_LOGICAL_OR] = resolvers.logical;
+    g.type_resolvers[ast.TAG_PROMOTE] = resolvers.arithmetic_u;
+    g.type_resolvers[ast.TAG_NUMERIC_NEGATE] = resolvers.arithmetic_u;
+    g.type_resolvers[ast.TAG_LOGICAL_NEGATE] = resolvers.arithmetic_u;
+    g.type_resolvers[ast.TAG_BITNEG] = resolvers.arithmetic_u;
+    g.type_resolvers[ast.TAG_ADD] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_SUBTRACT] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_MULTIPLY] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_DIVIDE] = resolvers.divide;
+    g.type_resolvers[ast.TAG_INTEGER_DIVIDE] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_MODULO] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_BITAND] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_BITOR] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_BITXOR] = resolvers.arithmetic_b;
+    g.type_resolvers[ast.TAG_EQ] = resolvers.relational;
+    g.type_resolvers[ast.TAG_NE] = resolvers.relational;
+    g.type_resolvers[ast.TAG_LT] = resolvers.relational;
+    g.type_resolvers[ast.TAG_LE] = resolvers.relational;
+    g.type_resolvers[ast.TAG_GT] = resolvers.relational;
+    g.type_resolvers[ast.TAG_GE] = resolvers.relational;
+    g.type_resolvers[ast.TAG_TUPLE_EXPR] = resolvers.tuple;
+    g.type_resolvers[ast.TAG_TUPLE_TYPE] = resolvers.tuple_type;
+    g.type_resolvers[ast.TAG_RETURN] = resolvers.return_;
+    g.type_resolvers[ast.TAG_ASSIGN] = resolvers.assign;
+    g.type_resolvers[ast.TAG_SLOT] = resolvers.pass;
+    g.type_resolvers[ast.TAG_CONDITIONAL] = resolvers.conditional;
+    g.type_resolvers[ast.TAG_SELECT] = resolvers.select;
+    g.type_resolvers[ast.TAG_MEMBER] = resolvers.member;
+    g.type_resolvers[ast.TAG_POINTER_TYPE] = resolvers.pointer_type;
+    g.type_resolvers[ast.TAG_ADDRESS_OF] = resolvers.address_of;
+    g.type_resolvers[ast.TAG_DEREF] = resolvers.dereference;
+    g.type_resolvers[ast.TAG_CAST] = resolvers.cast;
+    g.type_resolvers[ast.TAG_LOOP] = resolvers.loop_;
+    g.type_resolvers[ast.TAG_BREAK] = resolvers.pass;
+    g.type_resolvers[ast.TAG_CONTINUE] = resolvers.pass;
+    g.type_resolvers[ast.TAG_ARRAY_TYPE] = resolvers.array_type;
+    g.type_resolvers[ast.TAG_INDEX] = resolvers.index;
+    g.type_resolvers[ast.TAG_ARRAY_EXPR] = resolvers.array;
+    g.type_resolvers[ast.TAG_STRING] = resolvers.string_;
+    g.type_resolvers[ast.TAG_SELF] = resolvers.self_;
+    g.type_resolvers[ast.TAG_DELEGATE] = resolvers.delegate_;
+    g.type_resolvers[ast.TAG_SIZEOF] = resolvers.sizeof;
 
     # Build the "builder" jump table.
     libc.memset(&g.builders[0] as *int8, 0, (100 * ptr_size) as int32);
@@ -195,13 +195,13 @@ let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
     generator_realize.generate(g);
     if errors.count > 0 { return; };
 
-#     # Next we resolve the type of each item that we extracted.
-#     generator_type.generate(g);
-#     if errors.count > 0 { return; }
+    # Next we resolve the type of each item that we extracted.
+    generator_type.generate(g);
+    if errors.count > 0 { return; };
 
-#     # Next we generate decls for each "item".
-#     generator_decl.generate(g);
-#     if errors.count > 0 { return; }
+    # Next we generate decls for each "item".
+    generator_decl.generate(g);
+    if errors.count > 0 { return; };
 
 #     # Next we generate defs for each "item".
 #     generator_def.generate(g);

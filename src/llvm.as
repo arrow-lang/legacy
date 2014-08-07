@@ -112,6 +112,9 @@ extern let LLVMConstStruct(*LLVMOpaqueValue, uint32, bool) -> *LLVMOpaqueValue;
 # Obtain a constant value referring to the null instance of a type.
 extern let LLVMConstNull(*LLVMOpaqueType) -> *LLVMOpaqueValue;
 
+# Obtain the zero extended value for an integer constant value.
+extern let LLVMConstIntGetZExtValue(*LLVMOpaqueValue) -> uint128;
+
 # Obtain a constant value referring to an undefined value of a type.
 extern let LLVMGetUndef(*LLVMOpaqueType) -> *LLVMOpaqueValue;
 
@@ -127,6 +130,10 @@ extern let LLVMSetVisibility(*LLVMOpaqueValue, int32);
 extern let LLVMAddGlobal(*LLVMOpaqueModule, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
 extern let LLVMGetInitializer(*LLVMOpaqueValue) -> *LLVMOpaqueValue;
 extern let LLVMSetInitializer(*LLVMOpaqueValue, *LLVMOpaqueValue);
+extern let LLVMSetGlobalConstant(*LLVMOpaqueValue, bool);
+
+# Set the contents of a structure type.
+extern let LLVMStructSetBody(*LLVMOpaqueType, *LLVMOpaqueType, uint32, bool);
 
 # Obtain the code opcode for an individual instruction.
 extern let LLVMGetInstructionOpcode(*LLVMOpaqueValue) -> uint32;

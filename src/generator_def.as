@@ -14,62 +14,62 @@ import builder;
 
 # Generate the `definition` of each "item".
 # -----------------------------------------------------------------------------
-# let generate(mut g: generator_.Generator) -> {
-#     # Iterate over the "items" dictionary.
-#     let mut i: dict.Iterator = g.items.iter();
-#     let mut key: str;
-#     let mut ptr: *int8;
-#     let mut val: *code.Handle;
-#     while not i.empty() {
-#         # Grab the next "item"
-#         let tup = i.next();
-#         (key, ptr) = tup;
-#         val = ptr as *code.Handle;
+let generate(mut g: generator_.Generator) -> {
+    # Iterate over the "items" dictionary.
+    let mut i: dict.Iterator = g.items.iter();
+    let mut key: str;
+    let mut ptr: *int8;
+    let mut val: *code.Handle;
+    while not i.empty() {
+        # Grab the next "item"
+        let tup = i.next();
+        (key, ptr) = tup;
+        val = ptr as *code.Handle;
 
-#         if val._tag == code.TAG_STATIC_SLOT
-#         {
-#             generate_static_slot(g, key, val._object as *code.StaticSlot);
-#             0;
-#         }
-#         # else if val._tag == code.TAG_FUNCTION
-#         # {
-#         #     generate_function(g, key, val._object as *code.Function);
-#         #     0;
-#         # }
-#         # else if val._tag == code.TAG_ATTACHED_FUNCTION
-#         # {
-#         #     generate_attached_function(g, key,
-#         #                                val._object as *code.AttachedFunction);
-#         #     0;
-#         # }
-#         else if    val._tag == code.TAG_TYPE
-#                 or val._tag == code.TAG_INT_TYPE
-#                 or val._tag == code.TAG_FLOAT_TYPE
-#                 or val._tag == code.TAG_VOID_TYPE
-#                 or val._tag == code.TAG_LOCAL_SLOT
-#                 or val._tag == code.TAG_BOOL_TYPE
-#                 or val._tag == code.TAG_CHAR_TYPE
-#                 or val._tag == code.TAG_STR_TYPE
-#                 or val._tag == code.TAG_MODULE
-#                 or val._tag == code.TAG_STRUCT
-#                 or val._tag == code.TAG_EXTERN_STATIC
-#                 or val._tag == code.TAG_EXTERN_FUNC
-#         {
-#             # Do nothing; these do not need definitions.
-#             continue;
-#         }
-#         else
-#         {
-#             errors.begin_error();
-#             errors.libc.fprintf(errors.libc.stderr, "not implemented: generator_def.generate(%d)", val._tag);
-#             errors.end();
-#             code.make_nil();
-#         };
-#     }
-# }
+        if val._tag == code.TAG_STATIC_SLOT
+        {
+            generate_static_slot(g, key, val._object as *code.StaticSlot);
+            0;
+        }
+        else if val._tag == code.TAG_FUNCTION
+        {
+            generate_function(g, key, val._object as *code.Function);
+            0;
+        }
+        else if val._tag == code.TAG_ATTACHED_FUNCTION
+        {
+            generate_attached_function(g, key,
+                                       val._object as *code.AttachedFunction);
+            0;
+        }
+        else if    val._tag == code.TAG_TYPE
+                or val._tag == code.TAG_INT_TYPE
+                or val._tag == code.TAG_FLOAT_TYPE
+                or val._tag == code.TAG_VOID_TYPE
+                or val._tag == code.TAG_LOCAL_SLOT
+                or val._tag == code.TAG_BOOL_TYPE
+                or val._tag == code.TAG_CHAR_TYPE
+                or val._tag == code.TAG_STR_TYPE
+                or val._tag == code.TAG_MODULE
+                or val._tag == code.TAG_STRUCT
+                or val._tag == code.TAG_EXTERN_STATIC
+                or val._tag == code.TAG_EXTERN_FUNC
+        {
+            # Do nothing; these do not need definitions.
+            continue;
+        }
+        else
+        {
+            errors.begin_error();
+            errors.libc.fprintf(errors.libc.stderr, "not implemented: generator_def.generate(%d)", val._tag);
+            errors.end();
+            code.make_nil();
+        };
+    }
+}
 
-# # Static slot [TAG_STATIC_SLOT]
-# # -----------------------------------------------------------------------------
+# Static slot [TAG_STATIC_SLOT]
+# -----------------------------------------------------------------------------
 let generate_static_slot(mut g: generator_.Generator, qname: str,
                          x: *code.StaticSlot): *code.Handle ->
 {
@@ -370,7 +370,7 @@ let to_value(mut g: generator_.Generator,
 
                 # Wrap it in a handle.
                 return code.make_value(slot.type_, category, val);
-                0; # HACK
+                false; # HACK
             };
             0; # HACK
         }
@@ -378,7 +378,7 @@ let to_value(mut g: generator_.Generator,
         {
             # Wrap and return the slot as an lvalue.
             return code.make_value(slot.type_, code.VC_LVALUE, slot.handle);
-            0; # HACK
+            false; # HACK
         };
     };
 
@@ -402,7 +402,7 @@ let to_value(mut g: generator_.Generator,
 
                 # Wrap it in a handle.
                 return code.make_value(slot.type_, code.VC_RVALUE, val);
-                0; #HACK!
+                false; #HACK!
             };
         }
         else
@@ -416,7 +416,7 @@ let to_value(mut g: generator_.Generator,
     if handle._tag == code.TAG_VALUE
     {
         let obj: *code.Value = handle._object as *code.Value;
-        if category == 0 or category == obj.category
+        if (category == 0) | (category == obj.category)
         {
             # Clone the value object.
             return code.make_value_c(handle._context, obj.type_, obj.category,
@@ -440,7 +440,7 @@ let to_value(mut g: generator_.Generator,
 
                 # Wrap it in a handle.
                 return code.make_value(obj.type_, code.VC_RVALUE, val);
-                0; #HACK!
+                false; #HACK!
             };
         }
         else
@@ -449,6 +449,7 @@ let to_value(mut g: generator_.Generator,
             errors.libc.fprintf(errors.libc.stderr, "cannot coerce a r-value as a l-value");
             errors.end();
             return code.make_nil();
+                0; #HACK!
         };
     };
 

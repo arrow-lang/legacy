@@ -29,7 +29,7 @@ let _type_of(g: *mut generator_.Generator, item: *code.Handle): *code.Handle -> 
         else if item._tag == code.TAG_LOCAL_SLOT
         {
             # This is a local slot; just return the type.
-            let slot: *code.LocalSlot = item._object as *code.LocalSlot;
+            let slot = item._object as *code.LocalSlot;
             return slot.type_;
             0; #HACK
         }
@@ -64,7 +64,7 @@ let _type_of(g: *mut generator_.Generator, item: *code.Handle): *code.Handle -> 
             let x = item;
             return x;
             0; #HACK
-        };
+        }
         else if item._tag == code.TAG_STRUCT
         {
             # This is a struct; get its type.
@@ -81,7 +81,7 @@ let _type_of(g: *mut generator_.Generator, item: *code.Handle): *code.Handle -> 
     } else {
         # Return the type reference.
         return item;
-        0; #HACK
+    #     0; #HACK
     };
 
     # Return nil.
@@ -102,12 +102,12 @@ let type_common(a_ctx: *ast.Node, a: *code.Handle,
     # Figure out a common type.
     if a._tag == code.TAG_INT_TYPE and b._tag == a._tag {
         # Determine the integer with the greatest rank.
-        let a_ty: *code.IntegerType = a._object as *code.IntegerType;
-        let b_ty: *code.IntegerType = b._object as *code.IntegerType;
+        let ai_ty: *code.IntegerType = a._object as *code.IntegerType;
+        let bi_ty: *code.IntegerType = b._object as *code.IntegerType;
 
         # If the sign is identical then compare the bit size.
-        if a_ty.signed == b_ty.signed {
-            if a_ty.bits > b_ty.bits {
+        if ai_ty.signed == bi_ty.signed {
+            if ai_ty.bits > bi_ty.bits {
                 return a;
             } else {
                 return b;
@@ -116,15 +116,16 @@ let type_common(a_ctx: *ast.Node, a: *code.Handle,
             return b;
         } else if b_ctx.tag == ast.TAG_INTEGER {
             return a;
-        } else if a_ty.signed and a_ty.bits > b_ty.bits {
+        } else if ai_ty.signed and ai_ty.bits > bi_ty.bits {
             return a;
-        } else if b_ty.signed and b_ty.bits > a_ty.bits {
+        } else if bi_ty.signed and bi_ty.bits > ai_ty.bits {
             return b;
         } else {
             # The integer types are not strictly compatible.
             # Return nil.
             return code.make_nil();
         };
+        0; #HACK
     } else if a._tag == code.TAG_FLOAT_TYPE and b._tag == a._tag {
         # Determine the float with the greatest rank.
         let a_ty: *code.FloatType = a._object as *code.FloatType;
@@ -153,6 +154,7 @@ let type_common(a_ctx: *ast.Node, a: *code.Handle,
                 } else {
                     return code.make_nil();
                 };
+                0; #HACK
             } else {
                 return code.make_nil();
             };
@@ -307,11 +309,14 @@ let arithmetic_b(g: *mut generator_.Generator, node: *ast.Node,
         rhs_name.dispose();
 
         # Return nil.
-        code.make_nil();
+        return code.make_nil();
+        0; # HACK
     } else {
         # Worked; return the type.
-        ty;
+        return ty;
+        false; # HACK
     };
+    return code.make_nil();
 }
 
 # Pass
@@ -399,7 +404,7 @@ let ident(g: *mut generator_.Generator, node: *ast.Node,
     if code.isnil(item) {
         errors.begin_error();
         errors.libc.fprintf(errors.libc.stderr,
-                       "name '%s' is not letined",
+                       "name '%s' is not defined",
                        id.name.data());
         errors.end();
         return code.make_nil();
@@ -422,7 +427,7 @@ let self_(g: *mut generator_.Generator, node: *ast.Node,
     if code.isnil(item) {
         errors.begin_error();
         errors.libc.fprintf(errors.libc.stderr,
-                       "name '%s' is not letined",
+                       "name '%s' is not defined",
                        "self");
         errors.end();
         return code.make_nil();
@@ -456,6 +461,9 @@ let member(g: *mut generator_.Generator, node: *ast.Node,
            scope: *code.Scope, target: *code.Handle): *code.Handle ->
 {
     # Unwrap the node to its proper type.
+    let mut ns: list.List;
+    let mut lhs: *code.Handle;
+    let mut lhs_name: string.String;
     let x: *ast.BinaryExpr = node.unwrap() as *ast.BinaryExpr;
 
     # Get the name out of the rhs.
@@ -468,7 +476,7 @@ let member(g: *mut generator_.Generator, node: *ast.Node,
     if x.lhs.tag == ast.TAG_GLOBAL
     {
         # Build the top-level namespace.
-        let mut ns: list.List = list.List.new(types.STR);
+        ns = list.List.new(types.STR);
         ns.push_str(g.top_ns.data() as str);
 
         # Attempt to resolve the member.
@@ -483,7 +491,7 @@ let member(g: *mut generator_.Generator, node: *ast.Node,
         {
              errors.begin_error();
              errors.libc.fprintf(errors.libc.stderr,
-                            "name '%s' is not letined",
+                            "name '%s' is not defined",
                             rhs_id.name.data());
              errors.end();
              return code.make_nil();
@@ -492,7 +500,7 @@ let member(g: *mut generator_.Generator, node: *ast.Node,
     else
     {
         # Resolve the type of the lhs.
-        let mut lhs: *code.Handle = resolver.resolve_s(g, &x.lhs, scope);
+        lhs = resolver.resolve_s(g, &x.lhs, scope);
         if code.isnil(lhs) { return code.make_nil(); };
 
         # If we are dealing with a pointer / reference.. obtain the type
@@ -503,9 +511,11 @@ let member(g: *mut generator_.Generator, node: *ast.Node,
             if lhs._tag == code.TAG_POINTER_TYPE {
                 let ptr: *code.PointerType = lhs._object as *code.PointerType;
                 lhs = ptr.pointee;
+                0;#HACK
             } else {
                 let ref: *code.ReferenceType = lhs._object as *code.ReferenceType;
                 lhs = ref.pointee;
+                0;#HACK
             };
         }
 
@@ -582,7 +592,7 @@ let member(g: *mut generator_.Generator, node: *ast.Node,
             };
         } else {
             # Not sure how to resolve this.
-            let mut lhs_name: string.String = code.typename(lhs);
+            lhs_name = code.typename(lhs);
 
             # Report error.
             errors.begin_error();
@@ -609,6 +619,7 @@ let call(g: *mut generator_.Generator, node: *ast.Node,
          scope: *code.Scope, target: *code.Handle): *code.Handle ->
 {
     # Unwrap the node to its proper type.
+    let mut ty: *code.FunctionType;
     let x: *ast.CallExpr = node.unwrap() as *ast.CallExpr;
 
     # Resolve the type of the call expression.
@@ -619,7 +630,7 @@ let call(g: *mut generator_.Generator, node: *ast.Node,
     if expr._tag == code.TAG_FUNCTION_TYPE
     {
         # Get it as a function type.
-        let ty: *code.FunctionType = expr._object as *code.FunctionType;
+        ty = expr._object as *code.FunctionType;
 
         # Return the already resolved return type.
         ty.return_type;
@@ -1098,6 +1109,7 @@ let select(g: *mut generator_.Generator, node: *ast.Node,
 
                 # Common type found; set as the new type han.
                 type_han = com_han;
+                0; # HACK
             };
         };
 
@@ -1184,7 +1196,7 @@ let array_type(g: *mut generator_.Generator, node: *ast.Node,
     let mut size_han: *code.Handle;
     size_han = builder.build(g, &x.size, scope, size_ty);
     if code.isnil(size_han) { return code.make_nil(); };
-    let size_val_han: *code.Handle = generator_let.to_value(
+    let size_val_han: *code.Handle = generator_def.to_value(
         *g, size_han, code.VC_RVALUE, true);
     let size_val: *code.Value = size_val_han._object as *code.Value;
     if code.isnil(size_val_han) { return code.make_nil(); };
@@ -1201,7 +1213,7 @@ let array_type(g: *mut generator_.Generator, node: *ast.Node,
         let val: uint64 = llvm.LLVMConstIntGetZExtValue(size_val.handle);
 
         # Create the LLVM type.
-        let handle: *llvm.LLVMOpaqueType;
+        let mut handle: *llvm.LLVMOpaqueType;
         # handle = llvm.LLVMArrayType(element_type.handle, val as uint32);
         handle = llvm.LLVMArrayType(
             generator_util.alter_type_handle(element),
@@ -1328,7 +1340,7 @@ let index(g: *mut generator_.Generator, node: *ast.Node,
     let x: *ast.IndexExpr = node.unwrap() as *ast.IndexExpr;
 
     # Resolve the types of the operand.
-    let operand: *code.Handle = resolver.resolve_s(g, &x.expression, scope);
+    let mut operand: *code.Handle = resolver.resolve_s(g, &x.expression, scope);
     if code.isnil(operand) { return code.make_nil(); };
 
     # Pull out the reference if we are dealing with a reference type.

@@ -162,12 +162,12 @@ struct StringExpr { text: string.String }
 
 implement StringExpr {
 
-    # let count(mut self): uint -> {
-    #     let mut l: list.List = self.unescape();
-    #     let n: uint = l.size;
-    #     l.dispose();
-    #     return n;
-    # }
+    let count(mut self): uint -> {
+        let mut l: list.List = self.unescape();
+        let n: uint = l.size;
+        l.dispose();
+        return n;
+    }
 
     let unescape(mut self): list.List -> {
         # Unescape the textual content of the string into a list of bytes.

@@ -12,9 +12,9 @@ import tokenizer;
 import generator_;
 import generator_util;
 import generator_extract;
-# import generator_def;
+import generator_def;
 # import generator_decl;
-# import generator_type;
+import generator_type;
 import generator_realize;
 # import builders;
 # import resolvers;
@@ -370,27 +370,27 @@ let declare_main(mut g: generator_.Generator) -> {
     # If the main is supposed to return ...
     if module_main_fn_returns
     {
-        # # Wrap the value.
-        # let val: *code.Handle = code.make_value(
-        #     module_main_fn_type.return_type,
-        #     code.VC_RVALUE,
-        #     main_res);
+        # Wrap the value.
+        let val: *code.Handle = code.make_value(
+            module_main_fn_type.return_type,
+            code.VC_RVALUE,
+            main_res);
 
-        # # Coerce to value.
-        # let val_han: *code.Handle = generator_def.to_value(
-        #     g, val, code.VC_RVALUE, false);
-        # if code.isnil(val_han) { return; };
+        # Coerce to value.
+        let val_han: *code.Handle = generator_def.to_value(
+            g, val, code.VC_RVALUE, false);
+        if code.isnil(val_han) { return; };
 
-        # # Build the cast.
-        # let cast_han: *code.Handle = generator_util.cast(
-        #     g, val, g.items.get_ptr("int32") as *code.Handle, true);
-        # if code.isnil(cast_han) { return; };
+        # Build the cast.
+        let cast_han: *code.Handle = generator_util.cast(
+            g, val, g.items.get_ptr("int32") as *code.Handle, true);
+        if code.isnil(cast_han) { return; };
 
-        # # Get the value.
-        # let cast_val: *code.Value = cast_han._object as *code.Value;
+        # Get the value.
+        let cast_val: *code.Value = cast_han._object as *code.Value;
 
-        # # Add the `ret` instruction to terminate the function.
-        # llvm.LLVMBuildRet(g.irb, cast_val.handle);
+        # Add the `ret` instruction to terminate the function.
+        llvm.LLVMBuildRet(g.irb, cast_val.handle);
     }
     else
     {

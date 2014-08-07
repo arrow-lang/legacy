@@ -176,7 +176,7 @@ let make_type(handle: *llvm.LLVMOpaqueType): *Handle -> {
     make(TAG_TYPE, ty as *int8);
 }
 
-let make_int8_type(handle: *llvm.LLVMOpaqueType): *Handle -> {
+let make_void_type(handle: *llvm.LLVMOpaqueType): *Handle -> {
     # Build the module.
     let ty: *Type = libc.malloc(size_of(Type)) as *Type;
     ty.handle = handle;

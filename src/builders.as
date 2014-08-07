@@ -1589,7 +1589,6 @@ def return_(g: ^mut generator_.Generator, node: ^ast.Node,
         llvm.LLVMBuildRet(g.irb, val.handle);
 
         # Dispose.
-        code.dispose(expr);
         code.dispose(val_han);
     } else {
         # Create the void `RET` instruction.

@@ -34,7 +34,7 @@ extern let realloc(ptr: *int8, size: uint) -> *int8;
 extern let free(ptr: *int8);
 
 # Environment
-extern let exit(status: int64);
+extern let exit(status: int32);
 
 # stdio.h
 # -----------------------------------------------------------------------------

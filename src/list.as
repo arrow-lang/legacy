@@ -166,7 +166,7 @@ implement List {
             else         { index as uint; };
 
         # Return the element offset.
-        return (self.elements + (_index * self.element_size)) as *int8;
+        return (self.elements + (_index * self.element_size));
     }
 
     let   get_i8(self, idx: int):   int8 -> { return *self.get(idx); }

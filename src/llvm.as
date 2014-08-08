@@ -92,6 +92,12 @@ extern let LLVMCountBasicBlocks(*LLVMOpaqueValue) -> uint32;
 # Obtain the last basic block in a function.
 extern let LLVMGetLastBasicBlock(*LLVMOpaqueValue) -> *LLVMOpaqueBasicBlock;
 
+# Move a basic block to after another one.
+extern let LLVMMoveBasicBlockAfter(*LLVMOpaqueBasicBlock, *LLVMOpaqueBasicBlock);
+
+# Obtain the function to which a basic block belongs.
+extern let LLVMGetBasicBlockParent(*LLVMOpaqueBasicBlock) -> *LLVMOpaqueValue;
+
 # Obtain the type of a value.
 extern let LLVMTypeOf(*LLVMOpaqueValue) -> *LLVMOpaqueType;
 
@@ -99,6 +105,19 @@ extern let LLVMTypeOf(*LLVMOpaqueValue) -> *LLVMOpaqueType;
 extern let LLVMConstInt(*LLVMOpaqueType, uint128, bool) -> *LLVMOpaqueValue;
 extern let LLVMSizeOf(*LLVMOpaqueType) -> *LLVMOpaqueValue;
 extern let LLVMIsConstant(*LLVMOpaqueValue) -> int64;
+
+# Create a ConstantArray from values.
+extern let LLVMConstArray(*LLVMOpaqueType,
+                          *LLVMOpaqueValue, uint32) -> *LLVMOpaqueValue;
+
+# Create a non-anonymous ConstantStruct from values.
+extern let LLVMConstNamedStruct(*LLVMOpaqueType,
+                                *LLVMOpaqueValue,
+                                uint32) -> *LLVMOpaqueValue;
+
+# Obtain a constant value for an integer parsed from a string.
+extern let LLVMConstIntOfString(*LLVMOpaqueType, str, uint8) -> *LLVMOpaqueValue;
+extern let LLVMConstRealOfString(*LLVMOpaqueType, str) -> *LLVMOpaqueValue;
 
 # Create an empty structure in a context having a specified name.
 extern let LLVMStructCreateNamed(*LLVMOpaqueContext, str) -> *LLVMOpaqueType;
@@ -144,6 +163,10 @@ extern let LLVMInstructionEraseFromParent(*LLVMOpaqueValue);
 # Obtain an operand at a specific index in a llvm::User value.
 extern let LLVMGetOperand(*LLVMOpaqueValue, uint32) -> *LLVMOpaqueValue;
 
+# Add an incoming value to the end of a PHI list.
+extern let LLVMAddIncoming(*LLVMOpaqueValue, *LLVMOpaqueValue,
+                           *LLVMOpaqueBasicBlock, uint32);
+
 # Instruction builders
 extern let LLVMCreateBuilder() -> *LLVMOpaqueBuilder;
 extern let LLVMDisposeBuilder(*LLVMOpaqueBuilder);
@@ -167,6 +190,20 @@ extern let LLVMBuildPointerCast(*LLVMOpaqueBuilder,
                                 *LLVMOpaqueType,
                                 str) -> *LLVMOpaqueValue;
 
+extern let LLVMBuildPhi(*LLVMOpaqueBuilder, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildNeg(*LLVMOpaqueBuilder, *LLVMOpaqueValue, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildNot(*LLVMOpaqueBuilder, *LLVMOpaqueValue, str) -> *LLVMOpaqueValue;
+
+
+extern let LLVMBuildICmp(*LLVMOpaqueBuilder, int32,
+                         *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildFCmp(*LLVMOpaqueBuilder, int32,
+                         *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
 extern let LLVMBuildTrunc(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
 extern let LLVMBuildZExt(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
 extern let LLVMBuildSExt(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
@@ -180,10 +217,64 @@ extern let LLVMBuildPtrToInt(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueTy
 extern let LLVMBuildIntToPtr(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueType, str) -> *LLVMOpaqueValue;
 extern let LLVMBuildInsertValue(*LLVMOpaqueBuilder, *LLVMOpaqueValue,
                                 *LLVMOpaqueValue, uint32, str) -> *LLVMOpaqueValue;
-
 extern let LLVMBuildStructGEP(*LLVMOpaqueBuilder, *LLVMOpaqueValue,
                               uint32, str) -> *LLVMOpaqueValue;
+extern let LLVMBuildInBoundsGEP(*LLVMOpaqueBuilder, *LLVMOpaqueValue,
+                                *LLVMOpaqueValue, uint32, str) -> *LLVMOpaqueValue;
 
+extern let LLVMBuildGEP(*LLVMOpaqueBuilder, *LLVMOpaqueValue,
+                        *LLVMOpaqueValue, uint32,
+                        str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildGlobalStringPtr(*LLVMOpaqueBuilder, str, str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildSub(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                        str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildAnd(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                        str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildOr(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                       str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildXor(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                        str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildAdd(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                        str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildFAdd(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildFSub(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildMul(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                        str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildFMul(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildFDiv(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildFRem(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildSDiv(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildExactSDiv(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                              str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildUDiv(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildSRem(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
+
+extern let LLVMBuildURem(*LLVMOpaqueBuilder, *LLVMOpaqueValue, *LLVMOpaqueValue,
+                         str) -> *LLVMOpaqueValue;
 
 
 # TargetMachine.h

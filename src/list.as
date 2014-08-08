@@ -165,8 +165,14 @@ implement List {
             if index < 0 { self.size - ((-index) as uint); }
             else         { index as uint; };
 
-        # Return the element offset.
-        return (self.elements + (_index * self.element_size));
+        let elp = (self.elements + (_index * self.element_size));
+        if self.tag == types.STR {
+            # Return the element.
+            *(elp as **int8);
+        } else {
+            # Return the element offset.
+            elp;
+        };
     }
 
     let   get_i8(self, idx: int):   int8 -> { return *self.get(idx); }
@@ -185,7 +191,7 @@ implement List {
     let get_uint(self, idx: int): uint -> { return *(self.get(idx) as *uint); }
 
     let get_char(self, idx: int): char -> { return *(self.get(idx) as *char); }
-    let get_str(self, idx: int): str -> { return *(self.get(idx) as *str); }
+    let get_str(self, idx: int): str -> { return (self.get(idx) as str); }
 
     let get_ptr(self, idx: int): *int8 -> { return *(self.get(idx) as **int8); }
 

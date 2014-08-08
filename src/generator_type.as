@@ -87,7 +87,7 @@ let generate_handle(mut g: generator_.Generator, qname: str,
 # Generate the type for the `static slot`.
 # -----------------------------------------------------------------------------
 let generate_static_slot(mut g: generator_.Generator,
-                         qname: str, x: *code.StaticSlot)
+                         qname: str, x: *mut code.StaticSlot)
    : *code.Handle ->
 {
     # Return our type if it is resolved.
@@ -126,7 +126,7 @@ let generate_static_slot(mut g: generator_.Generator,
     };
 
     # Store and return our type handle (or poision if we failed).
-    x.type_ = code.make_poison() if code.isnil(han) else han;
+    x.type_ = han;
 }
 
 # Generate the return type for a `function-like`.
@@ -423,7 +423,7 @@ let generate_extern_static(mut g: generator_.Generator,
         code.make_nil());
 
     # Store and return our type handle (or poision if we failed).
-    x.type_ = code.make_poison() if code.isnil(han) else han;
+    x.type_ = han;
 }
 
 # Generate the type for the external `function`.

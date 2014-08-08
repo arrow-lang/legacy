@@ -16,7 +16,7 @@ import generator_def;
 import generator_decl;
 import generator_type;
 import generator_realize;
-# import builders;
+import builders;
 import resolvers;
 
 # Begin the generation process seeded by the passed AST node.
@@ -131,52 +131,50 @@ let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
 
     # Build the "builder" jump table.
     libc.memset(&g.builders[0] as *int8, 0, (100 * ptr_size) as int32);
-#     g.builders[ast.TAG_IDENT] = builders.ident;
-#     g.builders[ast.TAG_SIZEOF] = builders.sizeof;
-#     g.builders[ast.TAG_INTEGER] = builders.integer;
-#     g.builders[ast.TAG_BOOLEAN] = builders.boolean;
-#     g.builders[ast.TAG_FLOAT] = builders.float;
-#     g.builders[ast.TAG_LOGICAL_AND] = builders.logical;
-#     g.builders[ast.TAG_LOGICAL_OR] = builders.logical;
-#     g.builders[ast.TAG_CALL] = builders.call;
-#     g.builders[ast.TAG_PROMOTE] = builders.arithmetic_u;
-#     g.builders[ast.TAG_NUMERIC_NEGATE] = builders.arithmetic_u;
-#     g.builders[ast.TAG_LOGICAL_NEGATE] = builders.arithmetic_u;
-#     g.builders[ast.TAG_BITNEG] = builders.arithmetic_u;
-#     g.builders[ast.TAG_ADD] = builders.arithmetic_b;
-#     g.builders[ast.TAG_SUBTRACT] = builders.arithmetic_b;
-#     g.builders[ast.TAG_MULTIPLY] = builders.arithmetic_b;
-#     g.builders[ast.TAG_DIVIDE] = builders.arithmetic_b;
-#     g.builders[ast.TAG_MODULO] = builders.arithmetic_b;
-#     g.builders[ast.TAG_BITAND] = builders.arithmetic_b;
-#     g.builders[ast.TAG_BITOR] = builders.arithmetic_b;
-#     g.builders[ast.TAG_BITXOR] = builders.arithmetic_b;
-#     g.builders[ast.TAG_INTEGER_DIVIDE] = builders.integer_divide;
-#     g.builders[ast.TAG_EQ] = builders.relational;
-#     g.builders[ast.TAG_NE] = builders.relational;
-#     g.builders[ast.TAG_LT] = builders.relational;
-#     g.builders[ast.TAG_LE] = builders.relational;
-#     g.builders[ast.TAG_GT] = builders.relational;
-#     g.builders[ast.TAG_GE] = builders.relational;
-#     g.builders[ast.TAG_RETURN] = builders.return_;
-#     g.builders[ast.TAG_ASSIGN] = builders.assign;
-#     g.builders[ast.TAG_SLOT] = builders.local_slot;
-#     g.builders[ast.TAG_CONDITIONAL] = builders.conditional;
-#     g.builders[ast.TAG_SELECT] = builders.select;
-#     g.builders[ast.TAG_MEMBER] = builders.member;
-#     g.builders[ast.TAG_ADDRESS_OF] = builders.address_of;
-#     g.builders[ast.TAG_DEREF] = builders.dereference;
-#     g.builders[ast.TAG_CAST] = builders.cast;
-#     g.builders[ast.TAG_LOOP] = builders.loop_;
-#     g.builders[ast.TAG_BREAK] = builders.break_;
-#     g.builders[ast.TAG_CONTINUE] = builders.continue_;
-#     # g.builders[ast.TAG_ARRAY_TYPE] = builders.array_type;
-#     # g.builders[ast.TAG_POINTER_TYPE] = builders.pointer_type;
-#     g.builders[ast.TAG_INDEX] = builders.index;
-#     g.builders[ast.TAG_ARRAY_EXPR] = builders.array;
-#     g.builders[ast.TAG_TUPLE_EXPR] = builders.tuple;
-#     g.builders[ast.TAG_STRING] = builders.string_;
-#     g.builders[ast.TAG_SELF] = builders.self_;
+    g.builders[ast.TAG_IDENT] = builders.ident;
+    g.builders[ast.TAG_SIZEOF] = builders.sizeof;
+    g.builders[ast.TAG_INTEGER] = builders.integer;
+    g.builders[ast.TAG_BOOLEAN] = builders.boolean;
+    g.builders[ast.TAG_FLOAT] = builders.float;
+    g.builders[ast.TAG_LOGICAL_AND] = builders.logical;
+    g.builders[ast.TAG_LOGICAL_OR] = builders.logical;
+    g.builders[ast.TAG_CALL] = builders.call;
+    g.builders[ast.TAG_PROMOTE] = builders.arithmetic_u;
+    g.builders[ast.TAG_NUMERIC_NEGATE] = builders.arithmetic_u;
+    g.builders[ast.TAG_LOGICAL_NEGATE] = builders.arithmetic_u;
+    g.builders[ast.TAG_BITNEG] = builders.arithmetic_u;
+    g.builders[ast.TAG_ADD] = builders.arithmetic_b;
+    g.builders[ast.TAG_SUBTRACT] = builders.arithmetic_b;
+    g.builders[ast.TAG_MULTIPLY] = builders.arithmetic_b;
+    g.builders[ast.TAG_DIVIDE] = builders.arithmetic_b;
+    g.builders[ast.TAG_MODULO] = builders.arithmetic_b;
+    g.builders[ast.TAG_BITAND] = builders.arithmetic_b;
+    g.builders[ast.TAG_BITOR] = builders.arithmetic_b;
+    g.builders[ast.TAG_BITXOR] = builders.arithmetic_b;
+    g.builders[ast.TAG_INTEGER_DIVIDE] = builders.integer_divide;
+    g.builders[ast.TAG_EQ] = builders.relational;
+    g.builders[ast.TAG_NE] = builders.relational;
+    g.builders[ast.TAG_LT] = builders.relational;
+    g.builders[ast.TAG_LE] = builders.relational;
+    g.builders[ast.TAG_GT] = builders.relational;
+    g.builders[ast.TAG_GE] = builders.relational;
+    g.builders[ast.TAG_RETURN] = builders.return_;
+    g.builders[ast.TAG_ASSIGN] = builders.assign;
+    g.builders[ast.TAG_SLOT] = builders.local_slot;
+    g.builders[ast.TAG_CONDITIONAL] = builders.conditional;
+    g.builders[ast.TAG_SELECT] = builders.select;
+    g.builders[ast.TAG_MEMBER] = builders.member;
+    g.builders[ast.TAG_ADDRESS_OF] = builders.address_of;
+    g.builders[ast.TAG_DEREF] = builders.dereference;
+    g.builders[ast.TAG_CAST] = builders.cast;
+    g.builders[ast.TAG_LOOP] = builders.loop_;
+    g.builders[ast.TAG_BREAK] = builders.break_;
+    g.builders[ast.TAG_CONTINUE] = builders.continue_;
+    g.builders[ast.TAG_INDEX] = builders.index;
+    g.builders[ast.TAG_ARRAY_EXPR] = builders.array;
+    g.builders[ast.TAG_TUPLE_EXPR] = builders.tuple;
+    g.builders[ast.TAG_STRING] = builders.string_;
+    g.builders[ast.TAG_SELF] = builders.self_;
 
     # Add basic type definitions.
     generator_util.declare_basic_types(g);
@@ -203,9 +201,9 @@ let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
     generator_decl.generate(g);
     if errors.count > 0 { return; };
 
-#     # Next we generate defs for each "item".
-#     generator_def.generate(g);
-#     if errors.count > 0 { return; }
+    # Next we generate defs for each "item".
+    generator_def.generate(g);
+    if errors.count > 0 { return; };
 
     # Generate a main function.
     declare_main(g);

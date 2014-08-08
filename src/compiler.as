@@ -92,14 +92,18 @@ let main(argc: int32, argv: *str): int32 -> {
     let ret = posix.poll(&fds, 1, 0);
     let mut stream: *libc.FILE;
     let mut has_stream = false;
+    let mut module_name: str;
     if ret == 1 and string.isnil(filename) {
         # `stdin` has data and no filename was passed
         filename = "-";
+        module_name = "_";
         stream = libc.stdin;
     } else if not string.isnil(filename) {
         # filename was passed
         has_stream = true;
         stream = libc.fopen(filename, "r");
+        # TODO: Get the "basename" less the extension as the module name
+        module_name = filename;
         if stream == 0 as *libc.FILE {
             # file cannot be opened for read
             # FIXME: Get acutal error code and say that message instead
@@ -157,16 +161,6 @@ let main(argc: int32, argv: *str): int32 -> {
         # Return
         return (-1 if errors.count > 0 else 0) as int32;
     };
-
-    # TODO: Determine the "module name"
-    let module_name: str =
-        if string.isnil(output_filename) {
-            # HACK: HACK: HACK: nuff said
-            *((filename as *int8) + libc.strlen(filename) - 3) = 0;
-            filename as str;
-        } else {
-            "_";
-        };
 
     # Declare the parser.
     let mut p: parser.Parser = parser.parser_new(module_name, t);

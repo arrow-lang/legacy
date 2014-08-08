@@ -32,6 +32,11 @@ def get_snapshot(version, target=None):
     os.makedirs(snapshot_dir, exist_ok=True)
 
     # Check for an existing snapshot.
+    snapshot_file = path.join(cache_dir, "%s/bin/arrow" % target)
+    if path.exists(snapshot_file):
+        return snapshot_file
+
+    # Keep going
     snapshot_zipfile = path.join(cache_dir, "arrow-%s-%s.tar.xz" % (version, target))
     if not path.exists(snapshot_zipfile):
         # Build the URI

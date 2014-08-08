@@ -238,7 +238,7 @@ let TOK_STRING: int = -4006;
 
 # Name of the token
 # ----------------------------------------------------------------------------
-def to_str(tok: int) -> str {
+let to_str(tok: int): str -> {
     if      tok == TOK_END                  { "end"; }
     else if tok == TOK_LET                  { "`let`"; }
     else if tok == TOK_STATIC               { "`static`"; }
@@ -310,5 +310,5 @@ def to_str(tok: int) -> str {
     else if tok == TOK_FLOAT                { "`float`"; }
     else if tok == TOK_STRING               { "`string`"; }
     else if tok == TOK_ELLIPSIS             { "`...`"; }
-    else                                    { "?"; }
+    else                                    { "?"; };
 }

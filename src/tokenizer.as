@@ -9,343 +9,343 @@ import span;
 # Token
 # =============================================================================
 
-type Token {
+struct Token {
     #! Tag (identifier) of the token type.
     tag: int,
 
     #! Span in which the token occurs.
-    mut span: span.Span,
+    span: span.Span,
 
     #! Textual content of the token (if the tag indicates it should)
-    mut text: string.String
+    text: string.String
 }
-
-let TOKEN_SIZE: uint = ((0 as ^Token) + 1) - (0 as ^Token);
 
 implement Token {
 
-    def dispose(&mut self) {
+    let new(tag: int, span: span.Span, text: str): Token -> {
+        return Token(tag, span.clone(), string.String.from_str(text));
+    }
+
+    let dispose(mut self) -> {
         # Dispose of contained resources.
         self.span.dispose();
         self.text.dispose();
     }
 
-    def println(&self) {
+    let println(self) -> {
         self.fprintln(libc.stdout);
     }
 
-    def fprintln(&self, stream: ^libc._IO_FILE) {
+    let fprintln(self, stream: *libc.FILE) -> {
         # Print location span
         self.span.fprint(stream);
-        libc.fprintf(stream, ": " as ^int8);
+        libc.fprintf(stream, ": ");
 
         # Print simple tokens
-        if      self.tag == tokens.TOK_END      { libc.fprintf(stream, "end" as ^int8); }
-        else if self.tag == tokens.TOK_ERROR    { libc.fprintf(stream, "error" as ^int8); }
+        if      self.tag == tokens.TOK_END      { libc.fprintf(stream, "end"); }
+        else if self.tag == tokens.TOK_ERROR    { libc.fprintf(stream, "error"); }
 
         # Print numeric tokens
         else if self.tag == tokens.TOK_BIN_INTEGER
         {
-            libc.fprintf(stream, "binary integer '%s'" as ^int8, self.text.data());
+            libc.fprintf(stream, "binary integer '%s'", self.text.data());
         }
         else if self.tag == tokens.TOK_OCT_INTEGER
         {
-            libc.fprintf(stream, "octal integer '%s'" as ^int8, self.text.data());
+            libc.fprintf(stream, "octal integer '%s'", self.text.data());
         }
         else if self.tag == tokens.TOK_HEX_INTEGER
         {
-            libc.fprintf(stream, "hexadecimal integer '%s'" as ^int8, self.text.data());
+            libc.fprintf(stream, "hexadecimal integer '%s'", self.text.data());
         }
         else if self.tag == tokens.TOK_DEC_INTEGER
         {
-            libc.fprintf(stream, "decimal integer '%s'" as ^int8, self.text.data());
+            libc.fprintf(stream, "decimal integer '%s'", self.text.data());
         }
         else if self.tag == tokens.TOK_FLOAT
         {
-            libc.fprintf(stream, "floating-point '%s'" as ^int8, self.text.data());
+            libc.fprintf(stream, "floating-point '%s'", self.text.data());
         }
         else if self.tag == tokens.TOK_STRING
         {
-            libc.fprintf(stream, "string '%s'" as ^int8, self.text.data());
+            libc.fprintf(stream, "string '%s'", self.text.data());
         }
         else if self.tag == tokens.TOK_IDENTIFIER
         {
-            libc.fprintf(stream, "identifier '%s'" as ^int8, self.text.data());
+            libc.fprintf(stream, "identifier '%s'", self.text.data());
         }
         else if self.tag > -2000 and self.tag < -1000 {
             # TODO: Replace this with a map or something
-            libc.fprintf(stream, "keyword: '" as ^int8);
+            libc.fprintf(stream, "keyword: '");
             if self.tag == tokens.TOK_LET {
-                libc.fprintf(stream, "let" as ^int8);
+                libc.fprintf(stream, "let");
             }
             else if self.tag == tokens.TOK_STATIC {
-                libc.fprintf(stream, "static" as ^int8);
+                libc.fprintf(stream, "static");
             }
             else if self.tag == tokens.TOK_MUT {
-                libc.fprintf(stream, "mut" as ^int8);
+                libc.fprintf(stream, "mut");
             }
             else if self.tag == tokens.TOK_TRUE {
-                libc.fprintf(stream, "true" as ^int8);
+                libc.fprintf(stream, "true");
             }
             else if self.tag == tokens.TOK_FALSE {
-                libc.fprintf(stream, "false" as ^int8);
+                libc.fprintf(stream, "false");
             }
             else if self.tag == tokens.TOK_SELF {
-                libc.fprintf(stream, "self" as ^int8);
+                libc.fprintf(stream, "self");
             }
             else if self.tag == tokens.TOK_AS {
-                libc.fprintf(stream, "as" as ^int8);
+                libc.fprintf(stream, "as");
             }
             else if self.tag == tokens.TOK_AND {
-                libc.fprintf(stream, "and" as ^int8);
+                libc.fprintf(stream, "and");
             }
             else if self.tag == tokens.TOK_OR {
-                libc.fprintf(stream, "or" as ^int8);
+                libc.fprintf(stream, "or");
             }
             else if self.tag == tokens.TOK_NOT {
-                libc.fprintf(stream, "not" as ^int8);
+                libc.fprintf(stream, "not");
             }
             else if self.tag == tokens.TOK_IF {
-                libc.fprintf(stream, "if" as ^int8);
+                libc.fprintf(stream, "if");
             }
             else if self.tag == tokens.TOK_ELSE {
-                libc.fprintf(stream, "else" as ^int8);
+                libc.fprintf(stream, "else");
             }
             else if self.tag == tokens.TOK_WHILE {
-                libc.fprintf(stream, "while" as ^int8);
+                libc.fprintf(stream, "while");
             }
             else if self.tag == tokens.TOK_LOOP {
-                libc.fprintf(stream, "loop" as ^int8);
+                libc.fprintf(stream, "loop");
             }
             else if self.tag == tokens.TOK_FOR {
-                libc.fprintf(stream, "for" as ^int8);
+                libc.fprintf(stream, "for");
             }
             else if self.tag == tokens.TOK_MATCH {
-                libc.fprintf(stream, "match" as ^int8);
+                libc.fprintf(stream, "match");
             }
             else if self.tag == tokens.TOK_BREAK {
-                libc.fprintf(stream, "break" as ^int8);
+                libc.fprintf(stream, "break");
             }
             else if self.tag == tokens.TOK_CONTINUE {
-                libc.fprintf(stream, "continue" as ^int8);
+                libc.fprintf(stream, "continue");
             }
             else if self.tag == tokens.TOK_RETURN {
-                libc.fprintf(stream, "return" as ^int8);
+                libc.fprintf(stream, "return");
             }
             else if self.tag == tokens.TOK_TYPE {
-                libc.fprintf(stream, "type" as ^int8);
+                libc.fprintf(stream, "type");
             }
             else if self.tag == tokens.TOK_ENUM {
-                libc.fprintf(stream, "enum" as ^int8);
+                libc.fprintf(stream, "enum");
             }
             else if self.tag == tokens.TOK_MODULE {
-                libc.fprintf(stream, "module" as ^int8);
+                libc.fprintf(stream, "module");
             }
             else if self.tag == tokens.TOK_IMPORT {
-                libc.fprintf(stream, "import" as ^int8);
+                libc.fprintf(stream, "import");
             }
             else if self.tag == tokens.TOK_USE {
-                libc.fprintf(stream, "use" as ^int8);
+                libc.fprintf(stream, "use");
             }
             else if self.tag == tokens.TOK_FOREIGN {
-                libc.fprintf(stream, "foreign" as ^int8);
+                libc.fprintf(stream, "foreign");
             }
             else if self.tag == tokens.TOK_UNSAFE {
-                libc.fprintf(stream, "unsafe" as ^int8);
+                libc.fprintf(stream, "unsafe");
             }
             else if self.tag == tokens.TOK_GLOBAL {
-                libc.fprintf(stream, "global" as ^int8);
+                libc.fprintf(stream, "global");
             }
             else if self.tag == tokens.TOK_STRUCT {
-                libc.fprintf(stream, "struct" as ^int8);
+                libc.fprintf(stream, "struct");
             }
             else if self.tag == tokens.TOK_IMPL {
-                libc.fprintf(stream, "impl" as ^int8);
+                libc.fprintf(stream, "impl");
             }
             else if self.tag == tokens.TOK_EXTERN {
-                libc.fprintf(stream, "extern" as ^int8);
+                libc.fprintf(stream, "extern");
             }
             else if self.tag == tokens.TOK_DELEGATE {
-                libc.fprintf(stream, "delegate" as ^int8);
+                libc.fprintf(stream, "delegate");
             }
             else if self.tag == tokens.TOK_SIZEOF {
-                libc.fprintf(stream, "sizeof" as ^int8);
-            }
-            libc.fprintf(stream, "'" as ^int8);
+                libc.fprintf(stream, "sizeof");
+            };
+            libc.fprintf(stream, "'");
         }
         else if self.tag > -3000 and self.tag < -2000 {
             # TODO: Replace this with a map or something
-            libc.fprintf(stream, "punctuator: '" as ^int8);
+            libc.fprintf(stream, "punctuator: '");
             if self.tag == tokens.TOK_RARROW {
-                libc.fprintf(stream, "->" as ^int8);
+                libc.fprintf(stream, "->");
             } else if self.tag == tokens.TOK_PLUS {
-                libc.fprintf(stream, "+" as ^int8);
+                libc.fprintf(stream, "+");
             } else if self.tag == tokens.TOK_MINUS {
-                libc.fprintf(stream, "-" as ^int8);
+                libc.fprintf(stream, "-");
             } else if self.tag == tokens.TOK_STAR {
-                libc.fprintf(stream, "*" as ^int8);
+                libc.fprintf(stream, "*");
             } else if self.tag == tokens.TOK_FSLASH {
-                libc.fprintf(stream, "/" as ^int8);
+                libc.fprintf(stream, "/");
             } else if self.tag == tokens.TOK_PERCENT {
-                libc.fprintf(stream, "%%" as ^int8);
+                libc.fprintf(stream, "%%");
             } else if self.tag == tokens.TOK_HAT {
-                libc.fprintf(stream, "^" as ^int8);
+                libc.fprintf(stream, "^");
             } else if self.tag == tokens.TOK_AMPERSAND {
-                libc.fprintf(stream, "&" as ^int8);
+                libc.fprintf(stream, "&");
             } else if self.tag == tokens.TOK_LPAREN {
-                libc.fprintf(stream, "(" as ^int8);
+                libc.fprintf(stream, "(");
             } else if self.tag == tokens.TOK_RPAREN {
-                libc.fprintf(stream, ")" as ^int8);
+                libc.fprintf(stream, ")");
             } else if self.tag == tokens.TOK_LBRACKET {
-                libc.fprintf(stream, "[" as ^int8);
+                libc.fprintf(stream, "[");
             } else if self.tag == tokens.TOK_RBRACKET {
-                libc.fprintf(stream, "]" as ^int8);
+                libc.fprintf(stream, "]");
             } else if self.tag == tokens.TOK_LBRACE {
-                libc.fprintf(stream, "{" as ^int8);
+                libc.fprintf(stream, "{");
             } else if self.tag == tokens.TOK_RBRACE {
-                libc.fprintf(stream, "}" as ^int8);
+                libc.fprintf(stream, "}");
             } else if self.tag == tokens.TOK_SEMICOLON {
-                libc.fprintf(stream, ";" as ^int8);
+                libc.fprintf(stream, ";");
             } else if self.tag == tokens.TOK_COLON {
-                libc.fprintf(stream, ":" as ^int8);
+                libc.fprintf(stream, ":");
             } else if self.tag == tokens.TOK_COMMA {
-                libc.fprintf(stream, "," as ^int8);
+                libc.fprintf(stream, ",");
             } else if self.tag == tokens.TOK_DOT {
-                libc.fprintf(stream, "." as ^int8);
+                libc.fprintf(stream, ".");
             } else if self.tag == tokens.TOK_LCARET {
-                libc.fprintf(stream, "<" as ^int8);
+                libc.fprintf(stream, "<");
             } else if self.tag == tokens.TOK_RCARET {
-                libc.fprintf(stream, ">" as ^int8);
+                libc.fprintf(stream, ">");
             } else if self.tag == tokens.TOK_LCARET_EQ {
-                libc.fprintf(stream, "<=" as ^int8);
+                libc.fprintf(stream, "<=");
             } else if self.tag == tokens.TOK_RCARET_EQ {
-                libc.fprintf(stream, ">=" as ^int8);
+                libc.fprintf(stream, ">=");
             } else if self.tag == tokens.TOK_EQ_EQ {
-                libc.fprintf(stream, "==" as ^int8);
+                libc.fprintf(stream, "==");
             } else if self.tag == tokens.TOK_BANG_EQ {
-                libc.fprintf(stream, "!=" as ^int8);
+                libc.fprintf(stream, "!=");
             } else if self.tag == tokens.TOK_EQ {
-                libc.fprintf(stream, "=" as ^int8);
+                libc.fprintf(stream, "=");
             } else if self.tag == tokens.TOK_PLUS_EQ {
-                libc.fprintf(stream, "+=" as ^int8);
+                libc.fprintf(stream, "+=");
             } else if self.tag == tokens.TOK_MINUS_EQ {
-                libc.fprintf(stream, "-=" as ^int8);
+                libc.fprintf(stream, "-=");
             } else if self.tag == tokens.TOK_STAR_EQ {
-                libc.fprintf(stream, "*=" as ^int8);
+                libc.fprintf(stream, "*=");
             } else if self.tag == tokens.TOK_FSLASH_EQ {
-                libc.fprintf(stream, "/=" as ^int8);
+                libc.fprintf(stream, "/=");
             } else if self.tag == tokens.TOK_PERCENT_EQ {
-                libc.fprintf(stream, "%=" as ^int8);
+                libc.fprintf(stream, "%=");
             } else if self.tag == tokens.TOK_FSLASH_FSLASH {
-                libc.fprintf(stream, "//" as ^int8);
+                libc.fprintf(stream, "//");
             } else if self.tag == tokens.TOK_FSLASH_FSLASH_EQ {
-                libc.fprintf(stream, "//=" as ^int8);
+                libc.fprintf(stream, "//=");
             } else if self.tag == tokens.TOK_BANG {
-                libc.fprintf(stream, "!" as ^int8);
+                libc.fprintf(stream, "!");
+            } else if self.tag == tokens.TOK_ELLIPSIS {
+                libc.fprintf(stream, "...");
             } else if self.tag == tokens.TOK_PIPE {
-                libc.fprintf(stream, "|" as ^int8);
+                libc.fprintf(stream, "|");
             } else if self.tag == tokens.TOK_RFARROW {
-                libc.fprintf(stream, "=>" as ^int8);
-            }
-            libc.fprintf(stream, "'" as ^int8);
-        }
+                libc.fprintf(stream, "=>");
+            };
+            libc.fprintf(stream, "'");
+        };
 
         # Terminate with a newline
-        libc.fprintf(stream, "\n" as ^int8);
+        libc.fprintf(stream, "\n");
     }
 
-}
-
-# FIXME: Move to an "attached" function when possible.
-def token_new(tag: int, span_: span.Span, text: str) -> Token {
-    let tok: Token;
-    tok.tag = tag;
-    tok.span = span_;
-    tok.text = string.make();
-    tok.text.extend(text);
-    return tok;
 }
 
 # Tokenizer
 # =============================================================================
 
-type Tokenizer {
+struct Tokenizer {
     #! Filename that the stream is from.
     filename: str,
 
     #! Input stream to read the characters from.
-    stream: ^libc._IO_FILE,
+    stream: *libc.FILE,
 
     #! Input buffer for the incoming character stream.
-    mut chars: list.List,
+    chars: list.List,
 
     #! Text buffer for constructing tokens.
-    mut buffer: string.String,
+    buffer: string.String,
 
     #! Current row offset in the stream.
-    mut row: int,
+    row: int,
 
     #! Current column offset in the stream.
-    mut column: int
-}
-
-# FIXME: Move to an "attached" function when possible.
-def tokenizer_new(filename: str, stream: ^libc._IO_FILE) -> Tokenizer {
-    let tokenizer: Tokenizer;
-    tokenizer.filename = filename;
-    tokenizer.stream = stream;
-    tokenizer.chars = list.make(types.CHAR);
-    tokenizer.buffer = string.make();
-    tokenizer.row = 0;
-    tokenizer.column = 0;
-    return tokenizer;
+    column: int
 }
 
 implement Tokenizer {
 
-    def dispose(&mut self) {
+    let new(filename: str, stream: *libc.FILE): Tokenizer -> {
+        return Tokenizer(filename: filename, stream: stream,
+                         chars: list.List.new(types.CHAR),
+                         buffer: string.String.new(),
+                         row: 0,
+                         column: 0);
+    }
+
+    let shallow_clone(self): Tokenizer -> {
+        return Tokenizer(filename: self.filename,
+                         stream: self.stream,
+                         chars: self.chars,
+                         buffer: self.buffer,
+                         row: self.row,
+                         column: self.column);
+    }
+
+    let dispose(mut self) -> {
         # Dispose of contained resources.
+        # FIXME: Need to close the file if this is not `stdin`
         # libc.fclose(self.stream);
         self.chars.dispose();
         self.buffer.dispose();
     }
 
-    def current_position(&self) -> span.Position {
-        return span.position_new(self.column, self.row);
+    let current_position(self): span.Position -> {
+        return span.Position(self.column, self.row);
     }
 
-    def push_chars(&mut self, count: uint) {
+    let push_chars(mut self, count: uint) -> {
         let mut n: uint = count;
         while n > 0 {
             # Attempt to read the next character from the input stream.
             let next: int8;
-            let read: int64 = libc.fread(&next as ^void, 1, 1, self.stream);
+            let read = libc.fread(&next, 1, 1, self.stream);
             if read == 0 {
                 # Nothing was read; push an EOF.
                 self.chars.push_char(-1 as char);
             } else {
                 # Push the character read.
                 self.chars.push_char(next as char);
-            }
+            };
 
             # Increment our count.
             n = n - 1;
         }
     }
 
-    def peek_char(&mut self, count: uint) -> char {
+    let peek_char(mut self, count: uint): char -> {
         # Request more characters if we need them.
         if count > self.chars.size {
             self.push_chars(count - self.chars.size);
-        }
+        };
 
         # Return the requested token.
-        self.chars.at_char((count as int) - (self.chars.size as int) - 1);
+        self.chars.get_char((count as int) - (self.chars.size as int) - 1);
     }
 
-    def pop_char(&mut self) -> char {
+    let pop_char(mut self): char -> {
         # Get the requested char.
-        let ch: char = self.peek_char(1);
+        let mut ch: char = self.peek_char(1);
 
         # Erase the top char.
         self.chars.erase(0);
@@ -362,7 +362,7 @@ implement Tokenizer {
         else if ch == "\r" and self.peek_char(1) == "\n"
         {
             # WINDOWS
-            ch = "\n";
+            ch = ("\n" as char);
             self.chars.erase(0);
             self.column = 0;
             self.row = self.row + 1;
@@ -370,50 +370,50 @@ implement Tokenizer {
         else if ch == "\r"
         {
             # MAC
-            ch = "\n";
+            ch = ("\n" as char);
             self.column = 0;
             self.row = self.row + 1;
-        }
+        };
 
         # Return the erased char.
         ch;
     }
 
-    def consume_whitespace(&mut self) {
+    let consume_whitespace(mut self) -> {
         while is_whitespace(self.peek_char(1)) {
             self.pop_char();
         }
     }
 
-    def next(&mut self) -> Token {
+    let next(mut self): Token -> {
         # Skip and consume any whitespace characters.
         self.consume_whitespace();
 
         # Check if we've reached the end of the stream ...
-        if self.peek_char(1) == -1 {
+        if self.peek_char(1) == -1 as char {
             # ... and return the <end> token.
-            let pos: span.Position = self.current_position();
+            let pos = self.current_position();
             self.pop_char();
-            return token_new(
+            return Token.new(
                 tokens.TOK_END,
-                span.span_new(
+                span.Span.new(
                     self.filename,
                     pos,
                     self.current_position()), "");
-        }
+        };
 
         # Check for a leading digit that would indicate the start of a
         # numeric token.
         if is_numeric(self.peek_char(1)) {
             # Scan for and match the numeric token.
             return self.scan_numeric();
-        }
+        };
 
         # Check for and consume a string token.
         if self.peek_char(1) == "'" or self.peek_char(1) == '"' {
             # Scan the entire string token.
             return self.scan_string();
-        }
+        };
 
         # Consume and ignore line comments; returning the next token
         # following the line comment.
@@ -424,15 +424,15 @@ implement Tokenizer {
 
                 # Check if the single-line comment is done.
                 let ch: char = self.peek_char(1);
-                if ch == -1 or ch == "\r" or ch == "\n" {
+                if ch == (-1 as char) or ch == "\r" or ch == "\n" {
                     return self.next();
-                }
+                };
             }
-        }
+        };
 
         # Check for and attempt to consume punctuators (eg. "+").
         let possible_token: Token = self.scan_punctuator();
-        if possible_token.tag <> 0 { return possible_token; }
+        if possible_token.tag != 0 { return possible_token; };
 
         # Check for an alphabetic or '_' character which signals the beginning
         # of an identifier.
@@ -440,20 +440,20 @@ implement Tokenizer {
         if is_alphabetic(ch) or ch == "_" {
             # Scan for and match the identifier
             return self.scan_identifier();
-        }
+        };
 
         # No idea what we have; print an error.
         let pos: span.Position = self.current_position();
         let ch: char = self.pop_char();
-        let sp: span.Span = span.span_new(
+        let sp: span.Span = span.Span.new(
             self.filename, pos, self.current_position());
         errors.begin_error_at(sp);
         errors.libc.fprintf(errors.libc.stderr,
-                            "unknown token: `%c`" as ^int8, ch);
+                            "unknown token: `%c`", ch);
         errors.end();
 
         # Return the error token.
-        return token_new(tokens.TOK_ERROR, sp, "");
+        return Token.new(tokens.TOK_ERROR, sp, "");
     }
 
     # scan_numeric -- Scan for and produce a numeric token.
@@ -469,10 +469,9 @@ implement Tokenizer {
     # float = {digit}({digit}|_)*\.{digit}({digit}|_)*{exp}?
     #       | {digit}({digit}|_)*{exp}?
     # -------------------------------------------------------------------------
-    def scan_numeric(&mut self) -> Token
-    {
+    let scan_numeric(mut self): Token -> {
         # Declare a local var to store the tag.
-        let tag: int = 0;
+        let mut tag: int = 0;
 
         # Remember the current position.
         let pos: span.Position = self.current_position();
@@ -494,7 +493,7 @@ implement Tokenizer {
                     tokens.TOK_BIN_INTEGER;
                 }
                 else if (ch == "x" or ch == "X")
-                    and libc.isxdigit(nch as int32) <> 0
+                    and libc.isxdigit(nch as int32) != 0
                 {
                     tokens.TOK_HEX_INTEGER;
                 }
@@ -508,7 +507,7 @@ implement Tokenizer {
                     0;
                 };
 
-            if tag <> 0
+            if tag != 0
             {
                 # Pop the base-prefix.
                 self.pop_char();
@@ -526,10 +525,10 @@ implement Tokenizer {
                         {
                             self.buffer.append(ch);
                         }
-                        else if ch <> "_"
+                        else if ch != "_"
                         {
                             break;
-                        }
+                        };
                         self.pop_char();
                     }
                 }
@@ -542,10 +541,10 @@ implement Tokenizer {
                         {
                             self.buffer.append(ch);
                         }
-                        else if ch <> "_"
+                        else if ch != "_"
                         {
                             break;
-                        }
+                        };
                         self.pop_char();
                     }
                 }
@@ -554,25 +553,25 @@ implement Tokenizer {
                     loop
                     {
                         let ch: char = self.peek_char(1);
-                        if libc.isxdigit(ch as int32) <> 0
+                        if libc.isxdigit(ch as int32) != 0
                         {
                             self.buffer.append(ch);
                         }
-                        else if ch <> "_"
+                        else if ch != "_"
                         {
                             break;
-                        }
+                        };
                         self.pop_char();
                     }
-                }
+                };
 
                 # Build and return our base-prefixed numeric token.
-                return token_new(
+                return Token.new(
                     tag,
-                    span.span_new(self.filename, pos, self.current_position()),
+                    span.Span.new(self.filename, pos, self.current_position()),
                     self.buffer.data() as str);
-            }
-        }
+            };
+        };
 
         # We could be a deicmal or floating numeric at this point.
         tag = tokens.TOK_DEC_INTEGER;
@@ -582,9 +581,9 @@ implement Tokenizer {
             let ch: char = self.peek_char(1);
             if is_numeric(ch) {
                 self.buffer.append(ch);
-            } else if ch <> "_" {
+            } else if ch != "_" {
                 break;
-            }
+            };
             self.pop_char();
         }
 
@@ -603,12 +602,12 @@ implement Tokenizer {
                 let ch: char = self.peek_char(1);
                 if is_numeric(ch) {
                     self.buffer.append(ch);
-                } else if ch <> "_" {
+                } else if ch != "_" {
                     break;
-                }
+                };
                 self.pop_char();
             }
-        }
+        };
 
         # Check for a an "e" or "E" character that would indicate
         # an exponent portion
@@ -629,16 +628,16 @@ implement Tokenizer {
                 let ch: char = self.peek_char(1);
                 if is_numeric(ch) {
                     self.buffer.append(ch);
-                } else if ch <> "_" {
+                } else if ch != "_" {
                     break;
-                }
+                };
                 self.pop_char();
             }
-        }
+        };
 
         # Build and return our numeric.
-        return token_new(
-            tag, span.span_new(self.filename, pos, self.current_position()),
+        return Token.new(
+            tag, span.Span.new(self.filename, pos, self.current_position()),
             self.buffer.data() as str);
     }
 
@@ -646,7 +645,7 @@ implement Tokenizer {
     # -------------------------------------------------------------------------
     # identifier = [A-Za-z_][A-Za-z_0-9]*
     # -------------------------------------------------------------------------
-    def scan_identifier(&mut self) -> Token {
+    let scan_identifier(mut self): Token -> {
         # Remember the current position.
         let pos: span.Position = self.current_position();
 
@@ -658,14 +657,14 @@ implement Tokenizer {
         loop {
             self.buffer.append(self.pop_char());
             if not is_alphanumeric(self.peek_char(1)) and
-                    not self.peek_char(1) == "_" {
+                    self.peek_char(1) != "_" {
                 break;
-            }
+            };
         }
 
         # Check for and return keyword tokens instead of the identifier.
         # TODO: A hash-table would better serve this.
-        let tag: int = 0;
+        let mut tag: int = 0;
              if self.buffer.eq_str("let")       { tag = tokens.TOK_LET; }
         else if self.buffer.eq_str("static")    { tag = tokens.TOK_STATIC; }
         else if self.buffer.eq_str("mut")       { tag = tokens.TOK_MUT; }
@@ -697,28 +696,28 @@ implement Tokenizer {
         else if self.buffer.eq_str("implement") { tag = tokens.TOK_IMPL; }
         else if self.buffer.eq_str("extern")    { tag = tokens.TOK_EXTERN; }
         else if self.buffer.eq_str("delegate")  { tag = tokens.TOK_DELEGATE; }
-        else if self.buffer.eq_str("size_of")   { tag = tokens.TOK_SIZEOF; }
+        else if self.buffer.eq_str("size_of")   { tag = tokens.TOK_SIZEOF; };
 
         # Return the token.
         if tag == 0 {
             # Scanned identifier does not match any defined keyword.
             # Update the current_id.
-            token_new(
+            Token.new(
                 tokens.TOK_IDENTIFIER,
-                span.span_new(self.filename, pos, self.current_position()),
+                span.Span.new(self.filename, pos, self.current_position()),
                 self.buffer.data() as str);
         } else {
             # Return the keyword token.
-            token_new(
+            Token.new(
                 tag,
-                span.span_new(self.filename, pos, self.current_position()),
+                span.Span.new(self.filename, pos, self.current_position()),
                 "");
-        }
+        };
     }
 
     # scan_punctuator -- Scan for and match a punctuator token.
     # -------------------------------------------------------------------------
-    def scan_punctuator(&mut self) -> Token {
+    let scan_punctuator(mut self): Token -> {
         # TODO: This scanning could probably be replaced by something
         #   creative in a declarative manner.
 
@@ -726,7 +725,7 @@ implement Tokenizer {
         # if the current character matches it is the token.
         let pos: span.Position = self.current_position();
         let ch: char = self.peek_char(1);
-        let tag: int = 0;
+        let mut tag: int = 0;
         if      ch == "(" { tag = tokens.TOK_LPAREN; }
         else if ch == ")" { tag = tokens.TOK_RPAREN; }
         else if ch == "[" { tag = tokens.TOK_LBRACKET; }
@@ -738,10 +737,10 @@ implement Tokenizer {
         else if ch == "^" { tag = tokens.TOK_HAT; }
         else if ch == "&" { tag = tokens.TOK_AMPERSAND; }
         else if ch == "|" { tag = tokens.TOK_PIPE; }
-        else if ch == ":" { tag = tokens.TOK_COLON; }
+        else if ch == ":" { tag = tokens.TOK_COLON; };
 
         # If we still need to continue ...
-        if tag <> 0 { self.pop_char(); }
+        if tag != 0 { self.pop_char(); }
         else
         {
             # Start looking forward and attempt to disambiguate the
@@ -754,7 +753,7 @@ implement Tokenizer {
                     tag = tokens.TOK_ELLIPSIS;
                 } else {
                     tag = tokens.TOK_DOT;
-                }
+                };
             } else if ch == "+" {
                 self.pop_char();
                 if self.peek_char(1) == "=" {
@@ -762,7 +761,7 @@ implement Tokenizer {
                     tag = tokens.TOK_PLUS_EQ;
                 } else {
                     tag = tokens.TOK_PLUS;
-                }
+                };
             } else if ch == "-" {
                 self.pop_char();
                 if self.peek_char(1) == "=" {
@@ -773,7 +772,7 @@ implement Tokenizer {
                     tag = tokens.TOK_RARROW;
                 } else {
                     tag = tokens.TOK_MINUS;
-                }
+                };
             } else if ch == "*" {
                 self.pop_char();
                 if self.peek_char(1) == "=" {
@@ -781,7 +780,7 @@ implement Tokenizer {
                     tag = tokens.TOK_STAR_EQ;
                 } else {
                     tag = tokens.TOK_STAR;
-                }
+                };
             } else if ch == "/" {
                 self.pop_char();
                 if self.peek_char(1) == "/" {
@@ -791,13 +790,13 @@ implement Tokenizer {
                         tag = tokens.TOK_FSLASH_FSLASH_EQ;
                     } else {
                         tag = tokens.TOK_FSLASH_FSLASH;
-                    }
+                    };
                 } else if self.peek_char(1) == "=" {
                     self.pop_char();
                     tag = tokens.TOK_FSLASH_EQ;
                 } else {
                     tag = tokens.TOK_FSLASH;
-                }
+                };
             } else if ch == "%" {
                 self.pop_char();
                 if self.peek_char(1) == "=" {
@@ -805,7 +804,7 @@ implement Tokenizer {
                     tag = tokens.TOK_PERCENT_EQ;
                 } else {
                     tag = tokens.TOK_PERCENT;
-                }
+                };
             } else if ch == "<" {
                 self.pop_char();
                 if self.peek_char(1) == "=" {
@@ -813,7 +812,7 @@ implement Tokenizer {
                     tag = tokens.TOK_LCARET_EQ;
                 } else {
                     tag = tokens.TOK_LCARET;
-                }
+                };
             } else if ch == ">" {
                 self.pop_char();
                 if self.peek_char(1) == "=" {
@@ -821,7 +820,7 @@ implement Tokenizer {
                     tag = tokens.TOK_RCARET_EQ;
                 } else {
                     tag = tokens.TOK_RCARET;
-                }
+                };
             } else if ch == "=" {
                 self.pop_char();
                 if self.peek_char(1) == "=" {
@@ -832,7 +831,7 @@ implement Tokenizer {
                     tag = tokens.TOK_RFARROW;
                 } else {
                     tag = tokens.TOK_EQ;
-                }
+                };
             } else if ch == "!" {
                 self.pop_char();
                 if self.peek_char(1) == "=" {
@@ -840,19 +839,19 @@ implement Tokenizer {
                     tag = tokens.TOK_BANG_EQ;
                 } else {
                     tag = tokens.TOK_BANG;
-                }
-            }
-        }
+                };
+            };
+        };
 
         # If we matched a token, return it; else, return nil.
-        if tag <> 0 {
-            token_new(
+        if tag != 0 {
+            Token.new(
                 tag,
-                span.span_new(self.filename, pos, self.current_position()),
+                span.Span.new(self.filename, pos, self.current_position()),
                 "");
         } else {
-            token_new(0, span.span_null(), "");
-        }
+            Token.new(0, span.Span.nil(), "");
+        };
     }
 
     # scan_string -- Scan for and produce a string token.
@@ -861,7 +860,7 @@ implement Tokenizer {
     # str = \'([^'\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\'
     #     | \"([^"\\]|\\[#'"\\abfnrtv0]|\\[xX]{xdigit}{2})*\"
     # -------------------------------------------------------------------------
-    def scan_string(&mut self) -> Token {
+    let scan_string(mut self): Token -> {
         # Remember the current position.
         let pos: span.Position = self.current_position();
 
@@ -882,8 +881,8 @@ implement Tokenizer {
         self.buffer.clear();
 
         # Loop and consume the string token.
-        let in_escape: bool = false;
-        let in_byte_escape: bool = false;
+        let mut in_escape: bool = false;
+        let mut in_byte_escape: bool = false;
         loop {
             if in_escape {
                 # Bump the character onto the buffer.
@@ -892,7 +891,7 @@ implement Tokenizer {
                 # Check if we have an extension control character.
                 if self.peek_char(1) == 'x' or self.peek_char(1) == 'X' {
                     in_byte_escape = true;
-                }
+                };
 
                 # No longer in an escape sequence.
                 in_escape = false;
@@ -918,14 +917,14 @@ implement Tokenizer {
                 } else {
                     # Bump the character onto the buffer.
                     self.buffer.append(self.pop_char());
-                }
-            }
+                };
+            };
         }
 
         # Matched the string token.
-        return token_new(
+        return Token.new(
             tokens.TOK_STRING,
-            span.span_new(self.filename, pos, self.current_position()),
+            span.Span.new(self.filename, pos, self.current_position()),
             self.buffer.data() as str);
     }
 }
@@ -935,40 +934,40 @@ implement Tokenizer {
 
 # is_whitespace -- Test if the passed character constitutes whitespace.
 # -----------------------------------------------------------------------------
-def is_whitespace(c: char) -> bool {
+let is_whitespace(c: char): bool -> {
     c == ' ' or c == '\n' or c == '\t' or c == '\r';
 }
 
 # is_numeric -- Test if the passed character is numeric.
 # -----------------------------------------------------------------------------
-def is_numeric(c: char) -> bool {
-    libc.isdigit(c as int32) <> 0;
+let is_numeric(c: char): bool -> {
+    libc.isdigit(c as int8) != 0;
 }
 
 # Test if the char is in the passed range.
 # -----------------------------------------------------------------------------
-def in_range(c: char, s: char, e: char) -> bool {
+let in_range(c: char, s: char, e: char): bool -> {
     (c as int8) >= (s as int8) and (c as int8) <= (e as int8);
 }
 
 # is_alphabetic -- Test if the passed character is alphabetic.
 # -----------------------------------------------------------------------------
-def is_alphabetic(c: char) -> bool {
-    libc.isalpha(c as int32) <> 0;
+let is_alphabetic(c: char): bool -> {
+    libc.isalpha(c as int8) != 0;
 }
 
 # is_alphanumeric -- Test if the passed character is alphanumeric.
 # -----------------------------------------------------------------------------
-def is_alphanumeric(c: char) -> bool {
-    libc.isalnum(c as int32) <> 0;
+let is_alphanumeric(c: char): bool -> {
+    libc.isalnum(c as int8) != 0;
 }
 
 # Driver (Test)
 # =============================================================================
 
-def main() {
+let main(): int -> {
     # Construct a new tokenizer.
-    let mut tokenizer: Tokenizer = tokenizer_new("-", libc.stdin);
+    let mut tokenizer = Tokenizer.new("-", libc.stdin);
 
     # Iterate through each token in the input stream.
     loop {
@@ -978,10 +977,10 @@ def main() {
         # Print token if we're error-free
         if errors.count == 0 {
             tok.println();
-        }
+        };
 
         # Stop if we reach the end.
-        if tok.tag == tokens.TOK_END { break; }
+        if tok.tag == tokens.TOK_END { break; };
 
         # Dispose of the token.
         tok.dispose();
@@ -991,5 +990,5 @@ def main() {
     tokenizer.dispose();
 
     # Return to the environment.
-    libc.exit(0 if errors.count == 0 else -1);
+    return 0 if errors.count == 0 else -1;
 }

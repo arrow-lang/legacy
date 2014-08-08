@@ -17,39 +17,38 @@ let U128: int = 10;      #  128-bit unsigned integer
 let F32:  int = 11;      #   32-bit floating-point
 let F64:  int = 12;      #   64-bit floating-point
 
-let STR:  int = 13;      #    managed pointer to 8-bit signed integer
+let STR:  int = 13;      # managed pointer to 8-bit signed integer
 
-let UINT: int = 14;      #    machine unsigned integer
-let INT:  int = 15;      #    machine signed integer
-let PTR:  int = 16;      #    pointer (non-managed)
+let UINT: int = 14;      # machine unsigned integer
+let INT:  int = 15;      # machine signed integer
+let PTR:  int = 16;      # pointer (non-managed)
 
 let CHAR: int = 17;      # character
 
 # Gets if the type tag has individual memory that needs to be disposed.
-def is_disposable(tag: int) -> bool {
+let is_disposable(tag: int): bool -> {
     if tag == STR { true; }
-    else { false; }
+    else { false; };
 }
 
-# Keep track of the size (in bytes) of the types.
-let mut _sizes: uint[20];
-_sizes[I8] = 1;
-_sizes[I16] = 2;
-_sizes[I32] = 4;
-_sizes[I64] = 8;
-_sizes[I128] = 16;
-_sizes[U8] = 1;
-_sizes[U16] = 2;
-_sizes[U32] = 4;
-_sizes[U64] = 8;
-_sizes[U128] = 16;
-_sizes[F32] = 4;
-_sizes[F64] = 8;
-_sizes[CHAR] = _sizes[U32];
-_sizes[STR] = ((0 as ^uint) + 1) - (0 as ^uint);
-_sizes[UINT] = ((0 as ^uint) + 1) - (0 as ^uint);
-_sizes[INT] = ((0 as ^int) + 1) - (0 as ^int);
-_sizes[PTR] = ((0 as ^uint) + 1) - (0 as ^uint);
-
-# Gets the size (in bytes) of the type.
-def sizeof(tag: int) -> uint { _sizes[tag]; }
+# Gets the size (in bytes) of the type by tag.
+let sizeof(tag: int): uint -> {
+         if tag ==   I8 { size_of(  int8); }
+    else if tag ==  I16 { size_of( int16); }
+    else if tag ==  I32 { size_of( int32); }
+    else if tag ==  I64 { size_of( int64); }
+    else if tag == I128 { size_of(int128); }
+    else if tag ==   U8 { size_of( uint16); }
+    else if tag ==  U16 { size_of( uint16); }
+    else if tag ==  U32 { size_of( uint32); }
+    else if tag ==  U64 { size_of( uint64); }
+    else if tag == U128 { size_of(uint128); }
+    else if tag == F32  { size_of(float32); }
+    else if tag == F64  { size_of(float64); }
+    else if tag == CHAR { size_of(char); }
+    else if tag == STR  { size_of(*uint); }
+    else if tag == INT  { size_of(int); }
+    else if tag == UINT { size_of(uint); }
+    else if tag == PTR  { size_of(*uint); }
+    else { 0; };
+}

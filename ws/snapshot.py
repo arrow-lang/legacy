@@ -11,7 +11,7 @@ class SnapshotNotFound(BaseException):
     pass
 
 
-SOURCE = "https://www.dropbox.com/sh/fdpdlrprph7yh6t/p-Vy2gNkrI/arrow-lang/releases/arrow-{version}/{target}?dl=1"
+SOURCE = "https://dl.dropboxusercontent.com/u/19497679/arrow-lang/releases/arrow-{version}/{target}/arrow-{version}-{target}.tar.xz"
 
 
 def get_target():
@@ -26,13 +26,18 @@ def get_snapshot(version, target=None):
     base_dir = path.dirname(path.dirname(__file__))
     cache_dir = path.join(base_dir, ".cache/snapshots/%s" % version)
     target = target or get_target()
-    snapshot_dir = path.join(cache_dir, target)
+    snapshot_dir = cache_dir
 
     # Create the neccessary directories.
     os.makedirs(snapshot_dir, exist_ok=True)
 
     # Check for an existing snapshot.
-    snapshot_zipfile = path.join(cache_dir, "%s.zip" % target)
+    snapshot_file = path.join(cache_dir, "%s/bin/arrow" % target)
+    if path.exists(snapshot_file):
+        return snapshot_file
+
+    # Keep going
+    snapshot_zipfile = path.join(cache_dir, "arrow-%s-%s.tar.xz" % (version, target))
     if not path.exists(snapshot_zipfile):
         # Build the URI
         uri = SOURCE.format(version=version, target=target)
@@ -48,15 +53,17 @@ def get_snapshot(version, target=None):
                     # No snapshot available.
                     raise SnapshotNotFound
 
-        # Unzip the snapshot file.
-        with zipfile.ZipFile(snapshot_zipfile, "r") as handle:
-            handle.extractall(cache_dir)
-
         # Untar the snapshot.
         snapshot_tarfile = path.join(
             snapshot_dir, "arrow-%s-%s.tar.xz" % (version, target))
         with tarfile.open(snapshot_tarfile) as handle:
             handle.extractall(snapshot_dir)
 
-    # Return the compiler path.
-    return path.join(snapshot_dir, "bin/arrow")
+    if version == "0.0.0":
+        # Return the compiler path.
+        return path.join(snapshot_dir, "bin/arrow")
+
+    else:
+        # Return the compiler path.
+        return path.join(snapshot_dir, "arrow-%s-%s/bin/arrow" % (
+                         version, target))

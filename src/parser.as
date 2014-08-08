@@ -13,28 +13,28 @@ let ASSOC_LEFT: int = 2;
 
 # Parser
 # =============================================================================
-type Parser {
+struct Parser {
     # Name of the top-level module
-    mut name: str,
+    name: str,
 
     # Tokenizer
-    mut tokenizer: tokenizer.Tokenizer,
+    tokenizer: tokenizer.Tokenizer,
 
     # Token buffer.
     # Tokens get pushed as they are read from the input stream and popped
     # when consumed. This is implemented as a list so that we can
     # roll back the stream or insert additional tokens.
-    mut tokens: list.List,
+    tokens: list.List,
 
     # Node stack.
     # Nodes get pushed as they are realized and popped as consumed.
-    mut stack: ast.Nodes
+    stack: ast.Nodes
 }
 
-def parser_new(name: str, tokenizer_: tokenizer.Tokenizer) -> Parser {
+let parser_new(name: str, tokenizer_: tokenizer.Tokenizer): Parser -> {
     let parser: Parser;
-    parser.tokenizer = tokenizer_;
-    parser.tokens = list.make_generic(tokenizer.TOKEN_SIZE);
+    parser.tokenizer = tokenizer_.shallow_clone();
+    parser.tokens = list.List.with_element_size(size_of(tokenizer.Token));
     parser.stack = ast.make_nodes();
     parser.name = name;
     parser;
@@ -44,7 +44,7 @@ implement Parser {
 
 # Dispose of internal resources used during parsing.
 # -----------------------------------------------------------------------------
-def dispose(&mut self) {
+let dispose(mut self) -> {
     # Dispose of the token buffer.
     self.tokens.dispose();
 
@@ -54,40 +54,40 @@ def dispose(&mut self) {
 
 # Push N tokens onto the buffer.
 # -----------------------------------------------------------------------------
-def push_tokens(&mut self, count: uint) {
+let push_tokens(mut self, count: uint) -> {
     let mut n: uint = count;
     while n > 0 {
         let tok: tokenizer.Token = self.tokenizer.next();
-        self.tokens.push(&tok as ^void);
+        self.tokens.push(&tok as *int8);
         n = n - 1;
     }
 }
 
 # Peek ahead N tokens.
 # -----------------------------------------------------------------------------
-def peek_token(&mut self, count: uint) -> tokenizer.Token {
+let peek_token(mut self, count: uint): tokenizer.Token -> {
     # Request more tokens if we need them.
     if count > self.tokens.size {
         self.push_tokens(count - self.tokens.size);
-    }
+    };
 
     # Return the requested token.
-    let tok: ^tokenizer.Token;
-    tok = self.tokens.at((count as int) - (self.tokens.size as int) - 1) as
-        ^tokenizer.Token;
-    tok^;
+    let mut tok: *tokenizer.Token;
+    tok = self.tokens.get((count as int) - (self.tokens.size as int) - 1) as
+        *tokenizer.Token;
+    *tok;
 }
 
 # Peek ahead N token tags.
 # -----------------------------------------------------------------------------
-def peek_token_tag(&mut self, count: uint) -> int {
+let peek_token_tag(mut self, count: uint): int -> {
     let tok: tokenizer.Token = self.peek_token(count);
     tok.tag;
 }
 
 # Pop a token off the buffer.
 # -----------------------------------------------------------------------------
-def pop_token(&mut self) -> tokenizer.Token {
+let pop_token(mut self): tokenizer.Token -> {
     # Get the requested token.
     let tok: tokenizer.Token = self.peek_token(1);
 
@@ -100,18 +100,18 @@ def pop_token(&mut self) -> tokenizer.Token {
 
 # Consume until `token`.
 # -----------------------------------------------------------------------------
-def consume_until(&mut self, token: int) {
+let consume_until(mut self, token: int) -> {
     let mut tok: tokenizer.Token = self.pop_token();
-    while       tok.tag <> token
-            and tok.tag <> tokens.TOK_SEMICOLON
-            and tok.tag <> tokens.TOK_END {
+    while     (tok.tag != token)
+            & (tok.tag != tokens.TOK_SEMICOLON)
+            & (tok.tag != tokens.TOK_END) {
         tok = self.pop_token();
     }
 }
 
 # Expect a token (and report an error).
 # -----------------------------------------------------------------------------
-def expect(&mut self, req: int) -> bool {
+let expect(mut self, req: int): bool -> {
     # Check if we are the expected token.
     let tok: tokenizer.Token = self.pop_token();
     if tok.tag == req {
@@ -121,20 +121,19 @@ def expect(&mut self, req: int) -> bool {
         # Report error.
         errors.begin_error_at(tok.span);
         errors.libc.fprintf(errors.libc.stderr,
-                       "expected %s but found %s" as ^int8,
+                       "expected %s but found %s",
                        tokens.to_str(req),
                        tokens.to_str(tok.tag));
         errors.end();
 
         # Return failure.
         false;
-    }
+    };
 }
 
 # Empty the stack into the passed `nodes`.
 # -----------------------------------------------------------------------------
-def empty_stack_to(&mut self, &mut nodes: ast.Nodes)
-{
+let empty_stack_to(mut self, mut nodes: ast.Nodes) -> {
     let mut i: int = 0;
     while i as uint < self.stack.size()
     {
@@ -146,18 +145,18 @@ def empty_stack_to(&mut self, &mut nodes: ast.Nodes)
 
 # Begin the parsing process.
 # -----------------------------------------------------------------------------
-def parse(&mut self) -> ast.Node {
+let parse(mut self): ast.Node -> {
     # Declare the top-level module decl node.
     let node: ast.Node = ast.make(ast.TAG_MODULE);
-    let mod: ^ast.ModuleDecl = node.unwrap() as ^ast.ModuleDecl;
+    let mod: *ast.ModuleDecl = node.unwrap() as *ast.ModuleDecl;
 
     # Set the name of the top-level module.
     mod.id = ast.make(ast.TAG_IDENT);
-    let id: ^ast.Ident = mod.id.unwrap() as ^ast.Ident;
+    let id: *ast.Ident = mod.id.unwrap() as *ast.Ident;
     id.name.extend(self.name);
 
     # Iterate and attempt to match items until the stream is empty.
-    while self.peek_token_tag(1) <> tokens.TOK_END {
+    while self.peek_token_tag(1) != tokens.TOK_END {
         # Try and parse a module node.
         if self.parse_module_node() {
             # Consume the parsed node and push it into the module.
@@ -165,7 +164,7 @@ def parse(&mut self) -> ast.Node {
         } else {
             # Clear the node stack.
             self.stack.clear();
-        }
+        };
     }
 
     # Return our node.
@@ -176,30 +175,29 @@ def parse(&mut self) -> ast.Node {
 # -----------------------------------------------------------------------------
 # module = "module" ident "{" { module-node } "}" ;
 # -----------------------------------------------------------------------------
-def parse_module(&mut self) -> bool
-{
+let parse_module(mut self): bool -> {
     # Declare the module decl node.
     let node: ast.Node = ast.make(ast.TAG_MODULE);
-    let mod: ^ast.ModuleDecl = node.unwrap() as ^ast.ModuleDecl;
+    let mod: *ast.ModuleDecl = node.unwrap() as *ast.ModuleDecl;
 
     # Pop the `module` token.
     self.pop_token();
 
     # Expect and parse and the identifier.
-    if not self._expect_parse_ident_to(mod.id) {
+    if not self._expect_parse_ident_to(&mod.id) {
         self.consume_until(tokens.TOK_RBRACE);
         return false;
-    }
+    };
 
     # Expect and parse the `{` token.
     if not self.expect(tokens.TOK_LBRACE) {
         self.consume_until(tokens.TOK_RBRACE);
         return false;
-    }
+    };
 
     # Iterate and attempt to match items until the stream is empty.
-    while self.peek_token_tag(1) <> tokens.TOK_RBRACE
-            and self.peek_token_tag(1) <> tokens.TOK_END {
+    while self.peek_token_tag(1) != tokens.TOK_RBRACE
+            and self.peek_token_tag(1) != tokens.TOK_END {
         # Try and parse a module node.
         if self.parse_module_node() {
             # Consume the parsed node and push it into the module.
@@ -207,11 +205,11 @@ def parse_module(&mut self) -> bool
         } else {
             # Clear the node stack.
             self.stack.clear();
-        }
+        };
     }
 
     # Expect and parse the `}` token.
-    if not self.expect(tokens.TOK_RBRACE) { return false; }
+    if not self.expect(tokens.TOK_RBRACE) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -225,9 +223,9 @@ def parse_module(&mut self) -> bool
 # loop = "loop" block ;
 # while = "while" expression block ;
 # -----------------------------------------------------------------------------
-def parse_loop(&mut self) -> bool {
+let parse_loop(mut self): bool -> {
     let node: ast.Node = ast.make(ast.TAG_LOOP);
-    let loopN: ^ast.Loop = node.unwrap() as ^ast.Loop;
+    let loopN: *ast.Loop = node.unwrap() as *ast.Loop;
 
     # Pop the `loop` or `while` token.
     let tok: tokenizer.Token = self.pop_token();
@@ -235,12 +233,12 @@ def parse_loop(&mut self) -> bool {
     # Expect and parse the condition if we are a `while` loop.
     if tok.tag == tokens.TOK_WHILE
     {
-        if not self.parse_expr(false) { return false; }
+        if not self.parse_expr(false) { return false; };
         loopN.condition = self.stack.pop();
-    }
+    };
 
     # Expect and parse the block.
-    if not self.parse_block_expr() { return false; }
+    if not self.parse_block_expr() { return false; };
     loopN.block = self.stack.pop();
 
     # Push our node on the stack.
@@ -254,8 +252,7 @@ def parse_loop(&mut self) -> bool {
 # -----------------------------------------------------------------------------
 # unsafe = "unsafe" "{" { statement } "}" ;
 # -----------------------------------------------------------------------------
-def parse_unsafe(&mut self) -> bool
-{
+let parse_unsafe(mut self): bool -> {
     # Declare the unsafe block.
     let mut node: ast.Node;
 
@@ -263,7 +260,7 @@ def parse_unsafe(&mut self) -> bool
     self.pop_token();
 
     # Parse a block.
-    if not self.parse_block_expr() { return false; }
+    if not self.parse_block_expr() { return false; };
     node = self.stack.pop();
 
     # Make this an unsafe block.
@@ -276,22 +273,21 @@ def parse_unsafe(&mut self) -> bool
     true;
 }
 
-
 # Module node
 # -----------------------------------------------------------------------------
 # module-node = module | common-statement ;
 # -----------------------------------------------------------------------------
-def parse_module_node(&mut self) -> bool {
+let parse_module_node(mut self): bool -> {
     # Peek ahead and see if we are a module `item`.
     let tok: tokenizer.Token = self.peek_token(1);
-    if tok.tag == tokens.TOK_MODULE { return self.parse_module(); }
-    if tok.tag == tokens.TOK_EXTERN { return self.parse_extern(); }
+    if tok.tag == tokens.TOK_MODULE { return self.parse_module(); };
+    if tok.tag == tokens.TOK_EXTERN { return self.parse_extern(); };
 
     if tok.tag == tokens.TOK_SEMICOLON {
         # Consume the semicolon and attempt to match the next item.
         self.pop_token();
         return self.parse_module_node();
-    }
+    };
 
     # We could still be a common statement.
     self.parse_common_statement();
@@ -303,21 +299,21 @@ def parse_module_node(&mut self) -> bool {
 #                  | import | struct | enum | use | implement | function
 #                  | block-expr | expr ;
 # -----------------------------------------------------------------------------
-def parse_common_statement(&mut self) -> bool {
+let parse_common_statement(mut self): bool -> {
     # Peek ahead and see if we are a common statement.
     let tok: tokenizer.Token = self.peek_token(1);
-    if tok.tag == tokens.TOK_UNSAFE { return self.parse_unsafe(); }
+    if tok.tag == tokens.TOK_UNSAFE { return self.parse_unsafe(); };
     # if tok.tag == tokens.TOK_MATCH  { return self.parse_match(); }
-    if tok.tag == tokens.TOK_LOOP   { return self.parse_loop(); }
-    if tok.tag == tokens.TOK_WHILE  { return self.parse_loop(); }
-    if tok.tag == tokens.TOK_IMPORT { return self.parse_import(); }
-    if tok.tag == tokens.TOK_STRUCT { return self.parse_struct(); }
+    if tok.tag == tokens.TOK_LOOP   { return self.parse_loop(); };
+    if tok.tag == tokens.TOK_WHILE  { return self.parse_loop(); };
+    if tok.tag == tokens.TOK_IMPORT { return self.parse_import(); };
+    if tok.tag == tokens.TOK_STRUCT { return self.parse_struct(); };
     # if tok.tag == tokens.TOK_ENUM   { return self.parse_enum(); }
     # if tok.tag == tokens.TOK_USE    { return self.parse_use(); }
-    if tok.tag == tokens.TOK_IMPL     { return self.parse_impl(); }
-    if tok.tag == tokens.TOK_RETURN   { return self.parse_return(); }
-    if tok.tag == tokens.TOK_BREAK    { return self.parse_break(); }
-    if tok.tag == tokens.TOK_CONTINUE { return self.parse_continue(); }
+    if tok.tag == tokens.TOK_IMPL     { return self.parse_impl(); };
+    if tok.tag == tokens.TOK_RETURN   { return self.parse_return(); };
+    if tok.tag == tokens.TOK_BREAK    { return self.parse_break(); };
+    if tok.tag == tokens.TOK_CONTINUE { return self.parse_continue(); };
 
     # let <identifier> "("
 
@@ -326,27 +322,26 @@ def parse_common_statement(&mut self) -> bool {
         # Check if the next token is an identifer and short circut
         if self.peek_token_tag(2) == tokens.TOK_IDENTIFIER and (self.peek_token_tag(3) == tokens.TOK_LPAREN or self.peek_token_tag(3) == tokens.TOK_LCARET ) {
             return self.parse_function();
-        }
+        };
 
-        if self.parse_slot() { return self.expect(tokens.TOK_SEMICOLON); }
+        if self.parse_slot() { return self.expect(tokens.TOK_SEMICOLON); };
         return false;
-
-    }
+    };
 
     if tok.tag == tokens.TOK_LBRACE {
         # Block expression is treated as if it appeared in a
         # function (no `item` may appear inside).
         return self.parse_block_expr();
-    }
+    };
 
     # We could still be an expression; forward.
     if self.parse_expr(true) { self.expect(tokens.TOK_SEMICOLON); }
-    else                     { false; }
+    else                     { false; };
 }
 
 # Break
 # -----------------------------------------------------------------------------
-def parse_break(&mut self) -> bool
+let parse_break(mut self): bool ->
 {
     # Declare the node.
     let node: ast.Node = ast.make(ast.TAG_BREAK);
@@ -355,7 +350,7 @@ def parse_break(&mut self) -> bool
     self.pop_token();
 
     # Expect a `;`.
-    if not self.expect(tokens.TOK_SEMICOLON) { return false; }
+    if not self.expect(tokens.TOK_SEMICOLON) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -366,24 +361,24 @@ def parse_break(&mut self) -> bool
 
 # Size Of
 # -----------------------------------------------------------------------------
-def parse_sizeof(&mut self) -> bool
+let parse_sizeof(mut self): bool ->
 {
     # Declare the node.
     let node: ast.Node = ast.make(ast.TAG_SIZEOF);
-    let expr: ^ast.SizeOf = node.unwrap() as ^ast.SizeOf;
+    let expr: *ast.SizeOf = node.unwrap() as *ast.SizeOf;
 
     # Pop the `size_of` token.
     self.pop_token();
 
     # Expect a `(`.
-    if not self.expect(tokens.TOK_LPAREN) { return false; }
+    if not self.expect(tokens.TOK_LPAREN) { return false; };
 
     # Parse and set the type.
-    if not self.parse_type() { return false; }
+    if not self.parse_type() { return false; };
     expr.type_ = self.stack.pop();
 
     # Expect a `)`.
-    if not self.expect(tokens.TOK_RPAREN) { return false; }
+    if not self.expect(tokens.TOK_RPAREN) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -394,7 +389,7 @@ def parse_sizeof(&mut self) -> bool
 
 # Continue
 # -----------------------------------------------------------------------------
-def parse_continue(&mut self) -> bool
+let parse_continue(mut self): bool ->
 {
     # Declare the node.
     let node: ast.Node = ast.make(ast.TAG_CONTINUE);
@@ -403,7 +398,7 @@ def parse_continue(&mut self) -> bool
     self.pop_token();
 
     # Expect a `;`.
-    if not self.expect(tokens.TOK_SEMICOLON) { return false; }
+    if not self.expect(tokens.TOK_SEMICOLON) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -414,34 +409,34 @@ def parse_continue(&mut self) -> bool
 
 # Return
 # -----------------------------------------------------------------------------
-def parse_return(&mut self) -> bool
+let parse_return(mut self): bool ->
 {
     # Declare the node.
     let node: ast.Node = ast.make(ast.TAG_RETURN);
-    let expr: ^ast.ReturnExpr = node.unwrap() as ^ast.ReturnExpr;
+    let expr: *ast.ReturnExpr = node.unwrap() as *ast.ReturnExpr;
 
     # Pop the `return` token.
     self.pop_token();
 
     # If we haven't been terminated, attempt to continue.
     let tok: tokenizer.Token = self.peek_token(1);
-    if tok.tag <> tokens.TOK_SEMICOLON and tok.tag <> tokens.TOK_IF {
+    if tok.tag != tokens.TOK_SEMICOLON and tok.tag != tokens.TOK_IF {
         # Parse the direct value expression.
-        if not self.parse_cast_expr() { return false; }
+        if not self.parse_cast_expr() { return false; };
 
         # Try and continue the unary expression as a binary expression.
-        if not self.parse_binop_rhs(0, 0, false) { return false; }
+        if not self.parse_binop_rhs(0, 0, false) { return false; };
         expr.expression = self.stack.pop();
-    }
+    };
 
     # Push our node.
     self.stack.push(node);
 
-    if tok.tag <> tokens.TOK_SEMICOLON
+    if tok.tag != tokens.TOK_SEMICOLON
     {
         # Parse the remainder of the `return` expression (capturing those
         # now allowed binary operators like `if`).
-        if not self.parse_binop_rhs(0, 0, true) { return false; }
+        if not self.parse_binop_rhs(0, 0, true) { return false; };
 
         # Expect a `;`.
         self.expect(tokens.TOK_SEMICOLON);
@@ -452,37 +447,37 @@ def parse_return(&mut self) -> bool
 
         # Return success.
         true;
-    }
+    };
 }
 
 # Function declaration
 # -----------------------------------------------------------------------------
-def parse_function(&mut self) -> bool
+let parse_function(mut self): bool ->
 {
     # Declare the function decl node.
     let node: ast.Node = ast.make(ast.TAG_FUNC_DECL);
-    let decl: ^ast.FuncDecl = node.unwrap() as ^ast.FuncDecl;
+    let decl: *ast.FuncDecl = node.unwrap() as *ast.FuncDecl;
 
     # Pop the `let` token.
     self.pop_token();
 
     # Expect an `identifier` next.
-    if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+    if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
         self.expect(tokens.TOK_IDENTIFIER);
         return false;
-    }
+    };
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident() { return false; }
+    if not self.parse_ident() { return false; };
     decl.id = self.stack.pop();
 
     # Check for and parse type type parameters.
-    if not self.parse_type_params(decl.type_params) { return false; }
+    if not self.parse_type_params(decl.type_params) { return false; };
 
     # Parse the parameter list.
     if not self.parse_function_params(decl, true, false, false) {
         return false;
-    }
+    };
 
     # Check for a return type annotation which would again
     # be preceeded by a `:` token.
@@ -492,20 +487,20 @@ def parse_function(&mut self) -> bool
         self.pop_token();
 
         # Parse and set the type.
-        if not self.parse_type() { return false; }
+        if not self.parse_type() { return false; };
         decl.return_type = self.stack.pop();
-    }
+    };
 
-    if not self.peek_token_tag(1) == tokens.TOK_RARROW {
+    if self.peek_token_tag(1) != tokens.TOK_RARROW {
         self.expect(tokens.TOK_RARROW);
         return false;
-    }
+    };
 
     # Consume the -> token
     self.pop_token();
 
     # Parse the function block next.
-    if not self.parse_block_expr() { return false; }
+    if not self.parse_block_expr() { return false; };
     decl.block = self.stack.pop();
 
     # Push our node on the stack.
@@ -517,23 +512,23 @@ def parse_function(&mut self) -> bool
 
 # Function parameter list
 # -----------------------------------------------------------------------------
-def parse_function_params(&mut self, fn: ^ast.FuncDecl,
+let parse_function_params(mut self, fn: *ast.FuncDecl,
                           require_names: bool,
                           self_: bool,
-                          variadic_: bool) -> bool
+                          variadic_: bool): bool ->
 {
     # Expect a `(` token to start the parameter list.
-    if not self.expect(tokens.TOK_LPAREN) { return false; }
+    if not self.expect(tokens.TOK_LPAREN) { return false; };
 
     # Iterate through and parse each parameter.
     let mut idx: uint = 0;
-    let found_self: bool = false;
-    while self.peek_token_tag(1) <> tokens.TOK_RPAREN
+    let mut found_self: bool = false;
+    while self.peek_token_tag(1) != tokens.TOK_RPAREN
     {
         # If we are allowed to have "self" ..
         if self_ and idx == 0 {
             # Check for `mut self` or `self` sequences.
-            let found: bool = false;
+            let mut found: bool = false;
             if self.peek_token_tag(1) == tokens.TOK_MUT and
                self.peek_token_tag(2) == tokens.TOK_SELF
             {
@@ -551,20 +546,20 @@ def parse_function_params(&mut self, fn: ^ast.FuncDecl,
                 fn.mutable = false;
                 self.pop_token();
                 found = true;
-            }
+            };
             if found {
                 # Peek and consume the `,` token if present; else, consume
                 # tokens until we reach the `)`.
                 if self._expect_sequence_continue(tokens.TOK_RPAREN) {
-                    continue; }
+                    continue; };
                 return false;
-            }
-        }
+            };
+        };
 
         # Parse the parameter.
         if not self.parse_function_param(require_names, variadic_) {
             return false;
-        }
+        };
 
         fn.params.push(self.stack.pop());
 
@@ -573,12 +568,12 @@ def parse_function_params(&mut self, fn: ^ast.FuncDecl,
 
         # Peek and consume the `,` token if present; else, consume
         # tokens until we reach the `)`.
-        if self._expect_sequence_continue(tokens.TOK_RPAREN) { continue; }
+        if self._expect_sequence_continue(tokens.TOK_RPAREN) { continue; };
         return false;
     }
 
     # Expect a `)` token to close the parameter list.
-    if not self.expect(tokens.TOK_RPAREN) { return false; }
+    if not self.expect(tokens.TOK_RPAREN) { return false; };
 
     # Return success.
     true;
@@ -586,11 +581,11 @@ def parse_function_params(&mut self, fn: ^ast.FuncDecl,
 
 # Function parameter
 # -----------------------------------------------------------------------------
-def parse_function_param(&mut self, require_name: bool, variadic_: bool) -> bool
+let parse_function_param(mut self, require_name: bool, variadic_: bool): bool ->
 {
     # Declare the function param node.
     let node: ast.Node = ast.make(ast.TAG_FUNC_PARAM);
-    let param: ^ast.FuncParam = node.unwrap() as ^ast.FuncParam;
+    let param: *ast.FuncParam = node.unwrap() as *ast.FuncParam;
 
     # Check for a `mut` token which would make the slot mutable.
     if self.peek_token_tag(1) == tokens.TOK_MUT
@@ -600,7 +595,7 @@ def parse_function_param(&mut self, require_name: bool, variadic_: bool) -> bool
 
         # Make the slot mutable.
         param.mutable = true;
-    }
+    };
 
     # If we are allowed to be "variadic" ..
     if variadic_ {
@@ -611,19 +606,19 @@ def parse_function_param(&mut self, require_name: bool, variadic_: bool) -> bool
 
             # Pop the `...` token.
             self.pop_token();
-        }
-    }
+        };
+    };
 
     if require_name
     {
         # Expect an `identifier` next.
-        if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+        if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
             self.expect(tokens.TOK_IDENTIFIER);
             return false;
-        }
+        };
 
         # Parse and set the identifier (this shouldn't fail).
-        if not self.parse_ident() { return false; }
+        if not self.parse_ident() { return false; };
         param.id = self.stack.pop();
 
         # Check for a type annotation which would be preceeded by a `:` token.
@@ -633,9 +628,9 @@ def parse_function_param(&mut self, require_name: bool, variadic_: bool) -> bool
             self.pop_token();
 
             # Parse and set the type.
-            if not self.parse_type() { return false; }
+            if not self.parse_type() { return false; };
             param.type_ = self.stack.pop();
-        }
+        };
     }
     else if (param.variadic and self.peek_token_tag(1) == tokens.TOK_COMMA
              or self.peek_token_tag(1) == tokens.TOK_RPAREN) {
@@ -650,18 +645,17 @@ def parse_function_param(&mut self, require_name: bool, variadic_: bool) -> bool
                 self.peek_token_tag(2) == tokens.TOK_COLON
         {
             # Parse and set the identifier (this shouldn't fail).
-            if not self.parse_ident() { return false; }
+            if not self.parse_ident() { return false; };
             param.id = self.stack.pop();
 
             # Pop the `:` token.
             self.pop_token();
-
-        }
+        };
 
         # Parse and set the type.
-        if not self.parse_type() { return false; }
+        if not self.parse_type() { return false; };
         param.type_ = self.stack.pop();
-    }
+    };
 
     # Check for an default which would be preceeded by a `=` token.
     if self.peek_token_tag(1) == tokens.TOK_EQ
@@ -670,9 +664,9 @@ def parse_function_param(&mut self, require_name: bool, variadic_: bool) -> bool
         self.pop_token();
 
         # Parse and set the default.
-        if not self.parse_expr(false) { return false; }
+        if not self.parse_expr(false) { return false; };
         param.default = self.stack.pop();
-    }
+    };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -685,9 +679,9 @@ def parse_function_param(&mut self, require_name: bool, variadic_: bool) -> bool
 # -----------------------------------------------------------------------------
 # expr = unary-expr | binop-rhs ;
 # -----------------------------------------------------------------------------
-def parse_expr(&mut self, statement: bool) -> bool {
+let parse_expr(mut self, statement: bool): bool -> {
     # Try and parse a unary expression.
-    if not self.parse_cast_expr() { return false; }
+    if not self.parse_cast_expr() { return false; };
 
     # Try and continue the unary expression as a binary expression.
     self.parse_binop_rhs(0, 0, statement);
@@ -698,19 +692,19 @@ def parse_expr(&mut self, statement: bool) -> bool {
 
 # (Possible) Cast Expression
 # -----------------------------------------------------------------------------
-def parse_cast_expr(&mut self) -> bool {
+let parse_cast_expr(mut self): bool -> {
     # Attempt to parse the `operand` as a unary expression.
-    if not self.parse_unary_expr() { return false; }
+    if not self.parse_unary_expr() { return false; };
 
     # Are we a `cast` expression.
-    if self.peek_token_tag(1) <> tokens.TOK_AS {
+    if self.peek_token_tag(1) != tokens.TOK_AS {
         # No; just return the unary expression.
         return true;
-    }
+    };
 
     # Declare and allocate the node.
     let node: ast.Node = ast.make(ast.TAG_CAST);
-    let expr: ^ast.CastExpr = node.unwrap() as ^ast.CastExpr;
+    let expr: *ast.CastExpr = node.unwrap() as *ast.CastExpr;
     expr.operand = self.stack.pop();
 
     # Pop the `as` token.
@@ -720,7 +714,7 @@ def parse_cast_expr(&mut self) -> bool {
     if not self.parse_type() {
         self.consume_until(tokens.TOK_SEMICOLON);
         return false;
-    }
+    };
 
     expr.type_ = self.stack.pop();
 
@@ -738,8 +732,8 @@ def parse_cast_expr(&mut self) -> bool {
 #            | ">"  | "<"  | "<=" | ">=" | "="  | ":="  | "+=" | "-=" | "*="
 #            | "/=" | "%=" | "if" | "."  | "//" | "//="
 # -----------------------------------------------------------------------------
-def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
-                    statement: bool) -> bool {
+let parse_binop_rhs(mut self, mut expr_prec: int, mut expr_assoc: int,
+                    statement: bool): bool -> {
     loop {
         # Get the token precedence (if it is a binary operator token).
         let tok: tokenizer.Token = self.peek_token(1);
@@ -747,13 +741,13 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
         let tok_assoc: int = self.get_binop_tok_associativity(tok.tag);
 
         # If the stack is too full; get out.
-        if self.stack.size() > 1 { return true; }
+        if self.stack.size() > 1 { return true; };
 
         # If the proceeding token is not a binary operator token
         # or the token binds less tightly and is left-associative,
         # get out of the precedence parser.
-        if tok_prec == -1 { return true; }
-        if tok_prec < expr_prec and expr_assoc == ASSOC_LEFT { return true; }
+        if tok_prec == -1 { return true; };
+        if tok_prec < expr_prec and expr_assoc == ASSOC_LEFT { return true; };
 
         if tok.tag == tokens.TOK_IF
         {
@@ -778,7 +772,7 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
                     # Try and continue the expression.
                     return self.parse_binop_rhs(
                         tok_prec + 1, tok_assoc, statement);
-                }
+                };
 
                 # If this is not a coinditional and this is not a
                 # statement; this cannot be a select-op.
@@ -786,20 +780,20 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
                 {
                     errors.begin_error();
                     errors.libc.fprintf(errors.libc.stderr,
-                                   "unexpected postfix selection statement" as ^int8);
+                                   "unexpected postfix selection statement");
                     errors.end();
 
                     # Return failure.
                     return false;
-                }
+                };
 
                 # Return success.
                 return true;
-            }
+            };
 
             # Return failure.
             return false;
-        }
+        };
 
         # Pop the LHS from the stack.
         let lhs: ast.Node = self.stack.pop();
@@ -808,7 +802,7 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
         self.pop_token();
 
         # Parse the RHS of this expression.
-        if not self.parse_cast_expr() { return false; }
+        if not self.parse_cast_expr() { return false; };
 
         # If the binary operator binds less tightly with RHS than the
         # operator after RHS, let the pending operator take RHS as its LHS.
@@ -818,8 +812,8 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
             if not self.parse_binop_rhs(tok_prec + 1, tok_assoc, statement)
             {
                 return false;
-            }
-        }
+            };
+        };
 
         # Pop the RHS from the stack.
         let rhs: ast.Node = self.stack.pop();
@@ -827,17 +821,17 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
         # We have a complete binary expression.
         # Determine the AST tag.
         let tag: int = self.get_binop_tok_tag(tok.tag);
-        if tag <> 0
+        if tag != 0
         {
             # Merge LHS/RHS into a binary expression node.
             let node: ast.Node = ast.make(tag);
-            let expr: ^ast.BinaryExpr = ast.unwrap(node) as ^ast.BinaryExpr;
+            let expr: *ast.BinaryExpr = ast.unwrap(node) as *ast.BinaryExpr;
             expr.lhs = lhs;
             expr.rhs = rhs;
 
             # Push our node on the stack.
             self.stack.push(node);
-        }
+        };
     }
 
     # Should never reach here normally.
@@ -846,7 +840,7 @@ def parse_binop_rhs(&mut self, mut expr_prec: int, mut expr_assoc: int,
 
 # Postfix selection
 # -----------------------------------------------------------------------------
-def parse_postfix_selection(&mut self) -> bool
+let parse_postfix_selection(mut self): bool ->
 {
     # Pop the LHS (or selection body) from the stack.
     let lhs: ast.Node = self.stack.pop();
@@ -855,7 +849,7 @@ def parse_postfix_selection(&mut self) -> bool
     self.pop_token();
 
     # Attempt to parse a condition expression.
-    if not self.parse_expr(false) { return false; }
+    if not self.parse_expr(false) { return false; };
     let condition: ast.Node = self.stack.pop();
 
     # Is there a `{` token following (if so we could very well be
@@ -866,12 +860,12 @@ def parse_postfix_selection(&mut self) -> bool
         # the postfix space.
         errors.begin_error();
         errors.libc.fprintf(errors.libc.stderr,
-                       "unexpected selection statement" as ^int8);
+                       "unexpected selection statement");
         errors.end();
 
         # Return failure.
         return false;
-    }
+    };
 
     # Else is there a `else` directly following, then this is a
     # conditional expression.
@@ -879,7 +873,7 @@ def parse_postfix_selection(&mut self) -> bool
     {
         # Merge into a conditional expression.
         let node: ast.Node = ast.make(ast.TAG_CONDITIONAL);
-        let expr: ^ast.ConditionalExpr = ast.unwrap(node) as ^ast.ConditionalExpr;
+        let expr: *ast.ConditionalExpr = ast.unwrap(node) as *ast.ConditionalExpr;
         expr.lhs = lhs;
         expr.condition = condition;
 
@@ -888,7 +882,7 @@ def parse_postfix_selection(&mut self) -> bool
 
         # Parse the RHS (or false case).
         let res: bool = self.parse_expr(false);
-        if not res { return false; }
+        if not res { return false; };
         expr.rhs = self.stack.pop();
 
         # Push our node on the stack.
@@ -896,11 +890,11 @@ def parse_postfix_selection(&mut self) -> bool
 
         # Return success.
         return true;
-    }
+    };
 
     # Merge into a postfix selection operation.
     let node: ast.Node = ast.make(ast.TAG_SELECT_OP);
-    let expr: ^ast.BinaryExpr = ast.unwrap(node) as ^ast.BinaryExpr;
+    let expr: *ast.BinaryExpr = ast.unwrap(node) as *ast.BinaryExpr;
     expr.lhs = lhs;
     expr.rhs = condition;
 
@@ -916,31 +910,31 @@ def parse_postfix_selection(&mut self) -> bool
 # unary-expr = unary-op postfix-expr ;
 # unary-op = "+" | "-" | "not" | "!" ;
 # -----------------------------------------------------------------------------
-def parse_unary_expr(&mut self) -> bool {
+let parse_unary_expr(mut self): bool -> {
     # If this is not a unary expression then forward us to check for a
     # postfix expression.
     let tok: tokenizer.Token = self.peek_token(1);
-    if tok.tag <> tokens.TOK_PLUS
-        and tok.tag <> tokens.TOK_MINUS
-        and tok.tag <> tokens.TOK_NOT
-        and tok.tag <> tokens.TOK_BANG
-        and tok.tag <> tokens.TOK_STAR
-        and tok.tag <> tokens.TOK_AMPERSAND
+    if tok.tag != tokens.TOK_PLUS
+        and tok.tag != tokens.TOK_MINUS
+        and tok.tag != tokens.TOK_NOT
+        and tok.tag != tokens.TOK_BANG
+        and tok.tag != tokens.TOK_STAR
+        and tok.tag != tokens.TOK_AMPERSAND
     {
         return self.parse_postfix_expr();
-    }
+    };
 
     # Is this an address-of expression then carry on a bit differently.
     if tok.tag == tokens.TOK_AMPERSAND
     {
         return self.parse_address_of_expr();
-    }
+    };
 
     # This -is- a unary expression; carry on.
     self.pop_token();
 
     # Parse the operand of this expression.
-    if not self.parse_unary_expr() { return false; }
+    if not self.parse_unary_expr() { return false; };
     let operand: ast.Node = self.stack.pop();
 
     # Determine the AST tag for this unary expression.
@@ -955,7 +949,7 @@ def parse_unary_expr(&mut self) -> bool {
 
     # Allocate and create the node.
     let node: ast.Node = ast.make(tag);
-    let expr: ^ast.UnaryExpr = node.unwrap() as ^ast.UnaryExpr;
+    let expr: *ast.UnaryExpr = node.unwrap() as *ast.UnaryExpr;
     expr.operand = operand;
 
     # Push our node on the stack.
@@ -967,13 +961,13 @@ def parse_unary_expr(&mut self) -> bool {
 
 # Address-of expression
 # -----------------------------------------------------------------------------
-def parse_address_of_expr(&mut self) -> bool {
+let parse_address_of_expr(mut self): bool -> {
     # Pop the `&` token.
     self.pop_token();
 
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_ADDRESS_OF);
-    let expr: ^ast.AddressOfExpr = node.unwrap() as ^ast.AddressOfExpr;
+    let expr: *ast.AddressOfExpr = node.unwrap() as *ast.AddressOfExpr;
 
     # Is there a 'mut' next to indicate a mutable address-of?
     if self.peek_token_tag(1) == tokens.TOK_MUT
@@ -983,10 +977,10 @@ def parse_address_of_expr(&mut self) -> bool {
 
         # Pop the `mut` token.
         self.pop_token();
-    }
+    };
 
     # Parse the operand of this expression.
-    if not self.parse_unary_expr() { return false; }
+    if not self.parse_unary_expr() { return false; };
     expr.operand = self.stack.pop();
 
     # Push our node on the stack.
@@ -1006,10 +1000,10 @@ def parse_address_of_expr(&mut self) -> bool {
 #              | postfix-expr "{" sequence-members "}"
 #              ;
 # -----------------------------------------------------------------------------
-def parse_postfix_expr(&mut self) -> bool
+let parse_postfix_expr(mut self): bool ->
 {
     # Attempt to parse the `operand` as a primary expression.
-    if not self.parse_primary_expr() { return false; }
+    if not self.parse_primary_expr() { return false; };
 
     # Can we possibly consume this as a postfix expression ?
     let tok: tokenizer.Token = self.peek_token(1);
@@ -1020,8 +1014,8 @@ def parse_postfix_expr(&mut self) -> bool
         if not self.parse_postfix_expr_operand()
         {
             return false;
-        }
-    }
+        };
+    };
 
     # Push our node on the stack.
     self.stack.push(self.stack.pop());
@@ -1030,22 +1024,22 @@ def parse_postfix_expr(&mut self) -> bool
     true;
 }
 
-def parse_postfix_expr_operand(&mut self) -> bool
+let parse_postfix_expr_operand(mut self): bool ->
 {
     # Recurse downwards depending on our token.
     let tok: tokenizer.Token = self.peek_token(1);
     if tok.tag == tokens.TOK_LPAREN
     {
-        if not self.parse_call_expr() { return false; }
+        if not self.parse_call_expr() { return false; };
     }
     else if tok.tag == tokens.TOK_DOT
     {
-        if not self.parse_member_expr() { return false; }
+        if not self.parse_member_expr() { return false; };
     }
     else if tok.tag == tokens.TOK_LBRACKET
     {
-        if not self.parse_index_expr() { return false; }
-    }
+        if not self.parse_index_expr() { return false; };
+    };
 
     # Should we continue the postfix expression?
     let tok: tokenizer.Token = self.peek_token(1);
@@ -1056,8 +1050,8 @@ def parse_postfix_expr_operand(&mut self) -> bool
         if not self.parse_postfix_expr_operand()
         {
             return false;
-        }
-    }
+        };
+    };
 
     # Return success.
     true;
@@ -1065,11 +1059,11 @@ def parse_postfix_expr_operand(&mut self) -> bool
 
 # Call expression
 # -----------------------------------------------------------------------------
-def parse_call_expr(&mut self) -> bool
+let parse_call_expr(mut self): bool ->
 {
     # Declare and allocate the node.
     let node: ast.Node = ast.make(ast.TAG_CALL);
-    let expr: ^ast.CallExpr = node.unwrap() as ^ast.CallExpr;
+    let expr: *ast.CallExpr = node.unwrap() as *ast.CallExpr;
 
     # Pop the expression in the stack as our expression.
     expr.expression = self.stack.pop();
@@ -1079,20 +1073,20 @@ def parse_call_expr(&mut self) -> bool
 
     # Enumerate until we reach the `)` token.
     let mut in_named_args: bool = false;
-    while self.peek_token_tag(1) <> tokens.TOK_RPAREN {
+    while self.peek_token_tag(1) != tokens.TOK_RPAREN {
         # Declare the argument node.
         let arg_node: ast.Node = ast.make(ast.TAG_CALL_ARG);
-        let arg: ^ast.Argument = ast.unwrap(arg_node) as ^ast.Argument;
+        let arg: *ast.Argument = ast.unwrap(arg_node) as *ast.Argument;
 
         # This is a named argument if we have a ( `ident` `:` ) sequence.
         if      self.peek_token_tag(1) == tokens.TOK_IDENTIFIER
             and self.peek_token_tag(2) == tokens.TOK_COLON
         {
             # Expect and parse the identifier.
-            if not self._expect_parse_ident_to(arg.name) {
+            if not self._expect_parse_ident_to(&arg.name) {
                 self.consume_until(tokens.TOK_RPAREN);
                 return false;
-            }
+            };
 
             # Pop the `:` token.
             self.pop_token();
@@ -1107,14 +1101,14 @@ def parse_call_expr(&mut self) -> bool
             self.consume_until(tokens.TOK_RPAREN);
 
             errors.begin_error();
-            errors.libc.fprintf(errors.libc.stderr, "non-keyword argument after keyword argument" as ^int8);
+            errors.libc.fprintf(errors.libc.stderr, "non-keyword argument after keyword argument");
             errors.end();
 
             return false;
-        }
+        };
 
         # Parse an expression node for the argument.
-        if not self.parse_expr(false) { return false; }
+        if not self.parse_expr(false) { return false; };
         arg.expression = self.stack.pop();
 
         # Push the argument into our arguments collection.
@@ -1122,12 +1116,12 @@ def parse_call_expr(&mut self) -> bool
 
         # Peek and consume the `,` token if present; else, consume
         # tokens until we reach the `)`.
-        if self._expect_sequence_continue(tokens.TOK_RPAREN) { continue; }
+        if self._expect_sequence_continue(tokens.TOK_RPAREN) { continue; };
         return false;
     }
 
     # Expect a `)` token.
-    if not self.expect(tokens.TOK_RPAREN) { return false; }
+    if not self.expect(tokens.TOK_RPAREN) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -1138,10 +1132,10 @@ def parse_call_expr(&mut self) -> bool
 
 # Index expression
 # -----------------------------------------------------------------------------
-def parse_index_expr(&mut self) -> bool {
+let parse_index_expr(mut self): bool -> {
     # Declare and allocate the node.
     let node: ast.Node = ast.make(ast.TAG_INDEX);
-    let expr: ^ast.IndexExpr = node.unwrap() as ^ast.IndexExpr;
+    let expr: *ast.IndexExpr = node.unwrap() as *ast.IndexExpr;
 
     # Pop the expression in the stack as our expression.
     expr.expression = self.stack.pop();
@@ -1150,11 +1144,11 @@ def parse_index_expr(&mut self) -> bool {
     self.pop_token();
 
     # Parse an expression node for the argument.
-    if not self.parse_expr(false) { return false; }
+    if not self.parse_expr(false) { return false; };
     expr.subscript = self.stack.pop();
 
     # Expect a `]` token.
-    if not self.expect(tokens.TOK_RBRACKET) { return false; }
+    if not self.expect(tokens.TOK_RBRACKET) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -1165,12 +1159,12 @@ def parse_index_expr(&mut self) -> bool {
 
 # Pointer type
 # -----------------------------------------------------------------------------
-def parse_pointer_type(&mut self) -> bool
+let parse_pointer_type(mut self): bool ->
 {
     # This is a pointer-to the next type.
     # Declare and allocate the node.
     let mut node: ast.Node = ast.make(ast.TAG_POINTER_TYPE);
-    let expr: ^ast.PointerType = node.unwrap() as ^ast.PointerType;
+    let expr: *ast.PointerType = node.unwrap() as *ast.PointerType;
 
     # Pop the `*` token.
     self.pop_token();
@@ -1183,10 +1177,10 @@ def parse_pointer_type(&mut self) -> bool
 
         # Pop the `mut` token.
         self.pop_token();
-    }
+    };
 
     # Attempt to parse a type next.
-    if not self.parse_type() { return false; }
+    if not self.parse_type() { return false; };
     expr.pointee = self.stack.pop();
 
     # Push our pointer node.
@@ -1198,12 +1192,12 @@ def parse_pointer_type(&mut self) -> bool
 
 # Array type
 # -----------------------------------------------------------------------------
-def parse_array_type(&mut self) -> bool
+let parse_array_type(mut self): bool ->
 {
     # This is an array of the previous type node.
     # Declare and allocate the node.
     let mut node: ast.Node = ast.make(ast.TAG_ARRAY_TYPE);
-    let expr: ^ast.ArrayType = node.unwrap() as ^ast.ArrayType;
+    let expr: *ast.ArrayType = node.unwrap() as *ast.ArrayType;
 
     # Pop the previous type node as our primary element type.
     expr.element = self.stack.pop();
@@ -1212,11 +1206,11 @@ def parse_array_type(&mut self) -> bool
     self.pop_token();
 
     # Attempt to parse the size expression next.
-    if not self.parse_expr(false) { return false; }
+    if not self.parse_expr(false) { return false; };
     expr.size = self.stack.pop();
 
     # Expect a `]` token.
-    if not self.expect(tokens.TOK_RBRACKET) { return false; }
+    if not self.expect(tokens.TOK_RBRACKET) { return false; };
 
     # Push our pointer node.
     self.stack.push(node);
@@ -1224,12 +1218,12 @@ def parse_array_type(&mut self) -> bool
     # Attempt to continue the type expression with "[" to
     # mean an array type.
     if self.peek_token_tag(1) == tokens.TOK_LBRACKET { self.parse_array_type(); }
-    else { true; }
+    else { true; };
 }
 
 # Paren Type
 # -----------------------------------------------------------------------------
-def parse_paren_type(&mut self) -> bool
+let parse_paren_type(mut self): bool ->
 {
     # Consume the `(` token.
     self.pop_token();
@@ -1244,7 +1238,7 @@ def parse_paren_type(&mut self) -> bool
         # Return immediately.
         self.stack.push(ast.make(ast.TAG_TUPLE_TYPE));
         return true;
-    }
+    };
 
     # Check for a { "identifier" `:` } sequence that indicates a tuple (and
     # the initial member named).
@@ -1258,18 +1252,19 @@ def parse_paren_type(&mut self) -> bool
 
         # Allocate and create a tuple member node.
         node = ast.make(ast.TAG_TUPLE_TYPE_MEM);
-        let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
+        let mem: *ast.TupleExprMem = node.unwrap() as *ast.TupleExprMem;
 
         # Parse an identifier.
-        if not self.parse_ident() { return false; }
+        if not self.parse_ident() { return false; };
         mem.id = self.stack.pop();
 
         # Pop the `:` token.
         self.pop_token();
 
         # Parse an expression node.
-        if not self.parse_type() { return false; }
+        if not self.parse_type() { return false; };
         mem.expression = self.stack.pop();
+        0; # HACK!
     }
     # Check for a { ":" "identifier" } sequence that indicates a tuple (and
     # the initial member named).
@@ -1281,24 +1276,25 @@ def parse_paren_type(&mut self) -> bool
 
         # Allocate and create a tuple member node.
         node = ast.make(ast.TAG_TUPLE_TYPE_MEM);
-        let mem: ^ast.TupleTypeMem = node.unwrap() as ^ast.TupleTypeMem;
+        let mem: *ast.TupleTypeMem = node.unwrap() as *ast.TupleTypeMem;
 
         # Pop the `:` token.
         self.pop_token();
 
         # Parse an identifier.
-        if not self.parse_ident() { return false; }
+        if not self.parse_ident() { return false; };
         mem.id = self.stack.pop();
 
         # Push the identifier as the expression.
         mem.type_ = mem.id;
+        0; # HACK!
     }
     # Could be a tuple with an initial member unnamed or just a
     # parenthetical expression.
     else
     {
         # Parse an expression node.
-        if not self.parse_type() { return false; }
+        if not self.parse_type() { return false; };
 
         # Check for a comma that would make this a tuple.
         if self.peek_token_tag(1) == tokens.TOK_COMMA
@@ -1308,24 +1304,25 @@ def parse_paren_type(&mut self) -> bool
 
             # Allocate and create a tuple member node.
             node = ast.make(ast.TAG_TUPLE_TYPE_MEM);
-            let mem: ^ast.TupleTypeMem = node.unwrap() as ^ast.TupleTypeMem;
+            let mem: *ast.TupleTypeMem = node.unwrap() as *ast.TupleTypeMem;
 
             # Switch the node with the member node.
             mem.type_ = self.stack.pop();
+            0; # HACK!
         }
         else
         {
             # Switch the node with the member node.
             node = self.stack.pop();
-        }
-    }
+        };
+    };
 
     # Continue parsing if we are a tuple.
     if in_tuple
     {
         # Allocate and create the node for the tuple.
         let tup_node: ast.Node = ast.make(ast.TAG_TUPLE_TYPE);
-        let expr: ^ast.TupleType = tup_node.unwrap() as ^ast.TupleType;
+        let expr: *ast.TupleType = tup_node.unwrap() as *ast.TupleType;
 
         # Push the initial node.
         expr.nodes.push(node);
@@ -1336,11 +1333,11 @@ def parse_paren_type(&mut self) -> bool
             self.pop_token();
 
             # Enumerate until we reach the `)` token.
-            while self.peek_token_tag(1) <> tokens.TOK_RPAREN {
+            while self.peek_token_tag(1) != tokens.TOK_RPAREN {
                 # Allocate and create a tuple member node.
                 let mem_node: ast.Node = ast.make(ast.TAG_TUPLE_TYPE_MEM);
-                let mem: ^ast.TupleTypeMem =
-                    mem_node.unwrap() as ^ast.TupleTypeMem;
+                let mem: *ast.TupleTypeMem =
+                    mem_node.unwrap() as *ast.TupleTypeMem;
 
                 # Check for a { "identifier" `:` } sequence that indicates
                 # a named member.
@@ -1348,15 +1345,16 @@ def parse_paren_type(&mut self) -> bool
                     and self.peek_token_tag(2) == tokens.TOK_COLON
                 {
                     # Parse an identifier.
-                    if not self.parse_ident_expr() { return false; }
+                    if not self.parse_ident_expr() { return false; };
                     mem.id = self.stack.pop();
 
                     # Pop the `:` token.
                     self.pop_token();
 
                     # Parse an expression node.
-                    if not self.parse_type() { return false; }
+                    if not self.parse_type() { return false; };
                     mem.type_ = self.stack.pop();
+                    0; # HACK!
                 }
                 # Check for a { `:` "identifier" } sequence that indicates
                 # a named member and expression (shorthand).
@@ -1367,16 +1365,18 @@ def parse_paren_type(&mut self) -> bool
                     self.pop_token();
 
                     # Parse an identifier.
-                    if not self.parse_ident_expr() { return false; }
+                    if not self.parse_ident_expr() { return false; };
                     mem.id = self.stack.pop();
                     mem.type_ = mem.id;
+                    0; # HACK!
                 }
                 else
                 {
                     # Parse an expression node.
-                    if not self.parse_type() { return false; }
+                    if not self.parse_type() { return false; };
                     mem.type_ = self.stack.pop();
-                }
+                    0; # HACK!
+                };
 
                 # Push the node.
                 expr.nodes.push(mem_node);
@@ -1384,14 +1384,14 @@ def parse_paren_type(&mut self) -> bool
                 # Peek and consume the `,` token if present; else, consume
                 # tokens until we reach the `)`.
                 if self._expect_sequence_continue(tokens.TOK_RPAREN) {
-                    continue; }
+                    continue; };
                 return false;
             }
-        }
+        };
 
         # Switch our node.
         node = tup_node;
-    }
+    };
 
     # Expect a `)` token.
     self.expect(tokens.TOK_RPAREN);
@@ -1405,19 +1405,19 @@ def parse_paren_type(&mut self) -> bool
 
 # Delegate Type
 # -----------------------------------------------------------------------------
-def parse_delegate_type(&mut self) -> bool
+let parse_delegate_type(mut self): bool ->
 {
     # Declare and allocate the node.
     let mut node: ast.Node = ast.make(ast.TAG_DELEGATE);
-    let expr: ^ast.Delegate = node.unwrap() as ^ast.Delegate;
+    let expr: *ast.Delegate = node.unwrap() as *ast.Delegate;
 
     # Consume the `delegate` token.
     self.pop_token();
 
     # Parse the parameter list.
-    if not self.parse_function_params(expr as ^ast.FuncDecl, false, false, false) {
+    if not self.parse_function_params(expr as *ast.FuncDecl, false, false, false) {
         return false;
-    }
+    };
 
     # Check for a return type which would
     # be preceeded by a `->` token.
@@ -1427,9 +1427,9 @@ def parse_delegate_type(&mut self) -> bool
         self.pop_token();
 
         # Parse and set the type.
-        if not self.parse_type() { return false; }
+        if not self.parse_type() { return false; };
         expr.return_type = self.stack.pop();
-    }
+    };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -1444,11 +1444,11 @@ def parse_delegate_type(&mut self) -> bool
 # tuple-type = "(" path "," ")"
 #            | "(" path { "," path } [ "," ] ")" ;
 # -----------------------------------------------------------------------------
-def parse_type(&mut self) -> bool
+let parse_type(mut self): bool ->
 {
     # Check if we are a `type(..)` expression.
     let tok: tokenizer.Token = self.peek_token(1);
-    if tok.tag == tokens.TOK_TYPE { return self.parse_type_expr(); }
+    if tok.tag == tokens.TOK_TYPE { return self.parse_type_expr(); };
 
     # Delegate based on what we are.
     let rv: bool =
@@ -1462,7 +1462,7 @@ def parse_type(&mut self) -> bool
             self.consume_until(tokens.TOK_SEMICOLON);
             errors.begin_error_at(tok.span);
             errors.libc.fprintf(errors.libc.stderr,
-                           "expected %s, %s, %s or %s but found %s" as ^int8,
+                           "expected %s, %s, %s or %s but found %s",
                            tokens.to_str(tokens.TOK_STAR),
                            tokens.to_str(tokens.TOK_IDENTIFIER),
                            tokens.to_str(tokens.TOK_LPAREN),
@@ -1473,27 +1473,27 @@ def parse_type(&mut self) -> bool
             # Return failure.
             false;
         };
-    if not rv { return false; }
+    if not rv { return false; };
 
     # Attempt to continue the type expression with "[" to
     # mean an array type.
     if self.peek_token_tag(1) == tokens.TOK_LBRACKET { self.parse_array_type(); }
-    else { true; }
+    else { true; };
 }
 
 # Type expression
 # -----------------------------------------------------------------------------
-def parse_type_expr(&mut self) -> bool
+let parse_type_expr(mut self): bool ->
 {
     # Declare and allocate the node.
     let mut node: ast.Node = ast.make(ast.TAG_TYPE_EXPR);
-    let expr: ^ast.TypeExpr = node.unwrap() as ^ast.TypeExpr;
+    let expr: *ast.TypeExpr = node.unwrap() as *ast.TypeExpr;
 
     # Pop the `type` token.
     self.pop_token();
 
     # Check if we have a `(` next.
-    if self.peek_token_tag(1) <> tokens.TOK_LPAREN
+    if self.peek_token_tag(1) != tokens.TOK_LPAREN
     {
         # We are actually a type box.
         node._set_tag(ast.TAG_TYPE_BOX);
@@ -1501,15 +1501,15 @@ def parse_type_expr(&mut self) -> bool
     else
     {
         # Expect a `(` token to open the expression.
-        if not self.expect(tokens.TOK_LPAREN) { return false; }
+        if not self.expect(tokens.TOK_LPAREN) { return false; };
 
         # Try to parse a general expression.
-        if not self.parse_expr(false) { return false; }
+        if not self.parse_expr(false) { return false; };
         expr.expression = self.stack.pop();
 
         # Expect a `)` token to close the expression.
-        if not self.expect(tokens.TOK_RPAREN) { return false; }
-    }
+        if not self.expect(tokens.TOK_RPAREN) { return false; };
+    };
 
     # Push our node.
     self.stack.push(node);
@@ -1520,11 +1520,11 @@ def parse_type_expr(&mut self) -> bool
 
 # Member expression
 # -----------------------------------------------------------------------------
-def parse_member_expr(&mut self) -> bool
+let parse_member_expr(mut self): bool ->
 {
     # Declare and allocate the node.
     let node: ast.Node = ast.make(ast.TAG_MEMBER);
-    let expr: ^ast.BinaryExpr = node.unwrap() as ^ast.BinaryExpr;
+    let expr: *ast.BinaryExpr = node.unwrap() as *ast.BinaryExpr;
 
     # Pop the operand in the stack as our operand.
     expr.lhs = self.stack.pop();
@@ -1533,7 +1533,7 @@ def parse_member_expr(&mut self) -> bool
     self.pop_token();
 
     # Expect and parse the identifier.
-    if not self._expect_parse_ident_to(expr.rhs) { return false; }
+    if not self._expect_parse_ident_to(&expr.rhs) { return false; };
 
     # Push our operand.
     self.stack.push(node);
@@ -1548,7 +1548,7 @@ def parse_member_expr(&mut self) -> bool
 #              | identifier | select-expr | type-expr | global-expr
 #              | array-expr | block-expr ;
 # -----------------------------------------------------------------------------
-def parse_primary_expr(&mut self) -> bool
+let parse_primary_expr(mut self): bool ->
 {
     # FIXME: Replace this with a Map<int, ..>
     let tok: tokenizer.Token = self.peek_token(1);
@@ -1618,23 +1618,23 @@ def parse_primary_expr(&mut self) -> bool
         {
             # Print error.
             errors.begin_error();
-            errors.libc.fprintf(errors.libc.stderr, "unexpected %s" as ^int8,
+            errors.libc.fprintf(errors.libc.stderr, "unexpected %s",
                            tokens.to_str(tok.tag));
             errors.end();
-        }
+        };
 
         # Return nil.
         false;
-    }
+    };
 }
 
 # Integer expression
 # -----------------------------------------------------------------------------
-def parse_integer_expr(&mut self) -> bool
+let parse_integer_expr(mut self): bool ->
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_INTEGER);
-    let inte: ^ast.IntegerExpr = node.unwrap() as ^ast.IntegerExpr;
+    let inte: *ast.IntegerExpr = node.unwrap() as *ast.IntegerExpr;
 
     # Determine the base for the integer literal.
     let tok: tokenizer.Token = self.peek_token(1);
@@ -1660,11 +1660,11 @@ def parse_integer_expr(&mut self) -> bool
 
 # Float expression
 # -----------------------------------------------------------------------------
-def parse_float_expr(&mut self) -> bool
+let parse_float_expr(mut self): bool ->
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_FLOAT);
-    let inte: ^ast.FloatExpr = node.unwrap() as ^ast.FloatExpr;
+    let inte: *ast.FloatExpr = node.unwrap() as *ast.FloatExpr;
 
     # Store the text for the float literal.
     let tok: tokenizer.Token = self.pop_token();
@@ -1679,11 +1679,11 @@ def parse_float_expr(&mut self) -> bool
 
 # Boolean expression
 # -----------------------------------------------------------------------------
-def parse_bool_expr(&mut self) -> bool
+let parse_bool_expr(mut self): bool ->
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_BOOLEAN);
-    let boole: ^ast.BooleanExpr = node.unwrap() as ^ast.BooleanExpr;
+    let boole: *ast.BooleanExpr = node.unwrap() as *ast.BooleanExpr;
 
     # Set our value and consume our token.
     boole.value = self.peek_token_tag(1) == tokens.TOK_TRUE;
@@ -1698,14 +1698,14 @@ def parse_bool_expr(&mut self) -> bool
 
 # String expression
 # -----------------------------------------------------------------------------
-def parse_string_expr(&mut self) -> bool
+let parse_string_expr(mut self): bool ->
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_STRING);
-    let expr: ^ast.StringExpr = node.unwrap() as ^ast.StringExpr;
+    let expr: *ast.StringExpr = node.unwrap() as *ast.StringExpr;
 
     # Store the text for the string literal.
-    let tok: tokenizer.Token = self.pop_token();
+    let mut tok: tokenizer.Token = self.pop_token();
     expr.text.extend(tok.text.data() as str);
 
     # Iterate and consume any adjacent strings.
@@ -1713,7 +1713,7 @@ def parse_string_expr(&mut self) -> bool
     {
         # Get next token.
         tok = self.peek_token(1);
-        if tok.tag <> tokens.TOK_STRING { break; }
+        if tok.tag != tokens.TOK_STRING { break; };
 
         # Store the text for the string literal.
         expr.text.extend(tok.text.data() as str);
@@ -1731,15 +1731,15 @@ def parse_string_expr(&mut self) -> bool
 
 # Identifier
 # -----------------------------------------------------------------------------
-def parse_ident(&mut self) -> bool
+let parse_ident(mut self): bool ->
 {
     # Ensure we are at an `ident` token.
     let tok: tokenizer.Token = self.peek_token(1);
-    if not self.expect(tokens.TOK_IDENTIFIER) { return false; }
+    if not self.expect(tokens.TOK_IDENTIFIER) { return false; };
 
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_IDENT);
-    let idente: ^ast.Ident = node.unwrap() as ^ast.Ident;
+    let idente: *ast.Ident = node.unwrap() as *ast.Ident;
 
     # Store the text for the identifier.
     idente.name.extend(tok.text.data() as str);
@@ -1753,10 +1753,10 @@ def parse_ident(&mut self) -> bool
 
 # Identifier expression
 # -----------------------------------------------------------------------------
-def parse_ident_expr(&mut self) -> bool
+let parse_ident_expr(mut self): bool ->
 {
     # Attempt to parse an identifier.
-    if not self.parse_ident() { return false; }
+    if not self.parse_ident() { return false; };
 
     # Try to consume a member expression into the identifier (eg. ".Point")
     while self.peek_token_tag(1) == tokens.TOK_DOT
@@ -1765,11 +1765,11 @@ def parse_ident_expr(&mut self) -> bool
         self.pop_token();
 
         # Parse the next identifier.
-        if not self.parse_ident() { return false; }
+        if not self.parse_ident() { return false; };
 
         # Construct and push a member expression.
         let node: ast.Node = ast.make(ast.TAG_MEMBER);
-        let expr: ^ast.BinaryExpr = node.unwrap() as ^ast.BinaryExpr;
+        let expr: *ast.BinaryExpr = node.unwrap() as *ast.BinaryExpr;
         expr.rhs = self.stack.pop();
         expr.lhs = self.stack.pop();
         self.stack.push(node);
@@ -1781,7 +1781,7 @@ def parse_ident_expr(&mut self) -> bool
 
 # Parenthetical expression
 # -----------------------------------------------------------------------------
-def parse_paren_expr(&mut self) -> bool
+let parse_paren_expr(mut self): bool ->
 {
     # Consume the `(` token.
     self.pop_token();
@@ -1796,7 +1796,7 @@ def parse_paren_expr(&mut self) -> bool
         # Return immediately.
         self.stack.push(ast.make(ast.TAG_TUPLE_EXPR));
         return true;
-    }
+    };
 
     # Check for a { "identifier" `:` } sequence that indicates a tuple (and
     # the initial member named).
@@ -1810,18 +1810,20 @@ def parse_paren_expr(&mut self) -> bool
 
         # Allocate and create a tuple member node.
         node = ast.make(ast.TAG_TUPLE_EXPR_MEM);
-        let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
+        let mem: *ast.TupleExprMem = node.unwrap() as *ast.TupleExprMem;
 
         # Parse an identifier.
-        if not self.parse_ident() { return false; }
+        if not self.parse_ident() { return false; };
         mem.id = self.stack.pop();
 
         # Pop the `:` token.
         self.pop_token();
 
         # Parse an expression node.
-        if not self.parse_expr(false) { return false; }
+        if not self.parse_expr(false) { return false; };
         mem.expression = self.stack.pop();
+
+        0; # HACK!
     }
     # Check for a { ":" "identifier" } sequence that indicates a tuple (and
     # the initial member named).
@@ -1833,24 +1835,26 @@ def parse_paren_expr(&mut self) -> bool
 
         # Allocate and create a tuple member node.
         node = ast.make(ast.TAG_TUPLE_EXPR_MEM);
-        let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
+        let mem: *ast.TupleExprMem = node.unwrap() as *ast.TupleExprMem;
 
         # Pop the `:` token.
         self.pop_token();
 
         # Parse an identifier.
-        if not self.parse_ident() { return false; }
+        if not self.parse_ident() { return false; };
         mem.id = self.stack.pop();
 
         # Push the identifier as the expression.
         mem.expression = mem.id;
+
+        0; # HACK!
     }
     # Could be a tuple with an initial member unnamed or just a
     # parenthetical expression.
     else
     {
         # Parse an expression node.
-        if not self.parse_expr(false) { return false; }
+        if not self.parse_expr(false) { return false; };
 
         # Check for a comma that would make this a tuple.
         if self.peek_token_tag(1) == tokens.TOK_COMMA
@@ -1860,24 +1864,26 @@ def parse_paren_expr(&mut self) -> bool
 
             # Allocate and create a tuple member node.
             node = ast.make(ast.TAG_TUPLE_EXPR_MEM);
-            let mem: ^ast.TupleExprMem = node.unwrap() as ^ast.TupleExprMem;
+            let mem: *ast.TupleExprMem = node.unwrap() as *ast.TupleExprMem;
 
             # Switch the node with the member node.
             mem.expression = self.stack.pop();
+
+            0; # HACK!
         }
         else
         {
             # Switch the node with the member node.
             node = self.stack.pop();
-        }
-    }
+        };
+    };
 
     # Continue parsing if we are a tuple.
     if in_tuple
     {
         # Allocate and create the node for the tuple.
         let tup_node: ast.Node = ast.make(ast.TAG_TUPLE_EXPR);
-        let expr: ^ast.TupleExpr = tup_node.unwrap() as ^ast.TupleExpr;
+        let expr: *ast.TupleExpr = tup_node.unwrap() as *ast.TupleExpr;
 
         # Push the initial node.
         expr.nodes.push(node);
@@ -1888,11 +1894,11 @@ def parse_paren_expr(&mut self) -> bool
             self.pop_token();
 
             # Enumerate until we reach the `)` token.
-            while self.peek_token_tag(1) <> tokens.TOK_RPAREN {
+            while self.peek_token_tag(1) != tokens.TOK_RPAREN {
                 # Allocate and create a tuple member node.
                 let mem_node: ast.Node = ast.make(ast.TAG_TUPLE_EXPR_MEM);
-                let mem: ^ast.TupleExprMem =
-                    mem_node.unwrap() as ^ast.TupleExprMem;
+                let mem: *ast.TupleExprMem =
+                    mem_node.unwrap() as *ast.TupleExprMem;
 
                 # Check for a { "identifier" `:` } sequence that indicates
                 # a named member.
@@ -1900,15 +1906,16 @@ def parse_paren_expr(&mut self) -> bool
                     and self.peek_token_tag(2) == tokens.TOK_COLON
                 {
                     # Parse an identifier.
-                    if not self.parse_ident() { return false; }
+                    if not self.parse_ident() { return false; };
                     mem.id = self.stack.pop();
 
                     # Pop the `:` token.
                     self.pop_token();
 
                     # Parse an expression node.
-                    if not self.parse_expr(false) { return false; }
+                    if not self.parse_expr(false) { return false; };
                     mem.expression = self.stack.pop();
+                    0; # HACK!
                 }
                 # Check for a { `:` "identifier" } sequence that indicates
                 # a named member and expression (shorthand).
@@ -1919,16 +1926,18 @@ def parse_paren_expr(&mut self) -> bool
                     self.pop_token();
 
                     # Parse an identifier.
-                    if not self.parse_ident() { return false; }
+                    if not self.parse_ident() { return false; };
                     mem.id = self.stack.pop();
                     mem.expression = mem.id;
+                    0; # HACK!
                 }
                 else
                 {
                     # Parse an expression node.
-                    if not self.parse_expr(false) { return false; }
+                    if not self.parse_expr(false) { return false; };
                     mem.expression = self.stack.pop();
-                }
+                    0; # HACK!
+                };
 
                 # Push the node.
                 expr.nodes.push(mem_node);
@@ -1936,14 +1945,14 @@ def parse_paren_expr(&mut self) -> bool
                 # Peek and consume the `,` token if present; else, consume
                 # tokens until we reach the `)`.
                 if self._expect_sequence_continue(tokens.TOK_RPAREN) {
-                    continue; }
+                    continue; };
                 return false;
             }
-        }
+        };
 
         # Switch our node.
         node = tup_node;
-    }
+    };
 
     # Expect a `)` token.
     self.expect(tokens.TOK_RPAREN);
@@ -1957,29 +1966,29 @@ def parse_paren_expr(&mut self) -> bool
 
 # Array expression
 # -----------------------------------------------------------------------------
-def parse_array_expr(&mut self) -> bool
+let parse_array_expr(mut self): bool ->
 {
     # Allocate and create the node.
     let node: ast.Node = ast.make(ast.TAG_ARRAY_EXPR);
-    let expr: ^ast.ArrayExpr = node.unwrap() as ^ast.ArrayExpr;
+    let expr: *ast.ArrayExpr = node.unwrap() as *ast.ArrayExpr;
 
     # Consume the `[` token.
     self.pop_token();
 
     # Enumerate until we reach the `]` token.
-    while self.peek_token_tag(1) <> tokens.TOK_RBRACKET {
+    while self.peek_token_tag(1) != tokens.TOK_RBRACKET {
         # Parse an expression node.
-        if not self.parse_expr(false) { return false; }
+        if not self.parse_expr(false) { return false; };
         expr.nodes.push(self.stack.pop());
 
         # Peek and consume the `,` token if present; else, consume
         # tokens until we reach the `]`.
-        if self._expect_sequence_continue(tokens.TOK_RBRACKET) { continue; }
+        if self._expect_sequence_continue(tokens.TOK_RBRACKET) { continue; };
         return false;
     }
 
     # Expect a `]` token.
-    if not self.expect(tokens.TOK_RBRACKET) { return false; }
+    if not self.expect(tokens.TOK_RBRACKET) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -1990,17 +1999,17 @@ def parse_array_expr(&mut self) -> bool
 
 # Block expression
 # -----------------------------------------------------------------------------
-def parse_block_expr(&mut self) -> bool
+let parse_block_expr(mut self): bool ->
 {
     # Allocate and create the node.
     let mut node: ast.Node = ast.make(ast.TAG_BLOCK);
-    let expr: ^ast.Block = node.unwrap() as ^ast.Block;
+    let expr: *ast.Block = node.unwrap() as *ast.Block;
 
     # Expect and consume the `{` token.
-    if not self.expect(tokens.TOK_LBRACE) { return false; }
+    if not self.expect(tokens.TOK_LBRACE) { return false; };
 
     # Iterate and attempt to match statements.
-    while self.peek_token_tag(1) <> tokens.TOK_RBRACE {
+    while self.peek_token_tag(1) != tokens.TOK_RBRACE {
         # Try and parse a node.
         if not self.parse_common_statement() {
             # Bad news.
@@ -2009,14 +2018,14 @@ def parse_block_expr(&mut self) -> bool
         } else {
             # Consume the parsed node and push it into the module.
             self.empty_stack_to(expr.nodes);
-       }
+       };
     }
 
     # Expect and consume the `}` token.
     if not self.expect(tokens.TOK_RBRACE) {
         self.consume_until(tokens.TOK_RBRACE);
         return false;
-    }
+    };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -2027,7 +2036,7 @@ def parse_block_expr(&mut self) -> bool
 
 # Global expression
 # -----------------------------------------------------------------------------
-def parse_global_expr(&mut self) -> bool
+let parse_global_expr(mut self): bool ->
 {
     # Consume the `global` token.
     self.pop_token();
@@ -2042,7 +2051,7 @@ def parse_global_expr(&mut self) -> bool
 
 # Self expression
 # -----------------------------------------------------------------------------
-def parse_self_expr(&mut self) -> bool
+let parse_self_expr(mut self): bool ->
 {
     # Consume the `self` token.
     self.pop_token();
@@ -2057,16 +2066,16 @@ def parse_self_expr(&mut self) -> bool
 
 # Select expression
 # -----------------------------------------------------------------------------
-def parse_select_expr(&mut self) -> bool
+let parse_select_expr(mut self): bool ->
 {
     # Declare the selection expr node.
     let node: ast.Node = ast.make(ast.TAG_SELECT);
-    let select: ^mut ast.SelectExpr = ast.unwrap(node) as ^ast.SelectExpr;
+    let select: *mut ast.SelectExpr = ast.unwrap(node) as *ast.SelectExpr;
     let mut else_: bool = false;
 
     # Parse the selection expression
-    if not self.parse_select_expr_inner(select^, else_) { return false; }
-    if not self.parse_select_expr_else(select^, else_) { return false; }
+    if not self.parse_select_expr_inner(*select, &else_) { return false; };
+    if not self.parse_select_expr_else(*select, &else_) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -2075,11 +2084,11 @@ def parse_select_expr(&mut self) -> bool
     true;
 }
 
-def parse_select_expr_inner(
-    &mut self, &mut x: ast.SelectExpr, &mut have_else: bool) -> bool
+let parse_select_expr_inner(
+    mut self, mut x: ast.SelectExpr, have_else: *mut bool): bool ->
 {
     # If we are already at `else` then drop.
-    if have_else { return true; }
+    if *have_else { return true; };
 
     loop
     {
@@ -2088,14 +2097,14 @@ def parse_select_expr_inner(
 
         # Parse the branch.
         let branch: ast.Node = self.parse_select_branch(true);
-        if ast.isnull(branch) { return false; }
+        if ast.isnull(branch) { return false; };
 
         # Append the branch to the selection expression.
         x.branches.push(branch);
 
         # Check for an "else" branch.
         if self.peek_token_tag(1) == tokens.TOK_ELSE {
-            have_else = true;
+            *have_else = true;
 
             # Consume the "else" token.
             self.pop_token();
@@ -2103,12 +2112,12 @@ def parse_select_expr_inner(
             # Check for an adjacent "if" token (which would make this
             # an "else if" and part of this selection expression).
             if self.peek_token_tag(1) == tokens.TOK_IF {
-                have_else = false;
+                *have_else = false;
 
                 # Loop back and parse another branch.
                 continue;
-            }
-        }
+            };
+        };
 
         # We're done here.
         break;
@@ -2118,37 +2127,37 @@ def parse_select_expr_inner(
     true;
 }
 
-def parse_select_expr_else(
-    &mut self, &mut x: ast.SelectExpr, &mut have_else: bool) -> bool
+let parse_select_expr_else(
+    mut self, mut x: ast.SelectExpr, have_else: *mut bool): bool ->
 {
     # Parse the trailing "else" (if we have one).
-    if have_else {
+    if *have_else {
         # Parse the condition-less branch.
         let branch: ast.Node = self.parse_select_branch(false);
-        if ast.isnull(branch) { return false; }
+        if ast.isnull(branch) { return false; };
 
         # Append the branch to the selection expression.
         x.branches.push(branch);
-    }
+    };
 
     # Return success.
     true;
 }
 
-def parse_select_branch(&mut self, condition: bool) -> ast.Node
+let parse_select_branch(mut self, condition: bool): ast.Node ->
 {
     # Declare the branch node.
     let node: ast.Node = ast.make(ast.TAG_SELECT_BRANCH);
-    let mut branch: ^ast.SelectBranch = ast.unwrap(node) as ^ast.SelectBranch;
+    let mut branch: *ast.SelectBranch = ast.unwrap(node) as *ast.SelectBranch;
 
     if condition {
         # Expect and parse the condition expression.
-        if not self.parse_expr(false) { return ast.null(); }
+        if not self.parse_expr(false) { return ast.null(); };
         branch.condition = self.stack.pop();
-    }
+    };
 
     # Expect and parse the block.
-    if not self.parse_block_expr() { return ast.null(); }
+    if not self.parse_block_expr() { return ast.null(); };
     branch.block = self.stack.pop();
 
     # Return our parsed node.
@@ -2157,7 +2166,7 @@ def parse_select_branch(&mut self, condition: bool) -> ast.Node
 
 # Type Parameters
 # -----------------------------------------------------------------------------
-def parse_type_params(&mut self, &mut params: ast.Nodes) -> bool
+let parse_type_params(mut self, mut params: ast.Nodes): bool ->
 {
     if self.peek_token_tag(1) == tokens.TOK_LCARET
     {
@@ -2165,24 +2174,24 @@ def parse_type_params(&mut self, &mut params: ast.Nodes) -> bool
         self.pop_token();
 
         # Enumerate until we reach the final `>`.
-        while self.peek_token_tag(1) <> tokens.TOK_RCARET
+        while self.peek_token_tag(1) != tokens.TOK_RCARET
         {
             # Declare the type parameter node.
             let node: ast.Node = ast.make(ast.TAG_TYPE_PARAM);
-            let param: ^ast.TypeParam =  node.unwrap() as ^ast.TypeParam;
+            let param: *ast.TypeParam =  node.unwrap() as *ast.TypeParam;
 
             # Bail if we don't have an identifier next.
-            if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+            if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
                 self.consume_until(tokens.TOK_RCARET);
                 self.expect(tokens.TOK_IDENTIFIER);
                 return false;
-            }
+            };
 
             # Parse and set the identifier (this shouldn't fail).
             if not self.parse_ident_expr() {
                 self.consume_until(tokens.TOK_RCARET);
                 return false;
-            }
+            };
 
             param.id = self.stack.pop();
 
@@ -2191,13 +2200,13 @@ def parse_type_params(&mut self, &mut params: ast.Nodes) -> bool
 
             # Peek and consume the `,` token if present; else, consume
             # tokens until we reach the `>`.
-            if self._expect_sequence_continue(tokens.TOK_RCARET) { continue; }
+            if self._expect_sequence_continue(tokens.TOK_RCARET) { continue; };
             return false;
         }
 
         # Pop the `>` token.
         self.pop_token();
-    }
+    };
 
     # Return true.
     return true;
@@ -2205,47 +2214,47 @@ def parse_type_params(&mut self, &mut params: ast.Nodes) -> bool
 
 # Structure
 # -----------------------------------------------------------------------------
-def parse_struct(&mut self) -> bool {
+let parse_struct(mut self): bool -> {
     # Allocate space for the node
     let struct_node : ast.Node = ast.make(ast.TAG_STRUCT);
-    let struct_ : ^ast.Struct =  struct_node.unwrap() as ^ast.Struct;
+    let struct_ : *ast.Struct =  struct_node.unwrap() as *ast.Struct;
 
     # Take and remove "struct"
     self.pop_token();
 
     # Bail if we don't have an identifier next.
-    if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+    if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
         self.expect(tokens.TOK_IDENTIFIER);
         self.consume_until(tokens.TOK_RBRACE);
         return false;
-    }
+    };
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident() { return false; }
+    if not self.parse_ident() { return false; };
     struct_.id = self.stack.pop();
 
     # Check for and parse type type parameters.
-    if not self.parse_type_params(struct_.type_params) { return false; }
+    if not self.parse_type_params(struct_.type_params) { return false; };
 
     if not self.expect(tokens.TOK_LBRACE) {
         self.consume_until(tokens.TOK_RBRACE);
         return false;
-    }
+    };
 
-    while self.peek_token_tag(1) <> tokens.TOK_RBRACE {
+    while self.peek_token_tag(1) != tokens.TOK_RBRACE {
 
         let mut struct_mem_node: ast.Node = ast.make(ast.TAG_STRUCT_MEM);
-        let struct_mem : ^ast.StructMem = struct_mem_node.unwrap() as ^ast.StructMem;
+        let struct_mem : *ast.StructMem = struct_mem_node.unwrap() as *ast.StructMem;
         let is_static: bool = false;
 
-        if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+        if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
             # Report the error.
             self.expect(tokens.TOK_IDENTIFIER);
             self.consume_until(tokens.TOK_RBRACE);
             return false;
-        }
+        };
 
-        if not self.parse_ident() { return false; }
+        if not self.parse_ident() { return false; };
 
         # We got an identifier!
         struct_mem.id = self.stack.pop();
@@ -2254,13 +2263,13 @@ def parse_struct(&mut self) -> bool {
         if not self.expect(tokens.TOK_COLON) {
             self.consume_until(tokens.TOK_RBRACE);
             return false;
-        }
+        };
 
         # Now for a type!
         if not self.parse_type() {
             self.consume_until(tokens.TOK_RBRACE);
             return false;
-        }
+        };
 
         struct_mem.type_ = self.stack.pop();
 
@@ -2271,22 +2280,22 @@ def parse_struct(&mut self) -> bool {
             if not self.parse_expr(false) {
                 self.consume_until(tokens.TOK_RBRACE);
                 return false;
-            }
+            };
 
-            struct_mem.initializer =self.stack.pop();
-        }
+            struct_mem.initializer = self.stack.pop();
+        };
 
         # Push the node.
         struct_.nodes.push(struct_mem_node);
 
         # Peek and consume the `,` token if present; else, consume
         # tokens until we reach the `}`.
-        if self._expect_sequence_continue(tokens.TOK_RBRACE) { continue; }
+        if self._expect_sequence_continue(tokens.TOK_RBRACE) { continue; };
         return false;
     }
 
     # Expect and parse the `}` token.
-    if not self.expect(tokens.TOK_RBRACE) { return false; }
+    if not self.expect(tokens.TOK_RBRACE) { return false; };
 
     # Push our node on the stack.
     self.stack.push(struct_node);
@@ -2297,11 +2306,11 @@ def parse_struct(&mut self) -> bool {
 
 # Slot
 # -----------------------------------------------------------------------------
-def parse_slot(&mut self) -> bool
+let parse_slot(mut self): bool ->
 {
     # Allocate space for the node
     let node: ast.Node = ast.make(ast.TAG_SLOT);
-    let slot: ^ast.SlotDecl =  node.unwrap() as ^ast.SlotDecl;
+    let slot: *ast.SlotDecl =  node.unwrap() as *ast.SlotDecl;
 
     # Pop the decl token.
     self.pop_token();
@@ -2314,17 +2323,17 @@ def parse_slot(&mut self) -> bool
 
         # Make the slot mutable.
         slot.mutable = true;
-    }
+    };
 
     # Bail if we don't have an identifier next.
-    if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+    if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
         self.expect(tokens.TOK_IDENTIFIER);
         self.consume_until(tokens.TOK_SEMICOLON);
         return false;
-    }
+    };
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident() { return false; }
+    if not self.parse_ident() { return false; };
     slot.id = self.stack.pop();
 
     # Check for a type annotation which would be preceeded by a `:` token.
@@ -2334,9 +2343,9 @@ def parse_slot(&mut self) -> bool
         self.pop_token();
 
         # Parse and set the type.
-        if not self.parse_type() { return false; }
+        if not self.parse_type() { return false; };
         slot.type_ = self.stack.pop();
-    }
+    };
 
     # Check for an initializer which would be preceeded by a `=` token.
     if self.peek_token_tag(1) == tokens.TOK_EQ
@@ -2345,9 +2354,9 @@ def parse_slot(&mut self) -> bool
         self.pop_token();
 
         # Parse and set the initializer.
-        if not self.parse_expr(false) { return false; }
+        if not self.parse_expr(false) { return false; };
         slot.initializer = self.stack.pop();
-    }
+    };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -2358,32 +2367,32 @@ def parse_slot(&mut self) -> bool
 
 # Implement
 # -----------------------------------------------------------------------------
-def parse_impl(&mut self) -> bool
+let parse_impl(mut self): bool ->
 {
     # Allocate space for the node.
     let node: ast.Node = ast.make(ast.TAG_IMPLEMENT);
-    let impl: ^ast.Implement =  node.unwrap() as ^ast.Implement;
+    let impl: *ast.Implement =  node.unwrap() as *ast.Implement;
 
     # Pop the `implement` token.
     self.pop_token();
 
     # Parse and set the type.
-    if not self.parse_type() { return false; }
+    if not self.parse_type() { return false; };
     impl.type_ = self.stack.pop();
 
     # Expect and parse the initial `{` token.
     if not self.expect(tokens.TOK_LBRACE) {
         self.consume_until(tokens.TOK_RBRACE);
         return false;
-    }
+    };
 
     # Enumerate until we reach the `}` token.
-    while self.peek_token_tag(1) <> tokens.TOK_RBRACE {
+    while self.peek_token_tag(1) != tokens.TOK_RBRACE {
         # Expect and parse a `let`
         if not self.expect(tokens.TOK_LET) {
             self.consume_until(tokens.TOK_RBRACE);
             return false;
-        }
+        };
 
         # Expect a `let identifier` token to start the named function
         # declaration.
@@ -2393,28 +2402,28 @@ def parse_impl(&mut self) -> bool
             self.consume_until(tokens.TOK_RBRACE);
             errors.begin_error();
             errors.libc.fprintf(errors.libc.stderr,
-               "expected %s but found %s" as ^int8,
+               "expected %s but found %s",
                tokens.to_str(tokens.TOK_IDENTIFIER),
                tokens.to_str(tok));
             errors.end();
             return false;
-        }
+        };
 
         # Declare the function decl node.
         let fnnode: ast.Node = ast.make(ast.TAG_FUNC_DECL);
-        let decl: ^ast.FuncDecl = fnnode.unwrap() as ^ast.FuncDecl;
+        let decl: *ast.FuncDecl = fnnode.unwrap() as *ast.FuncDecl;
 
         # Parse and set the identifier (this shouldn't fail).
-        if not self.parse_ident() { return false; }
+        if not self.parse_ident() { return false; };
         decl.id = self.stack.pop();
 
         # Check for and parse type type parameters.
-        if not self.parse_type_params(decl.type_params) { return false; }
+        if not self.parse_type_params(decl.type_params) { return false; };
 
         # Parse the parameter list.
         if not self.parse_function_params(decl, true, true, false) {
             return false;
-        }
+        };
 
         # Check for a return type annotation which would again
         # be preceeded by a `:` token.
@@ -2424,28 +2433,28 @@ def parse_impl(&mut self) -> bool
             self.pop_token();
 
             # Parse and set the type.
-            if not self.parse_type() { return false; }
+            if not self.parse_type() { return false; };
             decl.return_type = self.stack.pop();
-        }
+        };
 
         # Expect an `->` token.
-        if not self.peek_token_tag(1) == tokens.TOK_RARROW {
+        if self.peek_token_tag(1) != tokens.TOK_RARROW {
             let tok: int = self.peek_token_tag(1);
             self.consume_until(tokens.TOK_RBRACE);
             errors.begin_error();
             errors.libc.fprintf(errors.libc.stderr,
-               "expected %s but found %s" as ^int8,
+               "expected %s but found %s",
                tokens.to_str(tokens.TOK_RARROW),
                tokens.to_str(tok));
             errors.end();
             return false;
-        }
+        };
 
         # Pop the `->` token.
         self.pop_token();
 
         # Parse the function block next.
-        if not self.parse_block_expr() { return false; }
+        if not self.parse_block_expr() { return false; };
         decl.block = self.stack.pop();
 
         # Push us into our node stack.
@@ -2453,7 +2462,7 @@ def parse_impl(&mut self) -> bool
     }
 
     # Expect and parse the `}` token.
-    if not self.expect(tokens.TOK_RBRACE) { return false; }
+    if not self.expect(tokens.TOK_RBRACE) { return false; };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -2464,29 +2473,29 @@ def parse_impl(&mut self) -> bool
 
 # Import
 # -----------------------------------------------------------------------------
-def parse_import(&mut self) -> bool
+let parse_import(mut self): bool ->
 {
     # Allocate space for the node
     let node: ast.Node = ast.make(ast.TAG_IMPORT);
-    let slot: ^ast.Import =  node.unwrap() as ^ast.Import;
+    let slot: *ast.Import =  node.unwrap() as *ast.Import;
 
     # Pop the `import` token.
     self.pop_token();
 
     # There should be at least one identifier next.
-    if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+    if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
         self.expect(tokens.TOK_IDENTIFIER);
         self.consume_until(tokens.TOK_SEMICOLON);
         return false;
-    }
+    };
 
     # Iterate and push each identifier.
-    while self.peek_token_tag(1) <> tokens.TOK_SEMICOLON {
+    while self.peek_token_tag(1) != tokens.TOK_SEMICOLON {
         # Expect and consume an identifier.
         if not self.parse_ident() {
             self.consume_until(tokens.TOK_SEMICOLON);
             return false;
-        }
+        };
 
         # Push the ID node.
         slot.ids.push(self.stack.pop());
@@ -2494,23 +2503,23 @@ def parse_import(&mut self) -> bool
         # Check for a comma or the end.
         let tok: tokenizer.Token = self.peek_token(1);
         if tok.tag == tokens.TOK_DOT { self.pop_token(); continue; }
-        else if tok.tag <> tokens.TOK_SEMICOLON {
+        else if tok.tag != tokens.TOK_SEMICOLON {
             # Expected a comma and didn't receive one.. consume tokens until
             # we reach the end.
             self.consume_until(tokens.TOK_SEMICOLON);
             errors.begin_error();
             errors.libc.fprintf(errors.libc.stderr,
-                           "expected %s or %s but found %s" as ^int8,
+                           "expected %s or %s but found %s",
                            tokens.to_str(tokens.TOK_DOT),
                            tokens.to_str(tokens.TOK_SEMICOLON),
                            tokens.to_str(tok.tag));
             errors.end();
             return false;
-        }
+        };
     }
 
     # Expect a semicolon to close us.
-    if not self.expect(tokens.TOK_SEMICOLON) { return false; }
+    if not self.expect(tokens.TOK_SEMICOLON) { return false; };
 
     # Push our node.
     self.stack.push(node);
@@ -2521,22 +2530,22 @@ def parse_import(&mut self) -> bool
 
 # External
 # -----------------------------------------------------------------------------
-def parse_extern(&mut self) -> bool
+let parse_extern(mut self): bool ->
 {
     # Pop the `extern` token.
     self.pop_token();
 
     let tok: tokenizer.Token = self.peek_token(1);
-    let res: bool = false;
+    let mut res: bool = false;
     if tok.tag == tokens.TOK_LET {
         if (self.peek_token_tag(2) == tokens.TOK_IDENTIFIER
                 and self.peek_token_tag(3) == tokens.TOK_LPAREN) {
             res = self.parse_extern_function();
         } else {
             res = self.parse_extern_static();
-        }
-    }
-    if not res { return false; }
+        };
+    };
+    if not res { return false; };
 
     # Expect a semicolon to close us.
     self.expect(tokens.TOK_SEMICOLON);
@@ -2544,11 +2553,11 @@ def parse_extern(&mut self) -> bool
 
 # External Static
 # -----------------------------------------------------------------------------
-def parse_extern_static(&mut self) -> bool
+let parse_extern_static(mut self): bool ->
 {
     # Allocate space for the node
     let node: ast.Node = ast.make(ast.TAG_EXTERN_STATIC);
-    let slot: ^ast.ExternStaticSlot =  node.unwrap() as ^ast.ExternStaticSlot;
+    let mut slot: *mut ast.ExternStaticSlot =  node.unwrap() as *ast.ExternStaticSlot;
 
     # Pop the `static` token.
     self.pop_token();
@@ -2561,17 +2570,17 @@ def parse_extern_static(&mut self) -> bool
 
         # Make the slot mutable.
         slot.mutable = true;
-    }
+    };
 
     # Bail if we don't have an identifier next.
-    if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+    if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
         self.expect(tokens.TOK_IDENTIFIER);
         self.consume_until(tokens.TOK_SEMICOLON);
         return false;
-    }
+    };
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident() { return false; }
+    if not self.parse_ident() { return false; };
     slot.id = self.stack.pop();
 
     # Check for a type annotation which would be preceeded by a `:` token.
@@ -2581,9 +2590,9 @@ def parse_extern_static(&mut self) -> bool
         self.pop_token();
 
         # Parse and set the type.
-        if not self.parse_type() { return false; }
+        if not self.parse_type() { return false; };
         slot.type_ = self.stack.pop();
-    }
+    };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -2594,29 +2603,29 @@ def parse_extern_static(&mut self) -> bool
 
 # External Function
 # -----------------------------------------------------------------------------
-def parse_extern_function(&mut self) -> bool
+let parse_extern_function(mut self): bool ->
 {
     # Allocate space for the node
     let node: ast.Node = ast.make(ast.TAG_EXTERN_FUNC);
-    let decl: ^ast.ExternFunc =  node.unwrap() as ^ast.ExternFunc;
+    let mut decl: *mut ast.ExternFunc =  node.unwrap() as *ast.ExternFunc;
 
     # Pop the `let` token.
     self.pop_token();
 
     # Expect an `identifier` next.
-    if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+    if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
         self.expect(tokens.TOK_IDENTIFIER);
         return false;
-    }
+    };
 
     # Parse and set the identifier (this shouldn't fail).
-    if not self.parse_ident() { return false; }
+    if not self.parse_ident() { return false; };
     decl.id = self.stack.pop();
 
     # Parse the parameter list.
-    if not self.parse_function_params(decl as ^ast.FuncDecl, false, false, true) {
+    if not self.parse_function_params(decl as *ast.FuncDecl, false, false, true) {
         return false;
-    }
+    };
 
     # Check for a return type annotation which would
     # be preceeded by a `->` token.
@@ -2626,9 +2635,9 @@ def parse_extern_function(&mut self) -> bool
         self.pop_token();
 
         # Parse and set the type.
-        if not self.parse_type() { return false; }
+        if not self.parse_type() { return false; };
         decl.return_type = self.stack.pop();
-    }
+    };
 
     # Push our node on the stack.
     self.stack.push(node);
@@ -2639,23 +2648,23 @@ def parse_extern_function(&mut self) -> bool
 
 # Expect a sequence continuation or the end of the sequence.
 # -----------------------------------------------------------------------------
-def _expect_sequence_continue(&mut self, end: int) -> bool
+let _expect_sequence_continue(mut self, n: int): bool ->
 {
     let tok: tokenizer.Token = self.peek_token(1);
     if tok.tag == tokens.TOK_COMMA { self.pop_token(); return true; }
-    else if tok.tag <> end {
+    else if tok.tag != n {
         # Expected a comma and didn't receive one.. consume tokens until
         # we reach the end.
-        self.consume_until(end);
+        self.consume_until(n);
         errors.begin_error();
         errors.libc.fprintf(errors.libc.stderr,
-                       "expected %s or %s but found %s" as ^int8,
+                       "expected %s or %s but found %s",
                        tokens.to_str(tokens.TOK_COMMA),
-                       tokens.to_str(end),
+                       tokens.to_str(n),
                        tokens.to_str(tok.tag));
         errors.end();
         return false;
-    }
+    };
 
     # Done anyway.
     return true;
@@ -2663,17 +2672,17 @@ def _expect_sequence_continue(&mut self, end: int) -> bool
 
 # Expect and parse an identifier node.
 # -----------------------------------------------------------------------------
-def _expect_parse_ident(&mut self) -> bool
+let _expect_parse_ident(mut self): bool ->
 {
     # Expect an `identifier` next.
-    if self.peek_token_tag(1) <> tokens.TOK_IDENTIFIER {
+    if self.peek_token_tag(1) != tokens.TOK_IDENTIFIER {
         # Report the error.
         self.expect(tokens.TOK_IDENTIFIER);
         return false;
-    }
+    };
 
     # Parse the identifier.
-    if not self.parse_ident() { return false; }
+    if not self.parse_ident() { return false; };
 
     # Return success.
     true;
@@ -2681,13 +2690,13 @@ def _expect_parse_ident(&mut self) -> bool
 
 # Expect and parse an identifier node (into a passed slot).
 # -----------------------------------------------------------------------------
-def _expect_parse_ident_to(&mut self, &mut node: ast.Node) -> bool
+let _expect_parse_ident_to(mut self, node: *mut ast.Node): bool ->
 {
     # Expect and parse the identifier.
-    if not self._expect_parse_ident() { return false; }
+    if not self._expect_parse_ident() { return false; };
 
     # Push into the passed node.
-    node = self.stack.pop();
+    (*node) = self.stack.pop();
 
     # Return success.
     true;
@@ -2695,7 +2704,7 @@ def _expect_parse_ident_to(&mut self, &mut node: ast.Node) -> bool
 
 # Get the binary operator token precedence.
 # -----------------------------------------------------------------------------
-def get_binop_tok_precedence(&self, tok: int) -> int {
+let get_binop_tok_precedence(self, tok: int): int -> {
          if tok == tokens.TOK_IF                { 015; }  # if
     else if tok == tokens.TOK_EQ                { 030; }  # =
     else if tok == tokens.TOK_PLUS_EQ           { 030; }  # +=
@@ -2714,7 +2723,7 @@ def get_binop_tok_precedence(&self, tok: int) -> int {
     else if tok == tokens.TOK_RCARET_EQ         { 090; }  # >=
     else if tok == tokens.TOK_AMPERSAND         { 110; }  # &
     else if tok == tokens.TOK_PIPE              { 110; }  # |
-    else if tok == tokens.TOK_HAT               { 110; }  # ^
+    else if tok == tokens.TOK_HAT               { 110; }  # *
     else if tok == tokens.TOK_PLUS              { 120; }  # +
     else if tok == tokens.TOK_MINUS             { 120; }  # -
     else if tok == tokens.TOK_STAR              { 150; }  # *
@@ -2725,12 +2734,12 @@ def get_binop_tok_precedence(&self, tok: int) -> int {
     else {
         # Not a binary operator.
         -1;
-    }
+    };
 }
 
 # Get the binary operator token associativity.
 # -----------------------------------------------------------------------------
-def get_binop_tok_associativity(&self, tok: int) -> int {
+let get_binop_tok_associativity(self, tok: int): int -> {
          if tok == tokens.TOK_DOT               { ASSOC_LEFT; }   # .
     else if tok == tokens.TOK_IF                { ASSOC_LEFT; }   # if
     else if tok == tokens.TOK_EQ                { ASSOC_RIGHT; }  # =
@@ -2742,7 +2751,7 @@ def get_binop_tok_associativity(&self, tok: int) -> int {
     else if tok == tokens.TOK_PERCENT_EQ        { ASSOC_RIGHT; }  # %=
     else if tok == tokens.TOK_AMPERSAND         { ASSOC_LEFT; }   # &
     else if tok == tokens.TOK_PIPE              { ASSOC_LEFT; }   # |
-    else if tok == tokens.TOK_HAT               { ASSOC_LEFT; }   # ^
+    else if tok == tokens.TOK_HAT               { ASSOC_LEFT; }   # *
     else if tok == tokens.TOK_AND               { ASSOC_LEFT; }   # and
     else if tok == tokens.TOK_OR                { ASSOC_LEFT; }   # or
     else if tok == tokens.TOK_EQ_EQ             { ASSOC_LEFT; }   # ==
@@ -2760,12 +2769,12 @@ def get_binop_tok_associativity(&self, tok: int) -> int {
     else {
         # Not a binary operator.
         -1;
-    }
+    };
 }
 
 # Get the binary operator token tag (in the AST).
 # -----------------------------------------------------------------------------
-def get_binop_tok_tag(&self, tok: int) -> int
+let get_binop_tok_tag(self, tok: int): int ->
 {
     if      tok == tokens.TOK_PLUS              { ast.TAG_ADD; }
     else if tok == tokens.TOK_MINUS             { ast.TAG_SUBTRACT; }
@@ -2792,33 +2801,7 @@ def get_binop_tok_tag(&self, tok: int) -> int
     else if tok == tokens.TOK_FSLASH_FSLASH_EQ  { ast.TAG_ASSIGN_INT_DIV; }
     else if tok == tokens.TOK_PERCENT_EQ        { ast.TAG_ASSIGN_MOD; }
     else if tok == tokens.TOK_IF                { ast.TAG_SELECT_OP; }
-    else { 0; }
+    else { 0; };
 }
 
-} # Parser
-
-# Test driver using `stdin`.
-# =============================================================================
-def main() {
-    # Declare the tokenizer.
-    let mut t: tokenizer.Tokenizer = tokenizer.tokenizer_new(
-        "-", libc.stdin);
-
-    # Declare the parser.
-    let mut p: Parser = parser_new("_", t);
-
-    # Walk the token stream and parse out the AST.
-    let unit: ast.Node = p.parse();
-    if errors.count > 0 { libc.exit(-1); }
-
-    # Print the AST to `stdout`.
-    # FIXME: unit.dump();
-    ast.dump(unit);
-
-    # Dispose of any resources used.
-    p.dispose();
-    # unit.dispose();
-
-    # Exit success back to the environment.
-    libc.exit(0);
-}
+}  # Parser

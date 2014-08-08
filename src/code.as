@@ -1,5 +1,3 @@
-foreign "C" import "llvm-c/Core.h";
-
 import string;
 import ast;
 import libc;
@@ -50,30 +48,30 @@ let VC_RVALUE: int = 2;
 # This internally is a list of dictinoaries that are for managing
 # the local scope of a specific function.
 
-type Scope {
+struct Scope {
     # The list of dictionaries that comprise the scope chain.
-    mut chain: list.List
+    chain: list.List
 }
 
-def make_scope() -> Scope {
+let make_scope(): Scope -> {
     let sc: Scope;
-    sc.chain = list.make(types.PTR);
+    sc.chain = list.List.new(types.PTR);
     sc;
 }
 
-def make_nil_scope() -> ^Scope { 0 as ^Scope; }
+let make_nil_scope(): *Scope -> { 0 as *Scope; }
 
 implement Scope {
 
     # Dispose the scope chain.
     # -------------------------------------------------------------------------
-    def dispose(&mut self) {
+    let dispose(mut self) -> {
         # Dispose of each dict.
         let mut i: int = 0;
         while i as uint < self.chain.size {
-            let m: ^mut dict.Dictionary =
-                self.chain.at_ptr(i) as ^dict.Dictionary;
-            (m^).dispose();
+            let m: *mut dict.Dictionary =
+                self.chain.get_ptr(i) as *dict.Dictionary;
+            m.dispose();
             i = i + 1;
         }
 
@@ -83,15 +81,15 @@ implement Scope {
 
     # Check if a name exists in the scope chain.
     # -------------------------------------------------------------------------
-    def contains(&self, name: str) -> bool {
+    let contains(self, name: str): bool -> {
         let mut i: int = -1;
         while i >= -(self.chain.size as int) {
-            let m: ^mut dict.Dictionary =
-                self.chain.at_ptr(i) as ^dict.Dictionary;
+            let m: *mut dict.Dictionary =
+                self.chain.get_ptr(i) as *dict.Dictionary;
 
-            if (m^).contains(name) {
+            if m.contains(name) {
                 return true;
-            }
+            };
 
             i = i - 1;
         }
@@ -100,15 +98,15 @@ implement Scope {
 
     # Get a name from the scope chain.
     # -------------------------------------------------------------------------
-    def get(&self, name: str) -> ^Handle {
+    let get(self, name: str): *Handle -> {
         let mut i: int = -1;
         while i >= -(self.chain.size as int) {
-            let m: ^mut dict.Dictionary =
-                self.chain.at_ptr(i) as ^dict.Dictionary;
+            let m: *mut dict.Dictionary =
+                self.chain.get_ptr(i) as *dict.Dictionary;
 
-            if (m^).contains(name) {
-                return (m^).get_ptr(name) as ^Handle;
-            }
+            if m.contains(name) {
+                return m.get_ptr(name) as *Handle;
+            };
 
             i = i - 1;
         }
@@ -117,32 +115,32 @@ implement Scope {
 
     # Insert an item into the current block in the scope chain.
     # -------------------------------------------------------------------------
-    def insert(&mut self, name: str, handle: ^Handle) {
+    let insert(mut self, name: str, handle: *Handle) -> {
         # Get the current block.
-        let m: ^mut dict.Dictionary =
-            self.chain.at_ptr(-1) as ^dict.Dictionary;
+        let m: *mut dict.Dictionary =
+            self.chain.get_ptr(-1) as *dict.Dictionary;
 
         # Push in the handle.
-        (m^).set_ptr(name, handle as ^void);
+        m.set_ptr(name, handle as *int8);
     }
 
     # Push another scope into the chain.
     # -------------------------------------------------------------------------
-    def push(&mut self) {
-        let m: ^mut dict.Dictionary = libc.malloc(
-            (((0 as ^dict.Dictionary) + 1) - (0 as ^dict.Dictionary)) as int64)
-            as ^dict.Dictionary;
-        m^ = dict.make(2048);
-        self.chain.push_ptr(m as ^void);
+    let push(mut self) -> {
+        let m: *mut dict.Dictionary = libc.malloc(
+            (((0 as *dict.Dictionary) + 1) - (0 as *dict.Dictionary)) as int64)
+            as *dict.Dictionary;
+        *m = dict.make(2048);
+        self.chain.push_ptr(m as *int8);
     }
 
     # Pop a scope from the chain.
     # -------------------------------------------------------------------------
-    def pop(&mut self) {
-        let m: ^mut dict.Dictionary =
-            self.chain.at_ptr(-1) as ^dict.Dictionary;
+    let pop(mut self) -> {
+        let m: *mut dict.Dictionary =
+            self.chain.get_ptr(-1) as *dict.Dictionary;
 
-        (m^).dispose();
+        m.dispose();
         self.chain.erase(-1);
     }
 
@@ -150,105 +148,101 @@ implement Scope {
 
 # Type
 # -----------------------------------------------------------------------------
-# A basic type just remembers what its llvm handle is.
+# A basic struct just remembers what its llvm handle is.
 
-type Type {
-    handle: ^LLVMOpaqueType,
+struct Type {
+    handle: *llvm.LLVMOpaqueType,
     bits: int64
 }
 
-type IntegerType {
-    handle: ^LLVMOpaqueType,
+struct IntegerType {
+    handle: *llvm.LLVMOpaqueType,
     bits: int64,
     signed: bool,
     machine: bool
 }
 
-type FloatType {
-    handle: ^LLVMOpaqueType,
+struct FloatType {
+    handle: *llvm.LLVMOpaqueType,
     bits: int64
 }
 
-let TYPE_SIZE: uint = ((0 as ^Type) + 1) - (0 as ^Type);
-let INT_TYPE_SIZE: uint = ((0 as ^IntegerType) + 1) - (0 as ^IntegerType);
-let FLOAT_TYPE_SIZE: uint = ((0 as ^FloatType) + 1) - (0 as ^FloatType);
-
-def make_type(handle: ^LLVMOpaqueType) -> ^Handle {
+let make_type(handle: *llvm.LLVMOpaqueType): *Handle -> {
     # Build the module.
-    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
+    let ty: *Type = libc.malloc(size_of(Type)) as *Type;
     ty.handle = handle;
 
     # Wrap in a handle.
-    make(TAG_TYPE, ty as ^void);
+    make(TAG_TYPE, ty as *int8);
 }
 
-def make_void_type(handle: ^LLVMOpaqueType) -> ^Handle {
+let make_void_type(handle: *llvm.LLVMOpaqueType): *Handle -> {
     # Build the module.
-    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
+    let ty: *Type = libc.malloc(size_of(Type)) as *Type;
     ty.handle = handle;
 
     # Wrap in a handle.
-    make(TAG_VOID_TYPE, ty as ^void);
+    make(TAG_VOID_TYPE, ty as *int8);
 }
 
-def make_float_type(handle: ^LLVMOpaqueType, bits: int64) -> ^Handle {
+let make_float_type(handle: *llvm.LLVMOpaqueType, bits: int64): *Handle -> {
     # Build the module.
-    let ty: ^FloatType = libc.malloc(FLOAT_TYPE_SIZE as int64) as ^FloatType;
+    let ty: *FloatType = libc.malloc(size_of(FloatType)) as *FloatType;
     ty.handle = handle;
     ty.bits = bits;
 
     # Wrap in a handle.
-    make(TAG_FLOAT_TYPE, ty as ^void);
+    make(TAG_FLOAT_TYPE, ty as *int8);
 }
 
-def make_bool_type(handle: ^LLVMOpaqueType) -> ^Handle {
+let make_bool_type(handle: *llvm.LLVMOpaqueType): *Handle -> {
     # Build the module.
-    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
+    let ty: *Type = libc.malloc(size_of(Type)) as *Type;
     ty.handle = handle;
-    ty.bits = 0;  # FIXME: Get the size of this type using sizeof.
+    ty.bits = 0;  # FIXME: Get the size of this struct using sizeof.
 
     # Wrap in a handle.
-    make(TAG_BOOL_TYPE, ty as ^void);
+    make(TAG_BOOL_TYPE, ty as *int8);
 }
 
-def make_char_type() -> ^Handle {
+let make_char_type(): *Handle -> {
     # Build the module.
-    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
-    ty.handle = LLVMInt32Type();
-    ty.bits = 0;  # FIXME: Get the size of this type using sizeof.
+    let ty: *Type = libc.malloc(size_of(Type)) as *Type;
+    ty.handle = llvm.LLVMInt32Type();
+    ty.bits = 0;  # FIXME: Get the size of this struct using sizeof.
 
     # Wrap in a handle.
-    make(TAG_CHAR_TYPE, ty as ^void);
+    make(TAG_CHAR_TYPE, ty as *int8);
 }
 
-def make_str_type() -> ^Handle {
+let make_str_type(): *Handle -> {
     # Build the module.
-    let ty: ^Type = libc.malloc(TYPE_SIZE as int64) as ^Type;
-    ty.handle = LLVMPointerType(LLVMInt8Type(), 0);
-    ty.bits = 0;  # FIXME: Get the size of this type using sizeof.
+    let ty: *Type = libc.malloc(size_of(Type)) as *Type;
+    ty.handle = llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0);
+    ty.bits = 0;  # FIXME: Get the size of this struct using sizeof.
 
     # Wrap in a handle.
-    make(TAG_STR_TYPE, ty as ^void);
+    make(TAG_STR_TYPE, ty as *int8);
 }
 
-def make_int_type(handle: ^LLVMOpaqueType, signed: bool,
-                  bits: int64, machine: bool) -> ^Handle {
+let make_int_type(handle: *llvm.LLVMOpaqueType, signed: bool,
+                  bits: int64, machine: bool): *Handle -> {
     # Build the module.
-    let ty: ^IntegerType = libc.malloc(INT_TYPE_SIZE as int64) as ^IntegerType;
+    let ty = libc.malloc(size_of(IntegerType)) as *IntegerType;
     ty.handle = handle;
     ty.signed = signed;
     ty.bits = bits;
     ty.machine = machine;
 
     # Wrap in a handle.
-    make(TAG_INT_TYPE, ty as ^void);
+    make(TAG_INT_TYPE, ty as *int8);
 }
 
-def typename(handle: ^Handle) -> string.String {
-    let ty: ^Type = handle._object as ^Type;
+let typename(handle: *Handle): string.String -> {
+    let ty: *Type = handle._object as *Type;
 
     # Allocate some space for the name.
-    let mut name: string.String = string.make();
+    let mut name: string.String = string.String.new();
 
     # Figure out what we are.
     if      handle._tag == TAG_VOID_TYPE { name.extend("nothing"); }
@@ -256,8 +250,8 @@ def typename(handle: ^Handle) -> string.String {
     else if handle._tag == TAG_CHAR_TYPE { name.extend("char"); }
     else if handle._tag == TAG_STR_TYPE  { name.extend("str"); }
     else if handle._tag == TAG_INT_TYPE {
-        let int_ty: ^IntegerType = handle._object as ^IntegerType;
-        if not int_ty.signed { name.append('u'); }
+        let int_ty: *IntegerType = handle._object as *IntegerType;
+        if not int_ty.signed { name.append('u'); };
         name.extend("int");
         if not int_ty.machine
         {
@@ -265,69 +259,73 @@ def typename(handle: ^Handle) -> string.String {
             else if int_ty.bits ==  16 { name.extend( "16"); }
             else if int_ty.bits ==  32 { name.extend( "32"); }
             else if int_ty.bits ==  64 { name.extend( "64"); }
-            else if int_ty.bits == 128 { name.extend("128"); }
-        }
+            else if int_ty.bits == 128 { name.extend("128"); };
+            0; # HACK!
+        };
+        0; # HACK!
     } else if handle._tag == TAG_FLOAT_TYPE {
-        let f_ty: ^FloatType = handle._object as ^FloatType;
+        let f_ty: *FloatType = handle._object as *FloatType;
         name.extend("float");
         if      f_ty.bits == 32 { name.extend("32"); }
-        else if f_ty.bits == 64 { name.extend("64"); }
+        else if f_ty.bits == 64 { name.extend("64"); };
     } else if handle._tag == TAG_STRUCT_TYPE {
-        let s_ty: ^StructType = handle._object as ^StructType;
+        let s_ty: *StructType = handle._object as *StructType;
         name.extend(s_ty.name.data() as str);
     } else if handle._tag == TAG_POINTER_TYPE {
-        let p_ty: ^PointerType = handle._object as ^PointerType;
+        let p_ty: *PointerType = handle._object as *PointerType;
         name.append("*");
         let mut ptr_name: string.String = typename(p_ty.pointee);
         name.extend(ptr_name.data() as str);
         ptr_name.dispose();
+        0; # HACK!
     } else if handle._tag == TAG_REFERENCE_TYPE {
-        let p_ty: ^ReferenceType = handle._object as ^ReferenceType;
+        let p_ty: *ReferenceType = handle._object as *ReferenceType;
         name.append("&");
         let mut ptr_name: string.String = typename(p_ty.pointee);
         name.extend(ptr_name.data() as str);
         ptr_name.dispose();
+        0; # HACK!
     } else if handle._tag == TAG_ARRAY_TYPE {
-        let a_ty: ^ArrayType = handle._object as ^ArrayType;
+        let a_ty: *ArrayType = handle._object as *ArrayType;
         let mut el_name: string.String = typename(a_ty.element);
         name.extend(el_name.data() as str);
         el_name.dispose();
         name.append("[");
 
-        let len: uint = LLVMGetArrayLength(a_ty.handle);
+        let len: uint = llvm.LLVMGetArrayLength(a_ty.handle);
         let int_: int8[100];
-        libc.memset(&int_[0] as ^void, 0, 100);
-        libc.snprintf(&int_[0], 100, "%d" as ^int8, len);
+        libc.memset(&int_[0] as *int8, 0, 100);
+        libc.snprintf(&int_[0] as str, 100, "%d", len);
         name.extend(&int_[0] as str);
 
         name.append("]");
     } else if handle._tag == TAG_TUPLE_TYPE {
-        let tup_ty: ^TupleType = handle._object as ^TupleType;
+        let tup_ty: *TupleType = handle._object as *TupleType;
         name.append("(");
 
         let mut i: int = 0;
         while i as uint < tup_ty.elements.size {
-            let han: ^Handle = tup_ty.elements.at_ptr(i) as ^Handle;
+            let han: *Handle = tup_ty.elements.get_ptr(i) as *Handle;
             let mut e_name: string.String = typename(han);
-            if i > 0 { name.extend(", "); }
+            if i > 0 { name.extend(", "); };
             name.extend(e_name.data() as str);
             e_name.dispose();
             i = i + 1;
         }
 
-        if i == 1 { name.append(","); }
+        if i == 1 { name.append(","); };
 
         name.append(")");
     } else if handle._tag == TAG_FUNCTION_TYPE {
-        let fn_ty: ^FunctionType = handle._object as ^FunctionType;
+        let fn_ty: *FunctionType = handle._object as *FunctionType;
         name.extend("delegate(");
 
         let mut i: int = 0;
         while i as uint < fn_ty.parameters.size {
-            let param_han: ^Handle = fn_ty.parameters.at_ptr(i) as ^Handle;
-            let param: ^Parameter = param_han._object as ^Parameter;
+            let param_han: *Handle = fn_ty.parameters.get_ptr(i) as *Handle;
+            let param: *Parameter = param_han._object as *Parameter;
             let mut p_name: string.String = typename(param.type_);
-            if i > 0 { name.extend(", "); }
+            if i > 0 { name.extend(", "); };
             name.extend(p_name.data() as str);
             p_name.dispose();
             i = i + 1;
@@ -336,14 +334,14 @@ def typename(handle: ^Handle) -> string.String {
         name.append(")");
 
         if not isnil(fn_ty.return_type) {
-            if not fn_ty.return_type._tag == TAG_VOID_TYPE {
+            if fn_ty.return_type._tag != TAG_VOID_TYPE {
                 name.extend(" -> ");
                 let mut ret_name: string.String = typename(fn_ty.return_type);
                 name.extend(ret_name.data() as str);
                 ret_name.dispose();
-            }
-        }
-    }
+            };
+        };
+    };
 
     # Return the name.
     name;
@@ -352,235 +350,219 @@ def typename(handle: ^Handle) -> string.String {
 # Pointer type
 # -----------------------------------------------------------------------------
 
-type PointerType {
-    handle: ^LLVMOpaqueType,
+struct PointerType {
+    handle: *llvm.LLVMOpaqueType,
     bits: int64,
     mutable: bool,
-    mut pointee: ^Handle
+    pointee: *Handle
 }
 
-let POINTER_TYPE_SIZE: uint = ((0 as ^PointerType) + 1) - (0 as ^PointerType);
-
-def make_pointer_type(pointee: ^Handle, mutable: bool, handle: ^LLVMOpaqueType) -> ^Handle {
+let make_pointer_type(pointee: *Handle, mutable: bool, handle: *llvm.LLVMOpaqueType): *Handle -> {
     # Build the parameter.
-    let han: ^PointerType = libc.malloc(POINTER_TYPE_SIZE as int64) as ^PointerType;
+    let han: *PointerType = libc.malloc(size_of(PointerType)) as *PointerType;
     han.handle = handle;
     han.mutable = mutable;
     han.pointee = pointee;
-    han.bits = 0;  # FIXME: Get the actual size of this type with sizeof
+    han.bits = 0;  # FIXME: Get the actual size of this struct with sizeof
 
     # Wrap in a handle.
-    make(TAG_POINTER_TYPE, han as ^void);
+    make(TAG_POINTER_TYPE, han as *int8);
 }
 
 # Reference type
 # -----------------------------------------------------------------------------
 
-type ReferenceType {
-    handle: ^LLVMOpaqueType,
+struct ReferenceType {
+    handle: *llvm.LLVMOpaqueType,
     bits: int64,
     mutable: bool,
-    mut pointee: ^Handle
+    pointee: *Handle
 }
 
-let REFERENCE_TYPE_SIZE: uint = ((0 as ^ReferenceType) + 1) - (0 as ^ReferenceType);
-
-def make_reference_type(pointee: ^Handle, mutable: bool, handle: ^LLVMOpaqueType) -> ^Handle {
+let make_reference_type(pointee: *Handle, mutable: bool, handle: *llvm.LLVMOpaqueType): *Handle -> {
     # Build the parameter.
-    let han: ^ReferenceType = libc.malloc(POINTER_TYPE_SIZE as int64) as ^ReferenceType;
+    let han: *ReferenceType = libc.malloc(size_of(ReferenceType)) as *ReferenceType;
     han.handle = handle;
     han.mutable = mutable;
     han.pointee = pointee;
-    han.bits = 0;  # FIXME: Get the actual size of this type with sizeof
+    han.bits = 0;  # FIXME: Get the actual size of this struct with sizeof
 
     # Wrap in a handle.
-    make(TAG_REFERENCE_TYPE, han as ^void);
+    make(TAG_REFERENCE_TYPE, han as *int8);
 }
 
 # Array type
 # -----------------------------------------------------------------------------
 
-type ArrayType {
-    handle: ^LLVMOpaqueType,
+struct ArrayType {
+    handle: *llvm.LLVMOpaqueType,
     bits: int64,
-    mut element: ^Handle,
+    element: *Handle,
     size: uint
 }
 
-let ARRAY_TYPE_SIZE: uint = ((0 as ^ArrayType) + 1) - (0 as ^ArrayType);
-
-def make_array_type(element: ^Handle, size: uint, handle: ^LLVMOpaqueType) -> ^Handle {
+let make_array_type(element: *Handle, size: uint, handle: *llvm.LLVMOpaqueType): *Handle -> {
     # Build the parameter.
-    let han: ^ArrayType = libc.malloc(ARRAY_TYPE_SIZE as int64) as ^ArrayType;
+    let han: *ArrayType = libc.malloc(size_of(ArrayType)) as *ArrayType;
     han.handle = handle;
     han.element = element;
-    han.bits = 0;  # FIXME: Get the actual size of this type with sizeof
+    han.bits = 0;  # FIXME: Get the actual size of this struct with sizeof
     han.size = size;
 
     # Wrap in a handle.
-    make(TAG_ARRAY_TYPE, han as ^void);
+    make(TAG_ARRAY_TYPE, han as *int8);
 }
 
 # Function type
 # -----------------------------------------------------------------------------
-# A function type needs to remember its return type and its parameters.
+# A function struct needs to remember its return struct and its parameters.
 
-type Parameter {
-    mut name: string.String,
-    type_: ^mut Handle,
-    default: ^mut Handle,
+struct Parameter {
+    name: string.String,
+    type_: *mut Handle,
+    default: *mut Handle,
     variadic: bool
 }
 
-type FunctionType {
-    handle: ^LLVMOpaqueType,
+struct FunctionType {
+    handle: *llvm.LLVMOpaqueType,
     bits: int64,
-    mut name: string.String,
-    mut unqualified_name: string.String,
-    mut namespace: list.List,
-    return_type: ^mut Handle,
-    mut parameters: list.List,
-    mut parameter_map: dict.Dictionary
+    name: string.String,
+    unqualified_name: string.String,
+    namespace: list.List,
+    return_type: *mut Handle,
+    parameters: list.List,
+    parameter_map: dict.Dictionary
 }
 
-let PARAMETER_SIZE: uint = ((0 as ^Parameter) + 1) - (0 as ^Parameter);
-
-let FUNCTION_TYPE_SIZE: uint = ((0 as ^FunctionType) + 1) - (0 as ^FunctionType);
-
-def make_parameter(name: str, type_: ^Handle,
-                   default: ^Handle, variadic: bool) -> ^Handle {
+let make_parameter(name: str, type_: *Handle,
+                   default: *Handle, variadic: bool): *Handle -> {
     # Build the parameter.
-    let param: ^Parameter = libc.malloc(PARAMETER_SIZE as int64) as ^Parameter;
-    param.name = string.make();
-    if name <> string.Nil {
+    let param: *Parameter = libc.malloc(size_of(Parameter)) as *Parameter;
+    param.name = string.String.new();
+    if not string.isnil(name) {
         param.name.extend(name);
-    }
+    };
     param.type_ = type_;
     param.default = default;
     param.variadic = variadic;
 
     # Wrap in a handle.
-    make(TAG_PARAMETER, param as ^void);
+    make(TAG_PARAMETER, param as *int8);
 }
 
-def make_function_type(
+let make_function_type(
         name: str,
         mut namespace: list.List,
         mut unqualified_name: str,
-        handle: ^LLVMOpaqueType,
-        return_type: ^Handle,
-        parameters: list.List) -> ^Handle {
+        handle: *llvm.LLVMOpaqueType,
+        return_type: *Handle,
+        parameters: list.List): *Handle -> {
     # Build the function.
-    let func: ^FunctionType = libc.malloc(FUNCTION_TYPE_SIZE as int64) as ^FunctionType;
+    let func: *FunctionType = libc.malloc(size_of(FunctionType)) as *FunctionType;
     func.handle = handle;
-    func.name = string.make();
+    func.name = string.String.new();
     func.namespace = namespace.clone();
     func.name.extend(name);
-    func.unqualified_name = string.make();
+    func.unqualified_name = string.String.new();
     func.unqualified_name.extend(unqualified_name);
     func.return_type = return_type;
-    func.parameters = parameters;
+    func.parameters = parameters.clone();
     func.parameter_map = dict.make(64);
-    func.bits = 0;  # FIXME: Get the size of this type with sizeof
+    func.bits = 0;  # FIXME: Get the size of this struct with sizeof
 
     # Fill the named parameter map.
     let mut idx: int = 0;
     while idx as uint < parameters.size
     {
-        let param_han: ^Handle = parameters.at_ptr(idx) as ^Handle;
-        let param: ^Parameter = param_han._object as ^Parameter;
+        let param_han: *Handle = parameters.get_ptr(idx) as *Handle;
+        let param: *Parameter = param_han._object as *Parameter;
         if param.name.size() > 0 {
             func.parameter_map.set_uint(param.name.data() as str, idx as uint);
-        }
+        };
         idx = idx + 1;
     }
 
     # Wrap in a handle.
-    make(TAG_FUNCTION_TYPE, func as ^void);
+    make(TAG_FUNCTION_TYPE, func as *int8);
 }
 
 # Structure type
 # -----------------------------------------------------------------------------
 
-type Member {
-    mut name: string.String,
-    type_: ^mut Handle,
+struct Member {
+    name: string.String,
+    type_: *mut Handle,
     index: uint,
-    default: ^mut Handle
+    default: *mut Handle
 }
 
-type StructType {
-    handle: ^LLVMOpaqueType,
+struct StructType {
+    handle: *llvm.LLVMOpaqueType,
     bits: int64,
-    context: ^ast.Struct,
-    mut name: string.String,
-    mut namespace: list.List,
-    mut members: list.List,
-    mut member_map: dict.Dictionary
+    context: *ast.Struct,
+    name: string.String,
+    namespace: list.List,
+    members: list.List,
+    member_map: dict.Dictionary
 }
 
-let MEMBER_SIZE: uint = ((0 as ^Member) + 1) - (0 as ^Member);
-
-let STRUCT_TYPE_SIZE: uint = ((0 as ^StructType) + 1) - (0 as ^StructType);
-
-def make_member(name: str, type_: ^Handle, index: uint, default: ^Handle) -> ^Handle {
+let make_member(name: str, type_: *Handle, index: uint, default: *Handle): *Handle -> {
     # Build the parameter.
-    let mem: ^Member = libc.malloc(MEMBER_SIZE as int64) as ^Member;
-    mem.name = string.make();
+    let mem: *Member = libc.malloc(size_of(Member)) as *Member;
+    mem.name = string.String.new();
     mem.name.extend(name);
     mem.type_ = type_;
     mem.index = index;
     mem.default = default;
 
     # Wrap in a handle.
-    make(TAG_MEMBER, mem as ^void);
+    make(TAG_MEMBER, mem as *int8);
 }
 
-def make_struct_type(name: str,
-                     context: ^ast.Struct,
+let make_struct_type(name: str,
+                     context: *ast.Struct,
                      namespace: list.List,
-                     handle: ^LLVMOpaqueType) -> ^Handle {
+                     handle: *llvm.LLVMOpaqueType): *Handle -> {
     # Build the function.
-    let st: ^StructType = libc.malloc(STRUCT_TYPE_SIZE as int64) as ^StructType;
+    let st: *StructType = libc.malloc(size_of(StructType)) as *StructType;
     st.handle = handle;
     st.context = context;
-    st.name = string.make();
+    st.name = string.String.new();
     st.name.extend(name);
     st.namespace = namespace.clone();
     st.member_map = dict.make(64);
-    st.bits = 0;  # FIXME: Get the size of this type with sizeof.
+    st.bits = 0;  # FIXME: Get the size of this struct with sizeof.
 
     # Wrap in a handle.
-    make(TAG_STRUCT_TYPE, st as ^void);
+    make(TAG_STRUCT_TYPE, st as *int8);
 }
 
 # Tuple type
 # -----------------------------------------------------------------------------
 
-type TupleType {
-    handle: ^LLVMOpaqueType,
+struct TupleType {
+    handle: *llvm.LLVMOpaqueType,
     bits: int64,
-    mut elements: list.List
+    elements: list.List
 }
 
-let TUPLE_TYPE_SIZE: uint = ((0 as ^TupleType) + 1) - (0 as ^TupleType);
-
-def make_tuple_type(
-        handle: ^LLVMOpaqueType,
-        elements: list.List) -> ^Handle {
+let make_tuple_type(
+        handle: *llvm.LLVMOpaqueType,
+        elements: list.List): *Handle -> {
     # Build the tuple.
-    let func: ^TupleType = libc.malloc(TUPLE_TYPE_SIZE as int64) as ^TupleType;
+    let func: *TupleType = libc.malloc(size_of(TupleType)) as *TupleType;
     func.handle = handle;
-    func.elements = elements;
-    func.bits = 0;  # FIXME: Get the size of this type with sizeof.
+    func.elements = elements.clone();
+    func.bits = 0;  # FIXME: Get the size of this struct with sizeof.
 
     # Wrap in a handle.
-    make(TAG_TUPLE_TYPE, func as ^void);
+    make(TAG_TUPLE_TYPE, func as *int8);
 }
 
 # Gets if this handle is a type.
 # -----------------------------------------------------------------------------
-def is_type(handle: ^Handle) -> bool {
+let is_type(handle: *Handle): bool -> {
     handle._tag == TAG_TYPE or
     handle._tag == TAG_BOOL_TYPE or
     handle._tag == TAG_CHAR_TYPE or
@@ -595,64 +577,69 @@ def is_type(handle: ^Handle) -> bool {
     handle._tag == TAG_ARRAY_TYPE;
 }
 
-# Gets the type of the thing.
+# Gets the struct of the thing.
 # -----------------------------------------------------------------------------
-def type_of(handle: ^Handle) -> ^Handle {
+let type_of(handle: *Handle): *Handle -> {
     if handle._tag == TAG_STATIC_SLOT {
-        let slot: ^StaticSlot = handle._object as ^StaticSlot;
-        slot.type_;
+        let slot: *StaticSlot = handle._object as *StaticSlot;
+        return slot.type_;
+        0; # HACK!
     } else if handle._tag == TAG_LOCAL_SLOT {
-        let slot: ^LocalSlot = handle._object as ^LocalSlot;
-        slot.type_;
+        let slot: *LocalSlot = handle._object as *LocalSlot;
+        return slot.type_;
+        0; # HACK!
     } else if handle._tag == TAG_VALUE {
-        let val: ^Value = handle._object as ^Value;
-        val.type_;
+        let val: *Value = handle._object as *Value;
+        return val.type_;
+        0; # HACK!
     } else if handle._tag == TAG_PARAMETER {
-        let val: ^Parameter = handle._object as ^Parameter;
-        val.type_;
+        let val: *Parameter = handle._object as *Parameter;
+        return val.type_;
+        0; # HACK!
     } else if handle._tag == TAG_STRUCT {
-        let val: ^Struct = handle._object as ^Struct;
-        val.type_;
+        let val: *Struct = handle._object as *Struct;
+        return val.type_;
+        0; # HACK!
     } else if handle._tag == TAG_MEMBER {
-        let mem: ^Member = handle._object as ^Member;
-        mem.type_;
+        let mem: *Member = handle._object as *Member;
+        return mem.type_;
+        0; # HACK!
     } else if handle._tag == TAG_ATTACHED_FUNCTION {
-        let val: ^Function = handle._object as ^Function;
-        val.type_;
+        let val: *Function = handle._object as *Function;
+        return val.type_;
+        0; # HACK!
     } else if handle._tag == TAG_TUPLE {
-        let val: ^Tuple = handle._object as ^Tuple;
-        val.type_;
-    } else {
-        make_nil();
-    }
+        let val: *Tuple = handle._object as *Tuple;
+        return val.type_;
+        0; # HACK!
+    };
+    return make_nil();
 }
 
 # Static Slot
 # -----------------------------------------------------------------------------
-# A slot keeps its name with it for now. It'll contain later its type and
+# A slot keeps its name with it for now. It'll contain later its struct and
 # other designators.
 
-type StaticSlot {
-    context: ^ast.SlotDecl,
-    mut name: string.String,
-    mut namespace: list.List,
-    mut qualified_name: string.String,
-    type_: ^Handle,
-    handle: ^LLVMOpaqueValue
+struct StaticSlot {
+    context: *ast.SlotDecl,
+    name: string.String,
+    namespace: list.List,
+    qualified_name: string.String,
+    type_: *Handle,
+    handle: *llvm.LLVMOpaqueValue
 }
 
-let STATIC_SLOT_SIZE: uint = ((0 as ^StaticSlot) + 1) - (0 as ^StaticSlot);
-
-def make_static_slot(
-        context: ^ast.SlotDecl,
+let make_static_slot(
+        context: *ast.SlotDecl,
         name: str,
-        &mut namespace: list.List,
-        type_: ^Handle,
-        handle: ^LLVMOpaqueValue) -> ^Handle {
+        namespace: list.List,
+        type_: *Handle,
+        handle: *llvm.LLVMOpaqueValue): *Handle -> {
     # Build the slot.
-    let slot: ^StaticSlot = libc.malloc(STATIC_SLOT_SIZE as int64) as ^StaticSlot;
+    let slot: *StaticSlot = libc.malloc(size_of(StaticSlot)) as *StaticSlot;
     slot.context = context;
-    slot.name = string.make();
+    slot.name = string.String.new();
     slot.name.extend(name);
     slot.namespace = namespace.clone();
     slot.qualified_name = string.join(".", slot.namespace);
@@ -662,66 +649,62 @@ def make_static_slot(
     slot.type_ = type_;
 
     # Wrap in a handle.
-    make(TAG_STATIC_SLOT, slot as ^void);
+    make(TAG_STATIC_SLOT, slot as *int8);
 }
 
 implement StaticSlot {
 
     # Dispose the slot and its resources.
     # -------------------------------------------------------------------------
-    def dispose(&mut self) { self.name.dispose(); }
+    let dispose(mut self) -> { self.name.dispose(); }
 
 }
 
 # Local Slot
 # -----------------------------------------------------------------------------
 
-type LocalSlot {
-    type_: ^Handle,
-    handle: ^LLVMOpaqueValue,
+struct LocalSlot {
+    type_: *Handle,
+    handle: *llvm.LLVMOpaqueValue,
     mutable: bool
 }
 
-let LOCAL_SLOT_SIZE: uint = ((0 as ^LocalSlot) + 1) - (0 as ^LocalSlot);
-
-def make_local_slot(
-        type_: ^Handle,
+let make_local_slot(
+        type_: *Handle,
         mutable: bool,
-        handle: ^LLVMOpaqueValue) -> ^Handle {
+        handle: *llvm.LLVMOpaqueValue): *Handle -> {
     # Build the slot.
-    let slot: ^LocalSlot = libc.malloc(LOCAL_SLOT_SIZE as int64) as ^LocalSlot;
+    let slot: *LocalSlot = libc.malloc(size_of(LocalSlot)) as *LocalSlot;
     slot.handle = handle;
     slot.type_ = type_;
     slot.mutable = mutable;
 
     # Wrap in a handle.
-    make(TAG_LOCAL_SLOT, slot as ^void);
+    make(TAG_LOCAL_SLOT, slot as *int8);
 }
 
 # Structure
 # -----------------------------------------------------------------------------
 
-type Struct {
-    context: ^ast.Struct,
-    mut name: string.String,
-    mut namespace: list.List,
-    mut qualified_name: string.String,
-    type_: ^Handle,
-    handle: ^LLVMOpaqueValue
+struct Struct {
+    context: *ast.Struct,
+    name: string.String,
+    namespace: list.List,
+    qualified_name: string.String,
+    type_: *Handle,
+    handle: *llvm.LLVMOpaqueValue
 }
 
-let STRUCT_SIZE: uint = ((0 as ^Struct) + 1) - (0 as ^Struct);
-
-def make_struct(
-        context: ^ast.Struct,
+let make_struct(
+        context: *ast.Struct,
         name: str,
-        &mut namespace: list.List,
-        type_: ^Handle,
-        handle: ^LLVMOpaqueValue) -> ^Handle {
+        namespace: list.List,
+        type_: *Handle,
+        handle: *llvm.LLVMOpaqueValue): *Handle -> {
     # Build the item.
-    let item: ^Struct = libc.malloc(STRUCT_SIZE as int64) as ^Struct;
+    let item: *Struct = libc.malloc(size_of(Struct)) as *Struct;
     item.context = context;
-    item.name = string.make();
+    item.name = string.String.new();
     item.name.extend(name);
     item.namespace = namespace.clone();
     item.qualified_name = string.join(".", item.namespace);
@@ -731,7 +714,7 @@ def make_struct(
     item.type_ = type_;
 
     # Wrap in a handle.
-    make(TAG_STRUCT, item as ^void);
+    make(TAG_STRUCT, item as *int8);
 }
 
 
@@ -739,7 +722,7 @@ implement Struct {
 
     # Dispose the item and its resources.
     # -------------------------------------------------------------------------
-    def dispose(&mut self) {
+    let dispose(mut self) -> {
         self.name.dispose();
         self.namespace.dispose();
     }
@@ -749,24 +732,22 @@ implement Struct {
 # Tuple
 # -----------------------------------------------------------------------------
 
-type Tuple {
-    type_: ^Handle,
+struct Tuple {
+    type_: *Handle,
     handles: list.List,
     assignable: bool
 }
 
-let TUPLE_SIZE: uint = ((0 as ^Tuple) + 1) - (0 as ^Tuple);
-
-def make_tuple(type_: ^Handle, handles: list.List, assignable: bool) -> ^Handle
+let make_tuple(type_: *Handle, handles: list.List, assignable: bool): *Handle ->
 {
     # Build the module.
-    let tup: ^Tuple = libc.malloc(TUPLE_SIZE as int64) as ^Tuple;
+    let tup: *Tuple = libc.malloc(size_of(Tuple)) as *Tuple;
     tup.type_ = type_;
     tup.handles = handles.clone();
     tup.assignable = assignable;
 
     # Wrap in a handle.
-    make(TAG_TUPLE, tup as ^void);
+    make(TAG_TUPLE, tup as *int8);
 }
 
 # Module
@@ -774,20 +755,18 @@ def make_tuple(type_: ^Handle, handles: list.List, assignable: bool) -> ^Handle
 # A module just keeps its name with it. Its purpose in the scope is
 # to allow name resolution.
 
-type Module {
-    mut name: string.String,
-    mut namespace: list.List,
-    mut qualified_name: string.String
+struct Module {
+    name: string.String,
+    namespace: list.List,
+    qualified_name: string.String
 }
 
-let MODULE_SIZE: uint = ((0 as ^Module) + 1) - (0 as ^Module);
-
-def make_module(
+let make_module(
         name: str,
-        &mut namespace: list.List) -> ^Handle {
+        namespace: list.List): *Handle -> {
     # Build the module.
-    let mod: ^Module = libc.malloc(MODULE_SIZE as int64) as ^Module;
-    mod.name = string.make();
+    let mod: *Module = libc.malloc(size_of(Module)) as *Module;
+    mod.name = string.String.new();
     mod.name.extend(name);
     mod.namespace = namespace.clone();
     mod.qualified_name = string.join(".", mod.namespace);
@@ -795,77 +774,72 @@ def make_module(
     mod.qualified_name.extend(name);
 
     # Wrap in a handle.
-    make(TAG_MODULE, mod as ^void);
+    make(TAG_MODULE, mod as *int8);
 }
 
 implement Module {
 
     # Dispose the module and its resources.
     # -------------------------------------------------------------------------
-    def dispose(&mut self) { self.name.dispose(); }
+    let dispose(mut self) -> { self.name.dispose(); }
 
 }
 
 # Value
 # -----------------------------------------------------------------------------
-# A value remembers its type and the llvm handle.
+# A value remembers its struct and the llvm handle.
 
-type Value {
-    type_: ^Handle,
-    handle: ^LLVMOpaqueValue,
+struct Value {
+    type_: *Handle,
+    handle: *llvm.LLVMOpaqueValue,
     category: int
 }
 
-let VALUE_SIZE: uint = ((0 as ^Value) + 1) - (0 as ^Value);
-
-
-def make_value_c(context: ^ast.Node,
-                 type_: ^Handle,
+let make_value_c(context: *ast.Node,
+                 type_: *Handle,
                  category: int,
-                 handle: ^LLVMOpaqueValue) -> ^Handle {
+                 handle: *llvm.LLVMOpaqueValue): *Handle -> {
     # Build the module.
-    let val: ^Value = libc.malloc(VALUE_SIZE as int64) as ^Value;
+    let val: *Value = libc.malloc(size_of(Value)) as *Value;
     val.handle = handle;
     val.type_ = type_;
     val.category = category;
 
     # Wrap in a handle.
-    make_c(context, TAG_VALUE, val as ^void);
+    make_c(context, TAG_VALUE, val as *int8);
 }
 
 
-def make_value(type_: ^Handle,
+let make_value(type_: *Handle,
                category: int,
-               handle: ^LLVMOpaqueValue) -> ^Handle {
-    make_value_c(0 as ^ast.Node, type_, category, handle);
+               handle: *llvm.LLVMOpaqueValue): *Handle -> {
+    make_value_c(0 as *ast.Node, type_, category, handle);
 }
 
 # Function
 # -----------------------------------------------------------------------------
 
-type Function {
-    context: ^ast.FuncDecl,
-    handle: ^LLVMOpaqueValue,
-    mut namespace: list.List,
-    mut name: string.String,
-    mut qualified_name: string.String,
-    mut type_: ^mut Handle,
-    mut scope: Scope
+struct Function {
+    context: *ast.FuncDecl,
+    handle: *llvm.LLVMOpaqueValue,
+    namespace: list.List,
+    name: string.String,
+    qualified_name: string.String,
+    type_: *mut Handle,
+    scope: Scope
 }
 
-let FUNCTION_SIZE: uint = ((0 as ^Function) + 1) - (0 as ^Function);
-
-def make_function(
-        context: ^ast.FuncDecl,
+let make_function(
+        context: *ast.FuncDecl,
         name: str,
-        &mut namespace: list.List,
-        type_: ^Handle,
-        handle: ^LLVMOpaqueValue) -> ^Handle {
+        namespace: list.List,
+        type_: *Handle,
+        handle: *llvm.LLVMOpaqueValue): *Handle -> {
     # Build the function.
-    let func: ^Function = libc.malloc(FUNCTION_SIZE as int64) as ^Function;
+    let func: *Function = libc.malloc(size_of(Function)) as *Function;
     func.context = context;
     func.handle = handle;
-    func.name = string.make();
+    func.name = string.String.new();
     func.name.extend(name);
     func.namespace = namespace.clone();
     func.qualified_name = string.join(".", func.namespace);
@@ -878,36 +852,34 @@ def make_function(
     func.scope.push();
 
     # Wrap in a handle.
-    make(TAG_FUNCTION, func as ^void);
+    make(TAG_FUNCTION, func as *int8);
 }
 
 # Attached function
 # -----------------------------------------------------------------------------
 
-type AttachedFunction {
-    context: ^ast.FuncDecl,
-    handle: ^LLVMOpaqueValue,
-    mut namespace: list.List,
-    mut name: string.String,
-    mut qualified_name: string.String,
-    mut type_: ^mut Handle,
-    mut scope: Scope,
-    mut attached_type: ^mut Handle,
-    mut attached_type_node: ^ast.Node
+struct AttachedFunction {
+    context: *ast.FuncDecl,
+    handle: *llvm.LLVMOpaqueValue,
+    namespace: list.List,
+    name: string.String,
+    qualified_name: string.String,
+    type_: *mut Handle,
+    scope: Scope,
+    attached_type: *mut Handle,
+    attached_type_node: *ast.Node
 }
 
-let ATTACHED_FUNCTION_SIZE: uint = ((0 as ^AttachedFunction) + 1) - (0 as ^AttachedFunction);
-
-def make_attached_function(
-        context: ^ast.FuncDecl,
+let make_attached_function(
+        context: *ast.FuncDecl,
         name: str,
-        &mut namespace: list.List,
-        attached_type_node: ^ast.Node) -> ^Handle {
+        namespace: list.List,
+        attached_type_node: *ast.Node): *Handle -> {
     # Build the function.
-    let func: ^AttachedFunction = libc.malloc(ATTACHED_FUNCTION_SIZE as int64) as ^AttachedFunction;
+    let func: *AttachedFunction = libc.malloc(size_of(AttachedFunction)) as *AttachedFunction;
     func.context = context;
-    func.handle = 0 as ^LLVMOpaqueValue;
-    func.name = string.make();
+    func.handle = 0 as *llvm.LLVMOpaqueValue;
+    func.name = string.String.new();
     func.name.extend(name);
     func.namespace = namespace.clone();
     # func.qualified_name = string.join(".", func.namespace);
@@ -922,34 +894,32 @@ def make_attached_function(
     func.scope.push();
 
     # Wrap in a handle.
-    make(TAG_ATTACHED_FUNCTION, func as ^void);
+    make(TAG_ATTACHED_FUNCTION, func as *int8);
 }
 
 # External static
 # -----------------------------------------------------------------------------
 
-type ExternStatic {
-    context: ^ast.ExternStaticSlot,
-    mut name: string.String,
-    mut namespace: list.List,
-    mut qualified_name: string.String,
-    mut type_: ^mut Handle,
-    handle: ^LLVMOpaqueValue
+struct ExternStatic {
+    context: *ast.ExternStaticSlot,
+    name: string.String,
+    namespace: list.List,
+    qualified_name: string.String,
+    type_: *mut Handle,
+    handle: *llvm.LLVMOpaqueValue
 }
 
-let EXTERN_STATIC_SIZE: uint = ((0 as ^ExternStatic) + 1) - (0 as ^ExternStatic);
-
-def make_extern_static(
-        context: ^ast.ExternStaticSlot,
+let make_extern_static(
+        context: *ast.ExternStaticSlot,
         name: str,
-        &mut namespace: list.List,
-        type_: ^Handle,
-        handle: ^LLVMOpaqueValue) -> ^Handle {
+        namespace: list.List,
+        type_: *Handle,
+        handle: *llvm.LLVMOpaqueValue): *Handle -> {
     # Build the function.
-    let slot: ^ExternStatic = libc.malloc(EXTERN_STATIC_SIZE as int64) as ^ExternStatic;
+    let slot: *ExternStatic = libc.malloc(size_of(ExternStatic)) as *ExternStatic;
     slot.context = context;
     slot.handle = handle;
-    slot.name = string.make();
+    slot.name = string.String.new();
     slot.name.extend(name);
     slot.namespace = namespace.clone();
     slot.qualified_name = string.join(".", slot.namespace);
@@ -958,34 +928,32 @@ def make_extern_static(
     slot.type_ = type_;
 
     # Wrap in a handle.
-    make(TAG_EXTERN_STATIC, slot as ^void);
+    make(TAG_EXTERN_STATIC, slot as *int8);
 }
 
 # External function
 # -----------------------------------------------------------------------------
 
-type ExternFunction {
-    context: ^ast.ExternFunc,
-    handle: ^LLVMOpaqueValue,
-    mut namespace: list.List,
-    mut name: string.String,
-    mut qualified_name: string.String,
-    mut type_: ^mut Handle
+struct ExternFunction {
+    context: *ast.ExternFunc,
+    handle: *llvm.LLVMOpaqueValue,
+    namespace: list.List,
+    name: string.String,
+    qualified_name: string.String,
+    type_: *mut Handle
 }
 
-let EXTERN_FUNCTION_SIZE: uint = ((0 as ^ExternFunction) + 1) - (0 as ^ExternFunction);
-
-def make_extern_function(
-        context: ^ast.ExternFunc,
+let make_extern_function(
+        context: *ast.ExternFunc,
         name: str,
-        &mut namespace: list.List,
-        type_: ^Handle,
-        handle: ^LLVMOpaqueValue) -> ^Handle {
+        namespace: list.List,
+        type_: *Handle,
+        handle: *llvm.LLVMOpaqueValue): *Handle -> {
     # Build the function.
-    let func: ^ExternFunction = libc.malloc(EXTERN_FUNCTION_SIZE as int64) as ^ExternFunction;
+    let func: *ExternFunction = libc.malloc(size_of(ExternFunction)) as *ExternFunction;
     func.context = context;
     func.handle = handle;
-    func.name = string.make();
+    func.name = string.String.new();
     func.name.extend(name);
     func.namespace = namespace.clone();
     func.qualified_name = string.join(".", func.namespace);
@@ -994,7 +962,7 @@ def make_extern_function(
     func.type_ = type_;
 
     # Wrap in a handle.
-    make(TAG_EXTERN_FUNC, func as ^void);
+    make(TAG_EXTERN_FUNC, func as *int8);
 }
 
 # Handle
@@ -1005,25 +973,25 @@ def make_extern_function(
 # Handles are strictly allocated on the heap and calling dispose on them
 # frees their memory.
 
-type Handle {
-    _context: ^ast.Node,
+struct Handle {
+    _context: *ast.Node,
     _tag: int,
-    _object: ^void
+    _object: *int8
 }
 
-let HANDLE_SIZE: uint = ((0 as ^Handle) + 1) - (0 as ^Handle);
+# let HANDLE_SIZE: uint = ((0 as *Handle) + 1) - (0 as *Handle);
 
 implement Handle {
-    def _dispose(&mut self) { dispose(&self); }
+    let _dispose(mut self) -> { dispose(&self); }
 }
 
 implement Function { # HACK: Re-arrange when we can.
 
     # Dispose the function and its resources.
     # -------------------------------------------------------------------------
-    def dispose(&mut self) {
+    let dispose(mut self) -> {
         # Dispose of the type.
-        (self.type_^)._dispose();
+        self.type_._dispose();
 
         # Dispose of the name.
         self.name.dispose();
@@ -1035,14 +1003,14 @@ implement FunctionType { # HACK: Re-arrange when we can.
 
     # Dispose the function and its resources.
     # -------------------------------------------------------------------------
-    def dispose(&mut self) {
+    let dispose(mut self) -> {
         # Dispose of each parameter.
         let mut i: uint = 0;
         while i < self.parameters.size {
-            let param_han: ^mut Handle =
-                self.parameters.at_ptr(i as int) as ^Handle;
+            let param_han: *mut Handle =
+                self.parameters.get_ptr(i as int) as *Handle;
 
-            (param_han^)._dispose();
+            param_han._dispose();
             i = i + 1;
         }
 
@@ -1057,59 +1025,65 @@ implement Parameter { # HACK: Re-arrange when we can.
 
     # Dispose the parameter and its resources.
     # -------------------------------------------------------------------------
-    def dispose(&mut self) {
+    let dispose(mut self) -> {
         self.name.dispose();
-        (self.default^)._dispose();
+        self.default._dispose();
     }
 
 }
 
 # Dispose the handle and its bound object.
 # -----------------------------------------------------------------------------
-def dispose(&self: ^Handle) {
+let dispose(this: *Handle) -> {
     # Return if we are nil.
-    if isnil(self) { return; }
+    if isnil(this) { return; };
 
     # Dispose the object (if we need to).
-    if self._tag == TAG_MODULE {
-        let mod: ^mut Module = (self._object as ^Module);
-        (mod^).dispose();
-    } else if self._tag == TAG_STATIC_SLOT {
-        let slot: ^mut StaticSlot = (self._object as ^StaticSlot);
-        (slot^).dispose();
-    } else if self._tag == TAG_FUNCTION {
-        let fn: ^mut Function = (self._object as ^Function);
-        (fn^).dispose();
-    } else if self._tag == TAG_FUNCTION_TYPE {
-        let fn: ^mut FunctionType = (self._object as ^FunctionType);
-        (fn^).dispose();
-    } else if self._tag == TAG_PARAMETER {
-        let p: ^mut Parameter = (self._object as ^Parameter);
-        (p^).dispose();
-    } else if self._tag == TAG_STRUCT {
-        let p: ^mut Struct = (self._object as ^Struct);
-        (p^).dispose();
-    }
+    if this._tag == TAG_MODULE {
+        let mod: *mut Module = (this._object as *Module);
+        mod.dispose();
+        0;  #HACK!
+    } else if this._tag == TAG_STATIC_SLOT {
+        let slot: *mut StaticSlot = (this._object as *StaticSlot);
+        slot.dispose();
+        0;  #HACK!
+    } else if this._tag == TAG_FUNCTION {
+        let fn: *mut Function = (this._object as *Function);
+        fn.dispose();
+        0;  #HACK!
+    } else if this._tag == TAG_FUNCTION_TYPE {
+        let fn: *mut FunctionType = (this._object as *FunctionType);
+        fn.dispose();
+        0;  #HACK!
+    } else if this._tag == TAG_PARAMETER {
+        let p: *mut Parameter = (this._object as *Parameter);
+        p.dispose();
+        0;  #HACK!
+    } else if this._tag == TAG_TYPE {
+        let p: *mut Struct = (this._object as *Struct);
+        p.dispose();
+        0;  #HACK!
+    };
 
     # Free the object.
-    libc.free(self._object);
-    if self._object <> 0 as ^void {
+    libc.free(this._object);
+    if this._object != 0 as *int8 {
         # Free ourself.
-        libc.free(self as ^void);
-    }
+        libc.free(this as *int8);
+    };
 
     # Remember.
-    self._object = 0 as ^void;
+    this._object = 0 as *int8;
 }
 
 # Create a handle allocation
 # -----------------------------------------------------------------------------
-def make(tag: int, object: ^void) -> ^Handle {
-    make_c(0 as ^ast.Node, tag, object);
+let make(tag: int, object: *int8): *Handle -> {
+    make_c(0 as *ast.Node, tag, object);
 }
 
-def make_c(context: ^ast.Node, tag: int, object: ^void) -> ^Handle {
-    let handle: ^Handle = libc.malloc(HANDLE_SIZE as int64) as ^Handle;
+let make_c(context: *ast.Node, tag: int, object: *int8): *Handle -> {
+    let handle: *Handle = libc.malloc(size_of(Handle)) as *Handle;
     handle._tag = tag;
     handle._object = object;
     handle._context = context;
@@ -1118,18 +1092,18 @@ def make_c(context: ^ast.Node, tag: int, object: ^void) -> ^Handle {
 
 # Create a NIL handle that is used to indicate a null generation.
 # -----------------------------------------------------------------------------
-def make_nil() -> ^Handle { 0 as ^Handle; }
+let make_nil(): *Handle -> { 0 as *Handle; }
 
 # Test for a NIL handle.
 # -----------------------------------------------------------------------------
-def isnil(handle: ^Handle) -> bool {
-    (handle == 0 as ^Handle) or ispoison(handle);
+let isnil(handle: *Handle): bool -> {
+    (handle == 0 as *Handle) or ispoison(handle);
 }
 
 # Create a POISON handle that is used to indicate a failed generation.
 # -----------------------------------------------------------------------------
-def make_poison() -> ^Handle { -1 as ^Handle; }
+let make_poison(): *Handle -> { -1 as *Handle; }
 
 # Test for a POISON handle.
 # -----------------------------------------------------------------------------
-def ispoison(handle: ^Handle) -> bool { handle == -1 as ^Handle; }
+let ispoison(handle: *Handle): bool -> { handle == -1 as *Handle; }

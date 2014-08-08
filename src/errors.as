@@ -1,6 +1,5 @@
-# foreign "C" import "stdio.h";
 import libc;
-foreign "C" import "unistd.h";
+import posix;
 import span;
 
 # Error count
@@ -8,56 +7,56 @@ let mut count: uint = 0;
 
 # print_location
 # -----------------------------------------------------------------------------
-def print_location() {
-    libc.fprintf(libc.stderr, "_:" as ^int8);
+let print_location() -> {
+    libc.fprintf(libc.stderr, "_:");
 }
 
 # begin
 # -----------------------------------------------------------------------------
-def begin() {
-    if isatty(2) <> 0 {
-        libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);
-    }
+let begin() -> {
+    if posix.isatty(2) != 0 {
+        libc.fprintf(libc.stderr, "\x1b[1;37m");
+    };
 }
 
 # begin_error
 # -----------------------------------------------------------------------------
-def begin_error() {
+let begin_error() -> {
     begin();
     print_error();
 }
 
 # begin_error_at
 # -----------------------------------------------------------------------------
-def begin_error_at(s: span.Span) {
-    if isatty(2) <> 0 {
-        libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);
-    }
+let begin_error_at(s: span.Span) -> {
+    if posix.isatty(2) != 0 {
+        libc.fprintf(libc.stderr, "\x1b[1;37m");
+    };
     s.fprint(libc.stderr);
-    libc.fprintf(libc.stderr, ": " as ^int8);
+    libc.fprintf(libc.stderr, ": ");
     print_error();
 }
 
 # end
 # -----------------------------------------------------------------------------
-def end() {
-    if isatty(2) <> 0 {
-        libc.fprintf(libc.stderr, "\x1b[0m" as ^int8);
-    }
-    libc.fprintf(libc.stderr, "\n" as ^int8);
+let end() -> {
+    if posix.isatty(2) != 0 {
+        libc.fprintf(libc.stderr, "\x1b[0m");
+    };
+    libc.fprintf(libc.stderr, "\n");
 }
 
 # print_error
 # -----------------------------------------------------------------------------
-def print_error() {
-    if isatty(2) <> 0 {
-        libc.fprintf(libc.stderr, "\x1b[1;31m" as ^int8);
-    }
+let print_error() -> {
+    if posix.isatty(2) != 0 {
+        libc.fprintf(libc.stderr, "\x1b[1;31m");
+    };
 
     count = count + 1;
-    libc.fprintf(libc.stderr, "error: " as ^int8);
+    libc.fprintf(libc.stderr, "error: ");
 
-    if isatty(2) <> 0 {
-        libc.fprintf(libc.stderr, "\x1b[1;37m" as ^int8);
-    }
+    if posix.isatty(2) != 0 {
+        libc.fprintf(libc.stderr, "\x1b[1;37m");
+    };
 }

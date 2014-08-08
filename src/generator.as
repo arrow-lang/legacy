@@ -21,7 +21,7 @@ import resolvers;
 
 # Begin the generation process seeded by the passed AST node.
 # =============================================================================
-def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
+let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
     # Ensure the x86 target is initialized.
     # NOTE: We should first ask configuration what our target is
     #   and attempt to initialize the right target.
@@ -29,25 +29,25 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     llvm.LLVMInitializeX86TargetInfo();
 
     # Construct a LLVM module to hold the geneated IR.
-    g.mod = llvm.LLVMModuleCreateWithName(name as ^int8);
+    g.mod = llvm.LLVMModuleCreateWithName(name);
 
     # Discern the triple for our target machine.
     # TODO: This should be a configuration option.
     # FIXME: At the very least this should be output with a verbose flag
     #        for debugging.
-    let triple: ^int8 = llvm.LLVMGetDefaultTargetTriple();
-    let error_: ^int8;
-    let target_ref: ^llvm.LLVMTarget;
-    if llvm.LLVMGetTargetFromTriple(triple, &target_ref, &error_) <> 0 {
+    let triple: str = llvm.LLVMGetDefaultTargetTriple();
+    let mut error_: str;
+    let target_ref: *llvm.LLVMTarget;
+    if llvm.LLVMGetTargetFromTriple(triple, &target_ref, &error_) != 0 {
         # Failed to get a valid target.
         errors.count = 1;
         return;
-    }
+    };
 
     # Construct a target machine.
     # TODO: Pull together a list of features
     g.target_machine = llvm.LLVMCreateTargetMachine(
-        target_ref, triple, "" as ^int8, "" as ^int8,
+        target_ref, triple, "", "",
         2,  #  llvm.LLVMCodeGenLevelDefault,
         0,  #  llvm.LLVMRelocDefault,
         0); #  llvm.LLVMCodeModelDefault);
@@ -56,10 +56,8 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     llvm.LLVMSetTarget(g.mod, triple);
 
     # Get and set the data layout.
-    g.target_data =
-        llvm.LLVMGetTargetMachineData(g.target_machine);
-    let data_layout: ^int8 = llvm.LLVMCopyStringRepOfTargetData(
-        g.target_data);
+    g.target_data = llvm.LLVMGetTargetMachineData(g.target_machine);
+    let data_layout = llvm.LLVMCopyStringRepOfTargetData(g.target_data);
     llvm.LLVMSetDataLayout(g.mod, data_layout);
 
     # Dispose of the used triple.
@@ -74,14 +72,14 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.items = dict.make(65535);
     g.nodes = dict.make(65535);
     g.imported_modules = dict.make(65535);
-    g.ns = list.make(types.STR);
-    g.top_ns = string.make();
-    g.loops = list.make_generic(generator_.LOOP_SIZE);
-    g.attached_functions = list.make(types.PTR);
+    g.ns = list.List.new(types.STR);
+    g.top_ns = string.String.new();
+    g.loops = list.List.with_element_size(size_of(generator_.Loop));
+    g.attached_functions = list.List.new(types.PTR);
     g.current_self = code.make_nil();
 
     # Build the "type resolution" jump table.
-    libc.memset(&g.type_resolvers[0] as ^void, 0, (100 * ptr_size) as int32);
+    libc.memset(&g.type_resolvers[0] as *int8, 0, (100 * ptr_size) as int32);
     g.type_resolvers[ast.TAG_IDENT] = resolvers.ident;
     g.type_resolvers[ast.TAG_INTEGER] = resolvers.integer;
     g.type_resolvers[ast.TAG_BOOLEAN] = resolvers.boolean;
@@ -128,11 +126,11 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.type_resolvers[ast.TAG_ARRAY_EXPR] = resolvers.array;
     g.type_resolvers[ast.TAG_STRING] = resolvers.string_;
     g.type_resolvers[ast.TAG_SELF] = resolvers.self_;
-    g.type_resolvers[ast.TAG_DELEGATE] = resolvers.delegate;
+    g.type_resolvers[ast.TAG_DELEGATE] = resolvers.delegate_;
     g.type_resolvers[ast.TAG_SIZEOF] = resolvers.sizeof;
 
     # Build the "builder" jump table.
-    libc.memset(&g.builders[0] as ^void, 0, (100 * ptr_size) as int32);
+    libc.memset(&g.builders[0] as *int8, 0, (100 * ptr_size) as int32);
     g.builders[ast.TAG_IDENT] = builders.ident;
     g.builders[ast.TAG_SIZEOF] = builders.sizeof;
     g.builders[ast.TAG_INTEGER] = builders.integer;
@@ -172,8 +170,6 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     g.builders[ast.TAG_LOOP] = builders.loop_;
     g.builders[ast.TAG_BREAK] = builders.break_;
     g.builders[ast.TAG_CONTINUE] = builders.continue_;
-    # g.builders[ast.TAG_ARRAY_TYPE] = builders.array_type;
-    # g.builders[ast.TAG_POINTER_TYPE] = builders.pointer_type;
     g.builders[ast.TAG_INDEX] = builders.index;
     g.builders[ast.TAG_ARRAY_EXPR] = builders.array;
     g.builders[ast.TAG_TUPLE_EXPR] = builders.tuple;
@@ -191,23 +187,23 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
     # by "some" declaration (`module`, `function`, `struct`, etc.) this
     # effectually removes the AST structure.
     generator_extract.extract(g, node);
-    if errors.count > 0 { return; }
+    if errors.count > 0 { return; };
 
     # Next we realize the type of each item that we extracted.
     generator_realize.generate(g);
-    if errors.count > 0 { return; }
+    if errors.count > 0 { return; };
 
     # Next we resolve the type of each item that we extracted.
     generator_type.generate(g);
-    if errors.count > 0 { return; }
+    if errors.count > 0 { return; };
 
     # Next we generate decls for each "item".
     generator_decl.generate(g);
-    if errors.count > 0 { return; }
+    if errors.count > 0 { return; };
 
     # Next we generate defs for each "item".
     generator_def.generate(g);
-    if errors.count > 0 { return; }
+    if errors.count > 0 { return; };
 
     # Generate a main function.
     declare_main(g);
@@ -215,37 +211,37 @@ def generate(&mut g: generator_.Generator, name: str, &node: ast.Node) {
 
 # Declare the `main` function.
 # -----------------------------------------------------------------------------
-def declare_main(&mut g: generator_.Generator) {
+let declare_main(mut g: generator_.Generator) -> {
     # Qualify a module main name.
-    let mut name: string.String = string.make();
+    let mut name: string.String = string.String.new();
     name.extend(g.top_ns.data() as str);
     name.append('.');
     name.extend("main");
 
     # Was their a main function defined?
-    let module_main_fn_returns: bool = false;
-    let module_main_fn: ^llvm.LLVMOpaqueValue = 0 as ^llvm.LLVMOpaqueValue;
-    let module_main_fn_han: ^code.Function;
-    let module_main_fn_type: ^code.FunctionType;
+    let mut module_main_fn_returns: bool = false;
+    let mut module_main_fn: *llvm.LLVMOpaqueValue = 0 as *llvm.LLVMOpaqueValue;
+    let mut module_main_fn_han: *code.Function;
+    let mut module_main_fn_type: *code.FunctionType;
     if g.items.contains(name.data() as str) {
-        let module_main_han: ^code.Handle;
-        module_main_han = g.items.get_ptr(name.data() as str) as ^code.Handle;
-        module_main_fn_han = module_main_han._object as ^code.Function;
+        let mut module_main_han: *code.Handle;
+        module_main_han = g.items.get_ptr(name.data() as str) as *code.Handle;
+        module_main_fn_han = module_main_han._object as *code.Function;
         module_main_fn = module_main_fn_han.handle;
-        let module_main_fn_type_han: ^code.Handle = module_main_fn_han.type_;
+        let mut module_main_fn_type_han: *code.Handle = module_main_fn_han.type_;
         module_main_fn_type = module_main_fn_type_han._object as
-            ^code.FunctionType;
+            *code.FunctionType;
 
         # Does the module main function return?
         module_main_fn_returns =
-            module_main_fn_type.return_type._tag <> code.TAG_VOID_TYPE;
+            module_main_fn_type.return_type._tag != code.TAG_VOID_TYPE;
 
         # Does the module main function take arguments?
         if module_main_fn_type.parameters.size > 3 {
             # Yes; but too many.
             errors.begin_error();
             errors.libc.fprintf(errors.libc.stderr,
-                                "too many parameters (4) for 'main': must be 0, 2, or 3" as ^int8);
+                                "too many parameters (4) for 'main': must be 0, 2, or 3");
             errors.end();
 
             return;
@@ -253,117 +249,117 @@ def declare_main(&mut g: generator_.Generator) {
             # Yes; but not enough
             errors.begin_error();
             errors.libc.fprintf(errors.libc.stderr,
-                                "only one parameter for 'main': must be 0, 2, or 3" as ^int8);
+                                "only one parameter for 'main': must be 0, 2, or 3");
             errors.end();
 
             return;
         } else if module_main_fn_type.parameters.size > 0 {
             # Test the type of the first parameter of main.
-            let mut param_han: ^code.Handle = module_main_fn_type.parameters.at_ptr(0) as ^code.Handle;
-            let mut param: ^code.Parameter = param_han._object as ^code.Parameter;
+            let mut param_han: *code.Handle = module_main_fn_type.parameters.get_ptr(0) as *code.Handle;
+            let mut param: *code.Parameter = param_han._object as *code.Parameter;
             let mut param_type_match: bool = false;
             if param.type_._tag == code.TAG_INT_TYPE {
-                let int_ty: ^code.IntegerType = param.type_._object as ^code.IntegerType;
+                let int_ty: *code.IntegerType = param.type_._object as *code.IntegerType;
                 if int_ty.bits == 32 {
                     param_type_match = true;
-                }
-            }
+                };
+            };
             if not param_type_match {
                 errors.begin_error();
                 errors.libc.fprintf(errors.libc.stderr,
-                                    "first parameter of 'main' (argument count) must be of type 'int32'" as ^int8);
+                                    "first parameter of 'main' (argument count) must be of type 'int32'");
                 errors.end();
 
                 return;
-            }
+            };
 
             # Test the type of the second parameter of main.
-            param_han = module_main_fn_type.parameters.at_ptr(1) as ^code.Handle;
-            param = param_han._object as ^code.Parameter;
+            param_han = module_main_fn_type.parameters.get_ptr(1) as *code.Handle;
+            param = param_han._object as *code.Parameter;
             param_type_match = false;
             if param.type_._tag == code.TAG_POINTER_TYPE {
-                let ptrty: ^code.PointerType = param.type_._object as ^code.PointerType;
+                let ptrty: *code.PointerType = param.type_._object as *code.PointerType;
                 if ptrty.pointee._tag == code.TAG_STR_TYPE {
                     param_type_match = true;
-                }
-            }
+                };
+            };
             if not param_type_match {
                 errors.begin_error();
                 errors.libc.fprintf(errors.libc.stderr,
-                                    "second parameter of 'main' (argument array) must be of type '*str'" as ^int8);
+                                    "second parameter of 'main' (argument array) must be of type '*str'");
                 errors.end();
 
                 return;
-            }
+            };
 
             if module_main_fn_type.parameters.size == 3 {
                 # Test the type of the third parameter of main.
-                param_han = module_main_fn_type.parameters.at_ptr(2) as ^code.Handle;
-                param = param_han._object as ^code.Parameter;
+                param_han = module_main_fn_type.parameters.get_ptr(2) as *code.Handle;
+                param = param_han._object as *code.Parameter;
                 param_type_match = false;
                 if param.type_._tag == code.TAG_POINTER_TYPE {
-                    let ptrty: ^code.PointerType = param.type_._object as ^code.PointerType;
+                    let ptrty: *code.PointerType = param.type_._object as *code.PointerType;
                     if ptrty.pointee._tag == code.TAG_STR_TYPE {
                         param_type_match = true;
-                    }
-                }
+                    };
+                };
                 if not param_type_match {
                     errors.begin_error();
                     errors.libc.fprintf(errors.libc.stderr,
-                                        "third parameter of 'main' (environment) must be of type '*str'" as ^int8);
+                                        "third parameter of 'main' (environment) must be of type '*str'");
                     errors.end();
 
                     return;
-                }
-            }
-        }
-    }
+                };
+            };
+        };
+    };
 
     # Build an array of argument types for the `main` fn.
-    let mut main_param_types: list.List = list.make(types.PTR);
-    main_param_types.push_ptr(llvm.LLVMInt32Type() as ^void);
-    main_param_types.push_ptr(llvm.LLVMPointerType(llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0), 0) as ^void);
-    main_param_types.push_ptr(llvm.LLVMPointerType(llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0), 0) as ^void);
+    let mut main_param_types: list.List = list.List.new(types.PTR);
+    main_param_types.push_ptr(llvm.LLVMInt32Type() as *int8);
+    main_param_types.push_ptr(llvm.LLVMPointerType(llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0), 0) as *int8);
+    main_param_types.push_ptr(llvm.LLVMPointerType(llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0), 0) as *int8);
 
     # Build the LLVM type for the `main` fn.
-    let main_type: ^llvm.LLVMOpaqueType = llvm.LLVMFunctionType(
+    let main_type: *llvm.LLVMOpaqueType = llvm.LLVMFunctionType(
         llvm.LLVMInt32Type(),
-        main_param_types.elements as ^^llvm.LLVMOpaqueType,
+        main_param_types.elements as *llvm.LLVMOpaqueType,
         main_param_types.size as uint32, 0);
 
     # Build the LLVM function for `main`.
-    let main_fn: ^llvm.LLVMOpaqueValue = llvm.LLVMAddFunction(
-        g.mod, "main" as ^int8, main_type);
+    let main_fn: *llvm.LLVMOpaqueValue = llvm.LLVMAddFunction(
+        g.mod, "main", main_type);
 
     # Build the LLVM function definition.
-    let entry_block: ^llvm.LLVMOpaqueBasicBlock;
-    entry_block = llvm.LLVMAppendBasicBlock(main_fn, "" as ^int8);
+    let mut entry_block: *llvm.LLVMOpaqueBasicBlock;
+    entry_block = llvm.LLVMAppendBasicBlock(main_fn, "");
     llvm.LLVMPositionBuilderAtEnd(g.irb, entry_block);
 
     # Iterate and add argument places for main arguments.
-    let mut main_args: list.List = list.make(types.PTR);
+    let mut main_args: list.List = list.List.new(types.PTR);
     let mut arg_idx: uint = 0;
-    if module_main_fn <> 0 as ^llvm.LLVMOpaqueValue {
+    if module_main_fn != 0 as *llvm.LLVMOpaqueValue {
         while arg_idx < module_main_fn_type.parameters.size {
             # Get the parameter handle.
-            let prm_val: ^llvm.LLVMOpaqueValue;
+            let mut prm_val: *llvm.LLVMOpaqueValue;
             prm_val = llvm.LLVMGetParam(main_fn, arg_idx as uint32);
 
             # Push the parameter onto the argument list for main.
-            main_args.push_ptr(prm_val as ^void);
+            main_args.push_ptr(prm_val as *int8);
             arg_idx = arg_idx + 1;
         }
-    }
+    };
 
-    let main_res: ^llvm.LLVMOpaqueValue;
-    if module_main_fn <> 0 as ^llvm.LLVMOpaqueValue {
+    let mut main_res: *llvm.LLVMOpaqueValue;
+    if module_main_fn != 0 as *llvm.LLVMOpaqueValue {
         # Create a `call` to the module main method.
         main_res = llvm.LLVMBuildCall(
             g.irb, module_main_fn,
-            main_args.elements as ^^llvm.LLVMOpaqueValue,
+            main_args.elements as *llvm.LLVMOpaqueValue,
             main_args.size as uint32,
-            "" as ^int8);
-    }
+            "");
+    };
 
     # Dispose
     main_param_types.dispose();
@@ -373,23 +369,23 @@ def declare_main(&mut g: generator_.Generator) {
     if module_main_fn_returns
     {
         # Wrap the value.
-        let val: ^code.Handle = code.make_value(
+        let val: *code.Handle = code.make_value(
             module_main_fn_type.return_type,
             code.VC_RVALUE,
             main_res);
 
         # Coerce to value.
-        let val_han: ^code.Handle = generator_def.to_value(
+        let val_han: *code.Handle = generator_def.to_value(
             g, val, code.VC_RVALUE, false);
-        if code.isnil(val_han) { return; }
+        if code.isnil(val_han) { return; };
 
         # Build the cast.
-        let cast_han: ^code.Handle = generator_util.cast(
-            g, val, g.items.get_ptr("int32") as ^code.Handle, true);
-        if code.isnil(cast_han) { return; }
+        let cast_han: *code.Handle = generator_util.cast(
+            g, val, g.items.get_ptr("int32") as *code.Handle, true);
+        if code.isnil(cast_han) { return; };
 
         # Get the value.
-        let cast_val: ^code.Value = cast_han._object as ^code.Value;
+        let cast_val: *code.Value = cast_han._object as *code.Value;
 
         # Add the `ret` instruction to terminate the function.
         llvm.LLVMBuildRet(g.irb, cast_val.handle);
@@ -397,46 +393,13 @@ def declare_main(&mut g: generator_.Generator) {
     else
     {
         # Create a constant 0.
-        let zero: ^llvm.LLVMOpaqueValue;
+        let mut zero: *llvm.LLVMOpaqueValue;
         zero = llvm.LLVMConstInt(llvm.LLVMInt32Type(), 0, false);
 
-        # Add the `ret void` instruction to terminate the function.
+        # Add the `ret int8` instruction to terminate the function.
         llvm.LLVMBuildRet(g.irb, zero);
-    }
+    };
 
     # Dispose.
     name.dispose();
-}
-
-# Test driver using `stdin`.
-# =============================================================================
-def main() {
-    # Declare the tokenizer.
-    let mut t: tokenizer.Tokenizer = tokenizer.tokenizer_new(
-        "-", libc.stdin);
-
-    # Declare the parser.
-    let mut p: parser.Parser = parser.parser_new("_", t);
-
-    # Parse the AST from the standard input.
-    let unit: ast.Node = p.parse();
-    if errors.count > 0 { libc.exit(-1); }
-
-    # Declare the generator.
-    let mut g: generator_.Generator;
-
-    # Walk the AST and generate the LLVM IR.
-    generate(g, "_", unit);
-    if errors.count > 0 { libc.exit(-1); }
-
-    # Output the generated LLVM IR.
-    let data: ^int8 = llvm.LLVMPrintModuleToString(g.mod);
-    printf("%s", data);
-    llvm.LLVMDisposeMessage(data);
-
-    # Dispose of the resources used.
-    g.dispose();
-
-    # Return success back to the envrionment.
-    libc.exit(0);
 }

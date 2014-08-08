@@ -1,248 +1,210 @@
 import libc;
-import llvm;
-import ast;
+import posix;
 import errors;
-import parser;
-import tokens;
+import string;
 import tokenizer;
+import parser;
 import generator;
 import generator_;
 
-def main(argc: int, argv: ^^int8) {
+let show_help() -> {
+    libc.printf(
+        "Usage: arrow [options] file\n\n"
+        "Options:\n"
+        "  -h               Display this information\n"
+        "  -o <file>        Place the output into <file>\n"
+        "  -V, --version    Display version information\n"
+        "  -L <directory>   Add <directory> to module search path\n"
+        "  --tokenize       Tokenize the input file and print the tokens\n"
+        "  --parse          Parse the input file and print the AST\n");
+}
 
-    # sadly, no implicit string concatination in the old compiler
-    let help: str = ("Usage: arrow [options] file\nOptions:\n  -h\t\t\tDisplay this information\n  -o <file>\t\tPlace the output into <file>\n  -V, --version\t\tDisplay version information\n  -L <directory>\tAdd <directory> to module search path\n");
+let main(argc: int32, argv: *str): int32 -> {
+    # Prepare flags and state.
+    let mut show_version: int32 = 0;
+    let mut tokenize_only: int32 = 0;
+    let mut parse_only: int32 = 0;
+    let mut filename: str = string.nil;
+    let mut output_filename: str = string.nil;
 
-    # Build options "description"
-    let desc: libc.option[50];
-    let opt: libc.option;
+    # Build available options.
+    let long_options = [
+        # --version
+        posix.option("version", 0, (&show_version as *int), 1),
 
-    # -o <output_filename>
-    let output_filename: ^int8 = 0 as ^int8;
+        # --tokenize
+        posix.option("tokenize", 0, (&tokenize_only as *int), 1),
 
-    # <filename>
-    let filename: ^int8 = 0 as ^int8;
+        # --parse
+        posix.option("parse", 0, (&parse_only as *int), 1),
 
-    # --version
-    let show_version: bool = false;
-    opt.name = "version" as ^int8;
-    opt.has_arg = 0;
-    opt.flag = &show_version as ^int32;
-    opt.val = 1;
-    desc[0] = opt;
+        # [end]
+        posix.option(string.nil, 0, 0 as *int, 0)
+    ];
 
-    # --parse
-    let parse_only: bool = false;
-    opt.name = "parse" as ^int8;
-    opt.has_arg = 0;
-    opt.flag = &parse_only as ^int32;
-    opt.val = 1;
-    desc[1] = opt;
+    # Parse and iterate through the resultant options
+    while posix.optind < argc {
+        let option_idx = 0;
+        let c = posix.getopt_long(argc, argv, "hVo:", &long_options[0],
+                                  &option_idx);
 
-    # --tokenize
-    let tokenize_only: bool = false;
-    opt.name = "tokenize" as ^int8;
-    opt.has_arg = 0;
-    opt.flag = &tokenize_only as ^int32;
-    opt.val = 1;
-    desc[2] = opt;
-
-    # ..end
-    opt.name = 0 as ^int8;
-    opt.has_arg = 0;
-    opt.flag = 0 as ^int32;
-    opt.val = 0;
-    desc[3] = opt;
-
-    while libc.optind < argc {
-        # Initate the option parsing
-        let option_index: int32 = 0;
-        let c: int = libc.getopt_long(
-            argc as int32, argv,
-            "hVo:" as ^int8,
-            &desc[0], &option_index);
-
-        # Detect the end of the options.
         if c == -1 {
-            # Check this argument.
-            if filename == 0 as ^int8 {
-                filename = (argv + libc.optind)^;
-            }
+            # No option was matched
+            if string.isnil(filename) {
+                # Assume this is the input filename
+                filename = *(argv + posix.optind);
+            } else {
+                # We have too many filenames.
+                errors.begin();
+                errors.print_error();
+                libc.fprintf(libc.stderr, "too many input files");
+                errors.end();
 
-            # Move along.
-            libc.optind = libc.optind + 1;
+                # FIXME: The `current_function` should be being detected
+                #        and the target type context should auto-cast this
+                #        to int32 (it is not).
+                return -1 as int32;
+            };
 
-            # HACK!
-            void;
+            # Move along
+            posix.optind = posix.optind + 1;
         } else {
-            # Handle "option" arguments.
-            if c as char == "V" {
-                show_version = true;
-            } else if c as char == "o" {
-                output_filename = libc.optarg;
-            } else if c as char == "h"{
-                printf(help);
-                libc.exit(0);
-            }
-
-            # HACK!
-            void;
-        }
+            # Handle short options
+            if (c as char) == "h" {
+                show_help();
+                return 0;
+            } else if (c as char) == "V" {
+                show_version = 1;
+            } else if (c as char) == "o" {
+                output_filename = posix.optarg;
+            };
+        };
     }
 
-    # Show the version and exit if asked.
-    if show_version {
-        printf("arrow 0.0.1\n");
-        libc.exit(0);
-    }
+    # Check for set flags.
+    if show_version != 0 {
+        libc.printf("Arrow 0.1.0\n");
+        return 0;
+    };
 
-    # Check for a stdin stream
-    let fds: libc.pollfd;
-    let ret: int;
-    fds.fd = 0; # this is STDIN
-    fds.events = 0x0001;
-    ret = libc.poll(&fds, 1, 0);
-    let file: ^libc._IO_FILE;
-    let has_file: bool = false;
-    if ret == 1 and filename == 0 as ^int8 {
-        filename = "-" as ^int8;
-        file = libc.stdin;
-        void;
-    } else if filename <> 0 as ^int8 {
-        has_file = true;
-        file = libc.fopen(filename, "r" as ^int8);
-        void;
+    # Check for a `stdin` stream.
+    let fds = posix.pollfd(0, 0x0001, 0);
+    let ret = posix.poll(&fds, 1, 0);
+    let mut stream: *libc.FILE;
+    let mut has_stream = false;
+    let mut module_name: str;
+    if ret == 1 and string.isnil(filename) {
+        # `stdin` has data and no filename was passed
+        filename = "-";
+        module_name = "_";
+        stream = libc.stdin;
+    } else if not string.isnil(filename) {
+        # filename was passed
+        has_stream = true;
+        stream = libc.fopen(filename, "r");
+        # TODO: Get the "basename" less the extension as the module name
+        module_name = filename;
+        if stream == 0 as *libc.FILE {
+            # file cannot be opened for read
+            # FIXME: Get acutal error code and say that message instead
+            errors.begin();
+            errors.print_error();
+            libc.fprintf(libc.stderr, "no such file or directory: '%s'",
+                         filename);
+            errors.end();
+
+            return -1 as int32;
+        };
     } else {
+        # no filename was passed and `stdin` has no data
         errors.begin();
         errors.print_error();
-        errors.libc.fprintf(errors.libc.stderr,
-            "no input filename given and `stdin` is empty" as ^int8);
+        libc.fprintf(libc.stderr, "no input filename given and 'stdin' "
+                                  "is empty");
         errors.end();
-        libc.exit(-1);
-        void;
-    }
+
+        return -1 as int32;
+    };
+
+    # Declare an output stream
+    let mut out_stream: *libc.FILE;
+    let mut has_out_stream: bool = false;
+    if string.isnil(output_filename) {
+        out_stream = libc.stdout;
+    } else {
+        out_stream = libc.fopen(output_filename, "w");
+        has_out_stream = true;
+    };
 
     # Declare the tokenizer.
-    let mut t: tokenizer.Tokenizer = tokenizer.tokenizer_new(
-        filename as str, file);
+    let mut t: tokenizer.Tokenizer = tokenizer.Tokenizer.new(filename, stream);
 
-    # If we were to tokenize only; show the token stream and exit.
-    if tokenize_only
-    {
-        let mut outstream: ^libc._IO_FILE;
-        if output_filename <> 0 as ^int8 {
-            outstream = libc.fopen(output_filename, "w" as ^int8);
-        }
-
+    if tokenize_only != 0 {
         # Iterate through each token in the input stream.
         loop {
             # Get the next token
-            let mut tok: tokenizer.Token = t.next();
+            let mut tok = t.next();
 
             # Print token if we're error-free
-            if errors.count == 0 {
-                if output_filename <> 0 as ^int8 {
-                    tok.fprintln(outstream);
-                } else {
-                    tok.println();
-                }
-            }
+            if errors.count == 0 { tok.fprintln(out_stream); };
 
             # Stop if we reach the end.
-            if tok.tag == tokens.TOK_END { break; }
+            if tok.tag == tokens.TOK_END { break; };
 
             # Dispose of the token.
             tok.dispose();
         }
 
-        if output_filename <> 0 as ^int8 {
-            libc.fclose(outstream);
-        }
-
-        # Dispose of the tokenizer.
+        # Dispose
         t.dispose();
 
-        # Exit
-        if errors.count > 0 { libc.exit(-1); }
-        libc.exit(0);
-    }
-
-    # Determine the "module name"
-    let module_name: str =
-        if has_file {
-            # HACK: HACK: HACK: nuff said
-            (filename + libc.strlen(filename) - 3)^ = 0;
-            filename as str;
-        } else {
-            "_";
-        };
+        # Return
+        return (-1 if errors.count > 0 else 0) as int32;
+    };
 
     # Declare the parser.
     let mut p: parser.Parser = parser.parser_new(module_name, t);
 
     # Parse the AST from the standard input.
     let unit: ast.Node = p.parse();
-    if errors.count > 0 { libc.exit(-1); }
+    if errors.count > 0 { libc.exit(-1); };
 
-    # If we were to parse only; show the AST stream and exit.
-    if parse_only
-    {
-        let mut outstream: ^libc._IO_FILE;
-        if output_filename <> 0 as ^int8 {
-            outstream = libc.fopen(output_filename, "w" as ^int8);
-        }
-
+    if parse_only != 0 {
         # Print the AST.
-        if output_filename == 0 as ^int8 {
-            ast.dump(unit);
-        } else {
-            ast.fdump(outstream, unit);
-        }
+        ast.fdump(out_stream, unit);
 
-        if output_filename <> 0 as ^int8 {
-            libc.fclose(outstream);
-        }
-
-        # Dispose of the tokenizer and parser.
+        # Dispose
         t.dispose();
         p.dispose();
 
-        # Exit successfully
-        libc.exit(0);
-    }
-
-    # Close the stream.
-    if has_file { libc.fclose(file); }
+        # Return
+        return (-1 if errors.count > 0 else 0) as int32;
+    };
 
     # Die if we had errors.
-    if errors.count > 0 { libc.exit(-1); }
+    if errors.count > 0 { libc.exit(-1); };
 
     # Declare the generator.
     let mut g: generator_.Generator;
 
     # Walk the AST and generate the LLVM IR.
-    generator.generate(g, "_", unit);
-    if errors.count > 0 { libc.exit(-1); }
+    generator.generate(g, module_name, unit);
+    if errors.count > 0 { libc.exit(-1); };
 
     # Output the generated LLVM IR.
-    let data: ^int8 = llvm.LLVMPrintModuleToString(g.mod);
-
-    if output_filename == 0 as ^int8 {
-        printf("%s", data);
-    } else {
-        let outstream: ^libc._IO_FILE =
-            libc.fopen(output_filename, "w" as ^int8);
-        libc.fprintf(outstream, "%s" as ^int8, data);
-        libc.fclose(outstream);
-    }
-
+    let data = llvm.LLVMPrintModuleToString(g.mod);
+    libc.fprintf(out_stream, "%s", data);
     llvm.LLVMDisposeMessage(data);
 
-    # Dispose of the resources used.
-    # g.dispose();
-    p.dispose();
-    t.dispose();
+    # Close the streams.
+    if has_stream { libc.fclose(stream); };
+    if has_out_stream { libc.fclose(out_stream); };
 
-    # Exit successfully
-    libc.exit(0);
+    # Dispose
+    t.dispose();
+    p.dispose();
+    g.dispose();
+
+    # Return
+    return (-1 if errors.count > 0 else 0) as int32;
 }

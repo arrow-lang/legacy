@@ -32,7 +32,7 @@ def get_snapshot(version, target=None):
     os.makedirs(snapshot_dir, exist_ok=True)
 
     # Check for an existing snapshot.
-    snapshot_file = path.join(cache_dir, "%s/bin/arrow" % target)
+    snapshot_file = path.join(cache_dir, "%s/bin/arrow.ll" % target)
     if path.exists(snapshot_file):
         return snapshot_file
 
@@ -59,11 +59,6 @@ def get_snapshot(version, target=None):
         with tarfile.open(snapshot_tarfile) as handle:
             handle.extractall(snapshot_dir)
 
-    if version == "0.0.0":
-        # Return the compiler path.
-        return path.join(snapshot_dir, "bin/arrow")
-
-    else:
-        # Return the compiler path.
-        return path.join(snapshot_dir, "arrow-%s-%s/bin/arrow" % (
-                         version, target))
+    # Return the compiler path.
+    return path.join(snapshot_dir, "arrow-%s-%s/bin/arrow.ll" % (
+                     version, target))

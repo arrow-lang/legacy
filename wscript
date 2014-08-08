@@ -49,16 +49,16 @@ def configure(ctx):
     if not ctx.options.arrow:
         # Attempt to get a snapshot for this platform.
         try:
-            ctx.env.ARROW = ws.snapshot.get_snapshot(SNAPSHOT_VERSION)
+            ctx.env.ARROW_SNAPSHOT = ws.snapshot.get_snapshot(SNAPSHOT_VERSION)
 
         except ws.snapshot.SnapshotNotFound:
             ctx.fatal("An existing arrow compiler is needed for the "
                       "boostrap process; specify one with \"--with-arrow\"")
     else:
-        ctx.env.ARROW = ctx.options.arrow
+        ctx.env.ARROW_SNAPSHOT = ctx.options.arrow
 
     # Report the compiler to be used.
-    ctx.msg("Checking for 'arrow' (Arrow compiler)", ctx.env.ARROW)
+    ctx.msg("Checking for 'arrow' (Arrow compiler)", ctx.env.ARROW_SNAPSHOT)
 
     # Check for the llvm compiler.
     ctx.find_program('llc', var='LLC')
@@ -76,34 +76,71 @@ def configure(ctx):
 
 
 def build(ctx):
-    # Compile the compiler to the llvm IL.
-    if SNAPSHOT_VERSION == "0.0.0":
-        rule = "${ARROW} -w --no-prelude -L ../src -S ${SRC} > ${TGT}"
-        ctx(rule=rule,
-            source="src/compiler.as",
-            target="compiler.ll")
 
-    else:
-        rule = "${ARROW} ${SRC} > ../build/${TGT}"
-        ctx(rule=rule,
-            source="src/compiler.as",
-            target="compiler.ll",
-            cwd="src")
-
-    # Optimize the compiler.
-    ctx(rule="${OPT} -O3 -o=${TGT} ${SRC}",
-        source="compiler.ll",
-        target="compiler.opt.ll")
-
+    # Build the stage-0 compiler from the fetched snapshot
     # Compile the compiler from llvm IL into native object code.
-    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
-        source="compiler.opt.ll",
-        target="compiler.o")
+    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${ARROW_SNAPSHOT}",
+        target="stage0/arrow.o")
 
     # Link the compiler into a final executable.
     libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
     ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
-        source="compiler.o",
+        source="stage0/arrow.o",
+        target="stage0/arrow",
+        name="stage0")
+
+    # Take the stage-1 compiler (the one that we have through
+    # reasons unknown to us). Use this to compile the stage-2 compiler.
+
+    # Compile the compiler to the llvm IL.
+    ctx(rule="../build/stage0/arrow ${SRC} | ${OPT} -O3 -o=../build/${TGT}",
+        source="src/compiler.as",
+        target="stage1/arrow.ll",
+        cwd="src",
+        after="stage0")
+
+    # Compile the compiler from llvm IL into native object code.
+    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
+        source="stage1/arrow.ll",
+        target="stage1/arrow.o")
+
+    # Link the compiler into a final executable.
+    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
+    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
+        source="stage1/arrow.o",
+        target="stage1/arrow",
+        name="stage1")
+
+    # TODO: Run the test suite on the stage-2 compiler
+
+    # Use the newly compiled stage-1 to compile the stage-2 compiler
+
+    # Compile the compiler to the llvm IL.
+    ctx(rule="../build/stage1/arrow ${SRC} | ${OPT} -O3 -o=../build/${TGT}",
+        source="src/compiler.as",
+        target="stage2/arrow.ll",
+        cwd="src",
+        after="stage1")
+
+    # Compile the compiler from llvm IL into native object code.
+    ctx(rule="${LLC} -filetype=obj -o=${TGT} ${SRC}",
+        source="stage2/arrow.ll",
+        target="stage2/arrow.o")
+
+    # Link the compiler into a final executable.
+    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
+    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
+        source="stage2/arrow.o",
+        target="stage2/arrow",
+        name="stage2")
+
+    # TODO: Run the test suite on the stage-3 compiler
+
+    # TODO: Do a bit-by-bit equality check on both compilers
+
+    # Copy the stage2 compiler to "build/arrow"
+    ctx(rule="cp ${SRC} ${TGT}",
+        source="stage2/arrow",
         target="arrow")
 
 

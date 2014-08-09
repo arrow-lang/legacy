@@ -92,18 +92,17 @@ let main(argc: int32, argv: *str): int32 -> {
     let ret = posix.poll(&fds, 1, 0);
     let mut stream: *libc.FILE;
     let mut has_stream = false;
-    let mut module_name: str;
+    let mut module_name = string.String.new();
     if ret == 1 and string.isnil(filename) {
         # `stdin` has data and no filename was passed
         filename = "-";
-        module_name = "_";
+        module_name.append("_");
         stream = libc.stdin;
     } else if not string.isnil(filename) {
         # filename was passed
         has_stream = true;
         stream = libc.fopen(filename, "r");
-        # TODO: Get the "basename" less the extension as the module name
-        module_name = filename;
+
         if stream == 0 as *libc.FILE {
             # file cannot be opened for read
             # FIXME: Get acutal error code and say that message instead
@@ -115,6 +114,12 @@ let main(argc: int32, argv: *str): int32 -> {
 
             return -1 as int32;
         };
+
+        # Calculate the module name.
+        module_name.extend(posix.basename(filename));
+        let endptr = libc.strrchr(module_name.data(), ("." as char) as uint8);
+        *(endptr as *int8) = 0;
+
     } else {
         # no filename was passed and `stdin` has no data
         errors.begin();
@@ -163,7 +168,7 @@ let main(argc: int32, argv: *str): int32 -> {
     };
 
     # Declare the parser.
-    let mut p: parser.Parser = parser.parser_new(module_name, t);
+    let mut p: parser.Parser = parser.parser_new(module_name.data(), t);
 
     # Parse the AST from the standard input.
     let unit: ast.Node = p.parse();
@@ -188,7 +193,7 @@ let main(argc: int32, argv: *str): int32 -> {
     let mut g: generator_.Generator;
 
     # Walk the AST and generate the LLVM IR.
-    generator.generate(g, module_name, unit);
+    generator.generate(g, module_name.data(), unit);
     if errors.count > 0 { libc.exit(-1); };
 
     # Output the generated LLVM IR.

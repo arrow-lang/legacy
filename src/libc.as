@@ -20,6 +20,9 @@ extern let memcmp(*int8, *int8, n: uint) -> int64;
 extern let strcmp(str, str) -> int64;
 extern let strncmp(str, str, n: uint) -> int64;
 
+# Searching
+extern let strrchr(str, uint8) -> str;
+
 # Other
 extern let memset(*int8, int8, n: uint) -> *int8;
 extern let strlen(s: str) -> uint;

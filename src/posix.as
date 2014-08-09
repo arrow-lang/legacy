@@ -36,3 +36,9 @@ struct pollfd {
 
 # wait for some event on a file descriptor
 extern let poll(*pollfd, int32, int32) -> int32;
+
+# libgen.h
+# -----------------------------------------------------------------------------
+
+# parse pathname components
+extern let basename(str) -> str;

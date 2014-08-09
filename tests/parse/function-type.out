@@ -1,0 +1,45 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    SlotDecl <?> static_fn
+      Delegate <?>
+        Parameters <?> 
+      Ident <?> name
+    SlotDecl <?> more_fn
+      Delegate <?>
+        Ident <?> int
+        Parameters <?> 
+          FuncParam <?>
+            Ident <?> int
+          FuncParam <?>
+            Ident <?> bool
+    SlotDecl <?> fn_fn
+      Delegate <?>
+        Delegate <?>
+          Ident <?> int
+          Parameters <?> 
+            FuncParam <?>
+              Ident <?> int
+        Parameters <?> 
+          FuncParam <?>
+            Delegate <?>
+              Ident <?> int
+              Parameters <?> 
+                FuncParam <?>
+                  Ident <?> int
+    FuncDecl <?> fn_fn_named
+      Delegate <?>
+        Ident <?> int
+        Parameters <?> 
+          FuncParam <?>
+            Ident <?> int
+      Type Parameters <?> 
+      Parameters <?> 
+        FuncParam <?> fn
+          Delegate <?>
+            Ident <?> int
+            Parameters <?> 
+              FuncParam <?>
+                Ident <?> int
+      Block <?>
+        Nodes <?> 
+          Ident <?> fn

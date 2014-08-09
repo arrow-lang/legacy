@@ -1,0 +1,25 @@
+ModuleDecl <?> _
+  Nodes <?> 
+    Implement <?>
+      Ident <?> int
+      Methods <?> 
+        FuncDecl <?> zero
+          Ident <?> int
+          Type Parameters <?> 
+          Parameters <?> 
+          Block <?>
+            Nodes <?> 
+              ReturnExpr <?> 
+                IntegerExpr <?> 0 (10)
+    Implement <?>
+      Ident <?> int
+      Methods <?> 
+        Member FuncDecl <?> slap
+          Ident <?> int
+          Type Parameters <?> 
+          Parameters <?> 
+          Block <?>
+            Nodes <?> 
+              ReturnExpr <?> 
+                NumericNegateExpr <?>
+                  Self <?> 

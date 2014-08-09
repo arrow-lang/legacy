@@ -2069,20 +2069,17 @@ let loop_(g: *mut generator_.Generator, node: *ast.Node,
           scope: *mut code.Scope, target: *code.Handle): *code.Handle ->
 {
     # Unwrap the node to its proper type.
-    let x: *ast.Loop = node.unwrap() as *ast.Loop;
+    let x = node.unwrap() as *ast.Loop;
 
     # Get the current basic block and resolve our current function handle.
-    let cur_block: *llvm.LLVMOpaqueBasicBlock = llvm.LLVMGetInsertBlock(g.irb);
-    let cur_fn: *llvm.LLVMOpaqueValue = llvm.LLVMGetBasicBlockParent(
-        cur_block);
+    let cur_block = llvm.LLVMGetInsertBlock(g.irb);
+    let cur_fn = llvm.LLVMGetBasicBlockParent(cur_block);
 
     # Create and append the `condition` block.
-    let mut cond_b: *llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
-        cur_fn, "");
+    let mut cond_b = llvm.LLVMAppendBasicBlock(cur_fn, "");
 
     # Create and append the `merge` block.
-    let mut merge_b: *llvm.LLVMOpaqueBasicBlock = llvm.LLVMAppendBasicBlock(
-        cur_fn, "");
+    let mut merge_b = llvm.LLVMAppendBasicBlock(cur_fn, "");
 
     # Insert the `branch` for this block.
     llvm.LLVMBuildBr(g.irb, cond_b);
@@ -2098,12 +2095,12 @@ let loop_(g: *mut generator_.Generator, node: *ast.Node,
         loop_b = llvm.LLVMAppendBasicBlock(cur_fn, "");
 
         # Yes; build the condition.
-        let bool_ty: *code.Handle = g.items.get_ptr("bool") as *code.Handle;
+        let bool_ty = g.items.get_ptr("bool") as *code.Handle;
         let cond_han = builder.build(g, &x.condition, scope, bool_ty);
         if code.isnil(cond_han) { return code.make_nil(); };
-        let cond_val_han: *code.Handle = generator_def.to_value(
+        let cond_val_han = generator_def.to_value(
             *g, cond_han, code.VC_RVALUE, false);
-        let cond_val: *code.Value = cond_val_han._object as *code.Value;
+        let cond_val = cond_val_han._object as *code.Value;
         if code.isnil(cond_val_han) { return code.make_nil(); };
 
         # Insert the `conditional branch` for this branch.
@@ -2116,6 +2113,9 @@ let loop_(g: *mut generator_.Generator, node: *ast.Node,
         loop_b = cond_b;
         0;  # HACK
     };
+
+    # Move the `loop` block after our current block.
+    llvm.LLVMMoveBasicBlockAfter(loop_b, llvm.LLVMGetInsertBlock(g.irb));
 
     # Switch to the `loop` block.
     llvm.LLVMPositionBuilderAtEnd(g.irb, loop_b);
@@ -2142,7 +2142,7 @@ let loop_(g: *mut generator_.Generator, node: *ast.Node,
     };
 
     # Move the `merge` block after our current loop block.
-    llvm.LLVMMoveBasicBlockAfter(merge_b, loop_b);
+    llvm.LLVMMoveBasicBlockAfter(merge_b, llvm.LLVMGetInsertBlock(g.irb));
 
     # Switch to the `merge` block.
     llvm.LLVMPositionBuilderAtEnd(g.irb, merge_b);

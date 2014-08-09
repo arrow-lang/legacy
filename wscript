@@ -5,7 +5,7 @@ import ws.snapshot
 import waflib.Scripting
 from os import path
 import shutil
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output
 from glob import glob
 
 
@@ -21,7 +21,7 @@ def distclean(ctx):
         # Wipe the `.cache` dir.
         shutil.rmtree(path.join(top, ".cache"))
 
-    except FileNotFoundError:
+    except:
         # I think this is the point.
         pass
 
@@ -39,6 +39,12 @@ def options(ctx):
     ctx.add_option(
         '--with-llvm-config', action='store', default='llvm-config',
         dest='llvm_config')
+
+
+def llvm_config(ctx, *args):
+    command = [ctx.env.LLVM_CONFIG[0]]
+    command.extend(args)
+    return check_output(command).decode("utf-8").strip()
 
 
 def configure(ctx):
@@ -70,12 +76,27 @@ def configure(ctx):
     ctx.find_program('gcc', var='GCC')
     ctx.find_program('g++', var='GXX')
 
-    # Check for the LLVM libraries.
-    ctx.check_cfg(path=ctx.options.llvm_config, package='',
-                  args='--ldflags --libs all', uselib_store='LLVM')
+    # Check for the `llvm-config`.
+    ctx.find_program('llvm-config', var="LLVM_CONFIG")
+
+    # Use `llvm-config` to discover configuration
+    ctx.env.LLVM_LDFLAGS = llvm_config(ctx, "--ldflags")
+    ctx.env.LLVM_LIBS = llvm_config(ctx, "--libs", "all")
+
+
+def _link(ctx, source, target, name):
+    libs = ctx.env.LLVM_LIBS
+    ldflags = ctx.env.LLVM_LDFLAGS
+    ctx(rule="${GXX} -o${TGT} ${SRC} %s %s" % (libs, ldflags),
+        source=source,
+        target=target,
+        name=name)
 
 
 def build(ctx):
+
+    # TODO: Need to fix up the linking process (perhaps use a waf builtin)
+    #       so it works on all platforms
 
     # Build the stage-0 compiler from the fetched snapshot
     # Compile the compiler from llvm IL into native object code.
@@ -83,11 +104,7 @@ def build(ctx):
         target="stage0/arrow.o")
 
     # Link the compiler into a final executable.
-    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
-    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
-        source="stage0/arrow.o",
-        target="stage0/arrow",
-        name="stage0")
+    _link(ctx, "stage0/arrow.o", "stage0/arrow", "stage0")
 
     # Take the stage-1 compiler (the one that we have through
     # reasons unknown to us). Use this to compile the stage-2 compiler.
@@ -105,11 +122,7 @@ def build(ctx):
         target="stage1/arrow.o")
 
     # Link the compiler into a final executable.
-    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
-    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
-        source="stage1/arrow.o",
-        target="stage1/arrow",
-        name="stage1")
+    _link(ctx, "stage1/arrow.o", "stage1/arrow", "stage1")
 
     # TODO: Run the test suite on the stage-2 compiler
 
@@ -128,11 +141,7 @@ def build(ctx):
         target="stage2/arrow.o")
 
     # Link the compiler into a final executable.
-    libs = " ".join(map(lambda x: "-l%s" % x, ctx.env['LIB_LLVM']))
-    ctx(rule="${GXX} -o${TGT} ${SRC} %s" % libs,
-        source="stage2/arrow.o",
-        target="stage2/arrow",
-        name="stage2")
+    _link(ctx, "stage2/arrow.o", "stage2/arrow", "stage2")
 
     # TODO: Run the test suite on the stage-3 compiler
 

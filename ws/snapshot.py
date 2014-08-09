@@ -2,9 +2,14 @@ import os
 import zipfile
 from os import path
 from subprocess import check_call
-from urllib.request import urlopen, HTTPError
 import platform
 import tarfile
+
+try:
+    from urllib.request import urlopen, HTTPError
+
+except ImportError:
+    from urllib2 import urlopen, HTTPError
 
 
 class SnapshotNotFound(BaseException):
@@ -28,8 +33,13 @@ def get_snapshot(version, target=None):
     target = target or get_target()
     snapshot_dir = cache_dir
 
-    # Create the neccessary directories.
-    os.makedirs(snapshot_dir, exist_ok=True)
+    try:
+        # Create the neccessary directories.
+        os.makedirs(snapshot_dir)
+
+    except:
+        # If it failed, oh well
+        pass
 
     # Check for an existing snapshot.
     snapshot_file = path.join(cache_dir, "%s/bin/arrow.ll" % target)

@@ -29,7 +29,7 @@ def get_target():
 def get_snapshot(version, target=None):
     # Determine the snapshot cache folder.
     base_dir = path.dirname(path.dirname(__file__))
-    cache_dir = path.join(base_dir, ".cache/snapshots/%s" % version)
+    cache_dir = path.join(base_dir, ".cache/snapshots")
     target = target or get_target()
     snapshot_dir = cache_dir
 
@@ -42,18 +42,19 @@ def get_snapshot(version, target=None):
         pass
 
     # Check for an existing snapshot.
-    snapshot_file = path.join(cache_dir, "%s/bin/arrow.ll" % target)
+    snapshot_file = path.join(cache_dir, "arrow-%s-%s/bin/arrow.ll" % (
+                              version, target))
     if path.exists(snapshot_file):
         return snapshot_file
 
     # Keep going
-    snapshot_zipfile = path.join(cache_dir, "arrow-%s-%s.tar.xz" % (version, target))
-    if not path.exists(snapshot_zipfile):
+    snapshot_tarfile = path.join(cache_dir, "arrow-%s-%s.tar.xz" % (version, target))
+    if not path.exists(snapshot_tarfile):
         # Build the URI
         uri = SOURCE.format(version=version, target=target)
 
         # Fetch the zip file and store
-        with open(snapshot_zipfile, "wb") as stream:
+        with open(snapshot_tarfile, "wb") as stream:
             try:
                 stream.write(urlopen(uri).read())
                 print("\033[0;33mDownloaded arrow from %s\033[0m" % uri)
@@ -63,12 +64,10 @@ def get_snapshot(version, target=None):
                     # No snapshot available.
                     raise SnapshotNotFound
 
-        # Untar the snapshot.
-        snapshot_tarfile = path.join(
-            snapshot_dir, "arrow-%s-%s.tar.xz" % (version, target))
+    # Untar the snapshot.
+    if not path.exists(snapshot_file):
         with tarfile.open(snapshot_tarfile) as handle:
             handle.extractall(snapshot_dir)
 
     # Return the compiler path.
-    return path.join(snapshot_dir, "arrow-%s-%s/bin/arrow.ll" % (
-                     version, target))
+    return snapshot_file

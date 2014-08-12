@@ -538,6 +538,8 @@ let cast(mut g: generator_.Generator, handle: *code.Handle,
                 };
                 0; # HACK!
             };
+        } else {
+            return code.make_nil();
         };
     }
     else if explicit and type_._tag == code.TAG_STR_TYPE

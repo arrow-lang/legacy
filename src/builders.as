@@ -1998,22 +1998,26 @@ let dereference(g: *mut generator_.Generator, node: *ast.Node,
     # Resolve the operand for its type.
     let operand_ty: *code.Handle = resolver.resolve_s(g, &x.operand, scope);
 
-    # Build each operand.
+    # Grab the "pointee".
+    let operand_ptr_ty = operand_ty._object as *code.PointerType;
+
+    # Build the operand.
     let operand_ty_han: *code.Type = operand_ty._object as *code.Type;
     let operand: *code.Handle = builder.build(
         g, &x.operand, scope, operand_ty);
     if code.isnil(operand) { return code.make_nil(); };
 
-    # Coerce the operands to values.
+    # Coerce the operand to values.
     let operand_val_han: *code.Handle = generator_def.to_value(
         *g, operand, code.VC_RVALUE, false);
     if code.isnil(operand_val_han) { return code.make_nil(); };
 
-    # Cast to values.
+    # Cast to value.
     let operand_val: *code.Value = operand_val_han._object as *code.Value;
 
     # Wrap and return the value (the direct address).
-    let han = code.make_value(target, code.VC_LVALUE, operand_val.handle);
+    let han = code.make_value(operand_ptr_ty.pointee, code.VC_LVALUE,
+                              operand_val.handle);
 
     # Dispose.
     code.dispose(operand_val_han);

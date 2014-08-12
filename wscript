@@ -40,6 +40,10 @@ def options(ctx):
         '--with-llvm-config', action='store', default='llvm-config',
         dest='llvm_config')
 
+    # Add a --quick / -q option (for quick building)
+    ctx.add_option("-q", action="store_true", default=False,
+                   dest="quick_build")
+
 
 def llvm_config(ctx, *args):
     command = [ctx.env.LLVM_CONFIG[0]]
@@ -83,6 +87,9 @@ def configure(ctx):
     ctx.env.LLVM_LDFLAGS = llvm_config(ctx, "--ldflags")
     ctx.env.LLVM_LIBS = llvm_config(ctx, "--libs", "all")
 
+    # Store addl. options
+    ctx.env.QUICK_BUILD = ctx.options.quick_build
+
 
 def _link(ctx, source, target, name):
     libs = ctx.env.LLVM_LIBS
@@ -94,9 +101,6 @@ def _link(ctx, source, target, name):
 
 
 def build(ctx):
-
-    # TODO: Need to fix up the linking process (perhaps use a waf builtin)
-    #       so it works on all platforms
 
     # Build the stage-0 compiler from the fetched snapshot
     # Compile the compiler from llvm IL into native object code.
@@ -124,7 +128,13 @@ def build(ctx):
     # Link the compiler into a final executable.
     _link(ctx, "stage1/arrow.o", "stage1/arrow", "stage1")
 
-    # TODO: Run the test suite on the stage-2 compiler
+    if ctx.env.QUICK_BUILD:
+        # Copy the stage1 compiler to "build/arrow"
+        ctx(rule="cp ${SRC} ${TGT}",
+            source="stage1/arrow",
+            target="arrow")
+
+        return
 
     # Use the newly compiled stage-1 to compile the stage-2 compiler
 

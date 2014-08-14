@@ -25,6 +25,9 @@ struct Generator {
     # process by managing what block we're on, etc.
     irb: *mut llvm.LLVMOpaqueBuilder,
 
+    # Import paths to search on an 'absolute' import.
+    import_paths: list.List,
+
     # A LLVM target machine.
     target_machine: *mut llvm.LLVMOpaqueTargetMachine,
 
@@ -85,6 +88,7 @@ implement Generator {
         # FIXME: Dispose of each "item".
         self.items.dispose();
         self.nodes.dispose();
+        self.import_paths.dispose();
         self.imported_modules.dispose();
         self.attached_functions.dispose();
 

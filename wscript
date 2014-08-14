@@ -114,10 +114,9 @@ def build(ctx):
     # reasons unknown to us). Use this to compile the stage-2 compiler.
 
     # Compile the compiler to the llvm IL.
-    ctx(rule="../build/stage0/arrow ${SRC} | ${OPT} -O3 -o=../build/${TGT}",
+    ctx(rule=".stage0/arrow -L ../src ${SRC} | ${OPT} -O3 -o=${TGT}",
         source="src/compiler.as",
         target="stage1/arrow.ll",
-        cwd="src",
         after="stage0")
 
     # Compile the compiler from llvm IL into native object code.
@@ -139,10 +138,9 @@ def build(ctx):
     # Use the newly compiled stage-1 to compile the stage-2 compiler
 
     # Compile the compiler to the llvm IL.
-    ctx(rule="../build/stage1/arrow ${SRC} | ${OPT} -O3 -o=../build/${TGT}",
+    ctx(rule="./stage1/arrow -L ../src ${SRC} | ${OPT} -O3 -o=${TGT}",
         source="src/compiler.as",
         target="stage2/arrow.ll",
-        cwd="src",
         after="stage1")
 
     # Compile the compiler from llvm IL into native object code.

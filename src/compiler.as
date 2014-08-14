@@ -1,4 +1,6 @@
 import libc;
+import list;
+import types;
 import posix;
 import errors;
 import string;
@@ -26,6 +28,7 @@ let main(argc: int32, argv: *str): int32 -> {
     let mut parse_only: int32 = 0;
     let mut filename: str = string.nil;
     let mut output_filename: str = string.nil;
+    let mut import_paths = list.List.new(types.STR);
 
     # Build available options.
     let long_options = [
@@ -45,7 +48,7 @@ let main(argc: int32, argv: *str): int32 -> {
     # Parse and iterate through the resultant options
     while posix.optind < argc {
         let option_idx = 0;
-        let c = posix.getopt_long(argc, argv, "hVo:", &long_options[0],
+        let c = posix.getopt_long(argc, argv, "hVo:L:", &long_options[0],
                                   &option_idx);
 
         if c == -1 {
@@ -77,6 +80,8 @@ let main(argc: int32, argv: *str): int32 -> {
                 show_version = 1;
             } else if (c as char) == "o" {
                 output_filename = posix.optarg;
+            } else if (c as char) == "L" {
+                import_paths.push_str(posix.optarg);
             };
         };
     }
@@ -193,7 +198,7 @@ let main(argc: int32, argv: *str): int32 -> {
     let mut g: generator_.Generator;
 
     # Walk the AST and generate the LLVM IR.
-    generator.generate(g, module_name.data(), unit);
+    generator.generate(g, module_name.data(), import_paths, unit);
     if errors.count > 0 { libc.exit(-1); };
 
     # Output the generated LLVM IR.

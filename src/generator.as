@@ -21,7 +21,8 @@ import resolvers;
 
 # Begin the generation process seeded by the passed AST node.
 # =============================================================================
-let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
+let generate(mut g: generator_.Generator, name: str, import_paths: list.List,
+             node: ast.Node) -> {
     # Ensure the x86 target is initialized.
     # NOTE: We should first ask configuration what our target is
     #   and attempt to initialize the right target.
@@ -73,6 +74,7 @@ let generate(mut g: generator_.Generator, name: str, node: ast.Node) -> {
     g.nodes = dict.make(65535);
     g.imported_modules = dict.make(65535);
     g.ns = list.List.new(types.STR);
+    g.import_paths = import_paths.clone();
     g.top_ns = string.String.new();
     g.loops = list.List.with_element_size(size_of(generator_.Loop));
     g.attached_functions = list.List.new(types.PTR);

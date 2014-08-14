@@ -251,7 +251,6 @@ let extract_import(mut g: generator_.Generator, x: *ast.Import) ->
 {
     # Build the filename to import.
     # TODO: Handle importing folders and ./index.as, etc.
-    # TODO: Implement a "PATH" system like PYTHON
     let id0_node: ast.Node = x.ids.get(0);
     let id0: *ast.Ident = id0_node.unwrap() as *ast.Ident;
 
@@ -261,18 +260,41 @@ let extract_import(mut g: generator_.Generator, x: *ast.Import) ->
         return;
     };
 
-    let mut filename: string.String = string.String.new();
-    filename.extend(id0.name.data() as str);
-    filename.extend(".as");
+    # Iterate through our available import paths and attempt to find our
+    # file.
+    let mut i: uint = 0;
+    let mut found = false;
+    let mut filename = string.String.new();
 
-    # Check if the filename exists.
-    if posix.access(filename.data(), 0) != 0
+    while i < g.import_paths.size {
+        # Build the filename.
+        filename.clear();
+        filename.extend(g.import_paths.get_str(i));
+        # FIXME: We need a solid path manipulation library
+        # Ensure we have a "[..]/"
+        if filename._data.get_i8(-1) != ("/" as char) as int8 {
+            filename.append("/");
+        };
+        i = i + 1;
+        filename.extend(id0.name.data() as str);
+        filename.extend(".as");
+
+        # Check if the filename exists.
+        if posix.access(filename.data(), 0) != 0 { continue; };
+
+        # Found us a match; break.
+        found = true;
+        break;
+    }
+
+    if not found
     {
         errors.begin_error();
         errors.libc.fprintf(errors.libc.stderr,
                             "cannot find module for '%s'",
                             id0.name.data());
         errors.end();
+        return;
     };
 
     # Open a stream to the file.
@@ -285,12 +307,13 @@ let extract_import(mut g: generator_.Generator, x: *ast.Import) ->
         fn as str, stream);
 
     # Determine the "module name"
-    # HACK: HACK: HACK: nuff said
-    *(fn + libc.strlen(fn as str) - 3) = 0;
-    let module_name: str = fn as str;
+    let mut module_name = string.String.new();
+    module_name.extend(posix.basename(filename.data()));
+    let endptr = libc.strrchr(module_name.data(), ("." as char) as uint8);
+    *(endptr as *int8) = 0;
 
     # Declare the parser.
-    let mut p: parser.Parser = parser.parser_new(module_name, t);
+    let mut p: parser.Parser = parser.parser_new(module_name.data(), t);
 
     # Parse the AST from the standard input.
     let unit: ast.Node = p.parse();

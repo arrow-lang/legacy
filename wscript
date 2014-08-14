@@ -12,8 +12,7 @@ from glob import glob
 top = '.'
 out = 'build'
 
-VERSION = "0.1.0"
-SNAPSHOT_VERSION = "0.1.0"
+SNAPSHOT_VERSION = "0.1.1"
 
 
 def distclean(ctx):
@@ -114,7 +113,7 @@ def build(ctx):
     # reasons unknown to us). Use this to compile the stage-2 compiler.
 
     # Compile the compiler to the llvm IL.
-    ctx(rule=".stage0/arrow -L ../src ${SRC} | ${OPT} -O3 -o=${TGT}",
+    ctx(rule="./stage0/arrow -L ../src ${SRC} | ${OPT} -O3 -o=${TGT}",
         source="src/compiler.as",
         target="stage1/arrow.ll",
         after="stage0")

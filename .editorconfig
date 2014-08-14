@@ -11,3 +11,6 @@ insert_final_newline = true
 
 [*.ebnf]
 indent_size = 2
+
+[makefile]
+indent_style = tab

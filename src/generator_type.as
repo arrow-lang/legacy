@@ -560,7 +560,7 @@ let _generate_func_param(
         types.push_ptr(code.make_parameter(
             param_id.name.data() as str,
             ptype_handle,
-            code.make_nil(),
+            &x.default,
             x.variadic) as *int8);
     }
     else

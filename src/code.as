@@ -420,7 +420,7 @@ let make_array_type(element: *Handle, size: uint, handle: *llvm.LLVMOpaqueType):
 struct Parameter {
     name: string.String,
     type_: *mut Handle,
-    default: *mut Handle,
+    default: *ast.Node,
     variadic: bool
 }
 
@@ -436,7 +436,7 @@ struct FunctionType {
 }
 
 let make_parameter(name: str, type_: *Handle,
-                   default: *Handle, variadic: bool): *Handle -> {
+                   default: *ast.Node, variadic: bool): *Handle -> {
     # Build the parameter.
     let param: *Parameter = libc.malloc(size_of(Parameter)) as *Parameter;
     param.name = string.String.new();
@@ -1027,7 +1027,7 @@ implement Parameter { # HACK: Re-arrange when we can.
     # -------------------------------------------------------------------------
     let dispose(mut self) -> {
         self.name.dispose();
-        self.default._dispose();
+        # self.default._dispose();
     }
 
 }

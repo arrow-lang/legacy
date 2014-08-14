@@ -717,6 +717,8 @@ let call_default_ctor(g: *mut generator_.Generator, node: *ast.CallExpr,
             let prm: *code.Member =
                 prm_han._object as *code.Member;
 
+            # Do we have a "default" argument
+
             # Report
             errors.begin_error();
             errors.libc.fprintf(errors.libc.stderr,

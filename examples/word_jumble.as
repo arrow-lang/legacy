@@ -60,7 +60,7 @@ let main() -> {
         # Ask for the "player's" guess
         libc.printf("\n\nYour guess: ");
         guess.dispose();
-        guess = std.input();
+        guess = input();
 
         if guess.eq_str("quit") or guess.eq_str(word) {
             # Stop if 'quit' or the word is guessed

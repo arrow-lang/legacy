@@ -8,6 +8,7 @@ import tokenizer;
 import parser;
 import generator;
 import generator_;
+import _version;
 
 let show_help() -> {
     libc.printf(
@@ -88,7 +89,7 @@ let main(argc: int32, argv: *str): int32 -> {
 
     # Check for set flags.
     if show_version != 0 {
-        libc.printf("Arrow 0.1.0\n");
+        libc.printf("Arrow %s\n", _version.VERSION);
         return 0;
     };
 

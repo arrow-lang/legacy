@@ -3,6 +3,7 @@ import sys
 import ws.test
 import ws.snapshot
 import waflib.Scripting
+import os
 from os import path
 import shutil
 from subprocess import Popen, PIPE, check_output
@@ -89,6 +90,10 @@ def configure(ctx):
     # Store addl. options
     ctx.env.QUICK_BUILD = ctx.options.quick_build
 
+    # Get the version of the current package.
+    ctx.env.VERSION = check_output(
+        ["git", "describe", "--always", "--tag"]).strip().decode()
+
 
 def _link(ctx, source, target, name):
     libs = ctx.env.LLVM_LIBS
@@ -100,6 +105,15 @@ def _link(ctx, source, target, name):
 
 
 def build(ctx):
+
+    # Write a configuration file that contains the version.
+    cfg = path.join(ctx.bldnode.abspath(), "cfg/_version.as")
+    try:
+        os.makedirs(path.dirname(cfg))
+    except:
+        pass
+    with open(cfg, "w") as stream:
+        stream.write("let VERSION = '%s';\n" % ctx.env.VERSION)
 
     # Build the stage-0 compiler from the fetched snapshot
     # Compile the compiler from llvm IL into native object code.
@@ -113,7 +127,7 @@ def build(ctx):
     # reasons unknown to us). Use this to compile the stage-2 compiler.
 
     # Compile the compiler to the llvm IL.
-    ctx(rule="./stage0/arrow -L ../src ${SRC} | ${OPT} -O3 -o=${TGT}",
+    ctx(rule="./stage0/arrow -L ../src -L ./cfg ${SRC} | ${OPT} -O3 -o=${TGT}",
         source="src/compiler.as",
         target="stage1/arrow.ll",
         after="stage0")
@@ -137,7 +151,7 @@ def build(ctx):
     # Use the newly compiled stage-1 to compile the stage-2 compiler
 
     # Compile the compiler to the llvm IL.
-    ctx(rule="./stage1/arrow -L ../src ${SRC} | ${OPT} -O3 -o=${TGT}",
+    ctx(rule="./stage1/arrow -L ../src -L ./cfg ${SRC} | ${OPT} -O3 -o=${TGT}",
         source="src/compiler.as",
         target="stage2/arrow.ll",
         after="stage1")

@@ -104,7 +104,10 @@ def configure(ctx):
 def _link(ctx, source, target, name):
     libs = ctx.env.LLVM_LIBS
     ldflags = ctx.env.LLVM_LDFLAGS
-    ctx(rule="${GXX} -o${TGT} ${SRC} %s %s" % (libs, ldflags),
+    rule = "${GXX} -o${TGT} ${SRC} %s %s" % (libs, ldflags)
+    if sys.version_info[0] == 2:
+        rule = rule.encode()
+    ctx(rule=rule,
         source=source,
         target=target,
         name=name)

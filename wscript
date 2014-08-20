@@ -91,8 +91,14 @@ def configure(ctx):
     ctx.env.QUICK_BUILD = ctx.options.quick_build
 
     # Get the version of the current package.
-    ctx.env.VERSION = check_output(
+    ver = check_output(
         ["git", "describe", "--always", "--tag"]).strip().decode()
+    ver_parts = ver.split("-")
+    if len(ver_parts) == 1:
+        ctx.env.VERSION = ver
+    else:
+        ctx.env.VERSION = '+'.join([ver_parts[0],
+                                    ver_parts[1] + "." + ver_parts[2]])
 
 
 def _link(ctx, source, target, name):

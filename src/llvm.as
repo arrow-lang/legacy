@@ -46,6 +46,10 @@ extern let LLVMSetTarget(*LLVMOpaqueModule, str);
 extern let LLVMAddFunction(*LLVMOpaqueModule, name: str, *LLVMOpaqueType)
     -> *LLVMOpaqueValue;
 
+# Obtain a Function value from a Module by its name.
+extern let LLVMGetNamedFunction(*LLVMOpaqueModule, str)
+    -> *LLVMOpaqueValue;
+
 # Obtain a "void" type.
 extern let LLVMVoidType() -> *LLVMOpaqueType;
 
@@ -72,9 +76,8 @@ extern let LLVMArrayType(*LLVMOpaqueType, uint32) -> *LLVMOpaqueType;
 extern let LLVMPointerType(*LLVMOpaqueType, uint32) -> *LLVMOpaqueType;
 
 # Obtain a function type consisting of a specified signature.
-extern let LLVMFunctionType(
-    *LLVMOpaqueTargetData, *LLVMOpaqueTargetData, uint32, uint32)
-        -> *LLVMOpaqueType;
+extern let LLVMFunctionType(*LLVMOpaqueType, **LLVMOpaqueType, uint32, uint32)
+    -> *LLVMOpaqueType;
 
 # Obtain the parameter at the specified index.
 extern let LLVMGetParam(*LLVMOpaqueValue, index: uint) -> *LLVMOpaqueValue;

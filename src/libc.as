@@ -17,7 +17,7 @@ extern let strcpy(destination: str, source: str) -> str;
 
 # Comparison
 extern let memcmp(*int8, *int8, n: uint) -> int64;
-extern let strcmp(str, str) -> int64;
+extern let strcmp(str, str) -> int32;
 extern let strncmp(str, str, n: uint) -> int64;
 
 # Searching

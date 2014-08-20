@@ -846,11 +846,17 @@ let call(g: *mut generator_.Generator, node: *ast.Node,
         type_ = fn_han.type_._object as *code.FunctionType;
 
         # Ensure our external handle has been declared.
+        # FIXME: This should be handled in a utility
         if fn_han.handle == 0 as *llvm.LLVMOpaqueValue
         {
-            # Add the function to the module.
-            fn_han.handle = llvm.LLVMAddFunction(
-                g.mod, fn_han.name.data(), type_.handle);
+            # Check for the function in the module.
+            fn_han.handle = llvm.LLVMGetNamedFunction(g.mod, fn_han.name.data());
+            if fn_han.handle == 0 as *llvm.LLVMOpaqueValue
+            {
+                # Add the function to the module.
+                fn_han.handle = llvm.LLVMAddFunction(
+                    g.mod, fn_han.name.data(), type_.handle);
+            };
         };
 
         # Delegate off to `call_function`
@@ -1172,6 +1178,30 @@ let relational(g: *mut generator_.Generator, node: *ast.Node,
             g.irb,
             opc,
             lhs_int_val, rhs_int_val, "");
+    }
+    else if type_._tag == code.TAG_STR_TYPE
+    {
+        # Does 'strcoll' exist in the module.
+        let mut strcoll_fn = llvm.LLVMGetNamedFunction(g.mod, "strcoll");
+        if strcoll_fn == 0 as *llvm.LLVMOpaqueValue {
+            # No; emplace it in the module.
+            let arg_types = [llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0),
+                             llvm.LLVMPointerType(llvm.LLVMInt8Type(), 0)];
+            let fn_type = llvm.LLVMFunctionType(
+                llvm.LLVMInt32Type(), &arg_types[0], 2, 0);
+            strcoll_fn = llvm.LLVMAddFunction(g.mod, "strcoll", fn_type);
+        };
+
+        # Build a `call` to strcoll with our operands.
+        let args = [lhs_val.handle, rhs_val.handle];
+        let tmp = llvm.LLVMBuildCall(g.irb, strcoll_fn, &args[0], 2, "");
+
+        # Build an `icmp` according to our operation.
+        if node.tag != ast.TAG_EQ and node.tag != ast.TAG_NE {
+            opc = opc + 4;
+        };
+        let zero_val = llvm.LLVMConstInt(llvm.LLVMInt32Type(), 0, false);
+        val = llvm.LLVMBuildICmp(g.irb, opc, tmp, zero_val, "");
     };
 
     # Wrap and return the value.

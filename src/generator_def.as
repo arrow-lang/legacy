@@ -518,9 +518,14 @@ let to_value(mut g: generator_.Generator,
         # FIXME: This should be handled in a utility
         if fn.handle == 0 as *llvm.LLVMOpaqueValue
         {
-            # Add the function to the module.
-            fn.handle = llvm.LLVMAddFunction(
-                g.mod, fn.name.data(), fn_type.handle);
+            # Check for the function in the module.
+            fn.handle = llvm.LLVMGetNamedFunction(g.mod, fn.name.data());
+            if fn.handle == 0 as *llvm.LLVMOpaqueValue
+            {
+                # Add the function to the module.
+                fn.handle = llvm.LLVMAddFunction(
+                    g.mod, fn.name.data(), fn_type.handle);
+            };
         };
 
         # Create a handle of the function.

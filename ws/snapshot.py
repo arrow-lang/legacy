@@ -16,7 +16,7 @@ class SnapshotNotFound(BaseException):
     pass
 
 
-SOURCE = "https://dl.dropboxusercontent.com/u/19497679/arrow-lang/releases/arrow-{version}/{target}/arrow-{version}-{target}.tar.xz"
+SOURCE = "https://dl.dropboxusercontent.com/u/19497679/arrow-lang/releases/arrow-{version}/{target}/arrow-{version}-{target}.tar.gz"
 
 
 def get_target():
@@ -48,7 +48,7 @@ def get_snapshot(version, target=None):
         return snapshot_file
 
     # Keep going
-    snapshot_tarfile = path.join(cache_dir, "arrow-%s-%s.tar.xz" % (version, target))
+    snapshot_tarfile = path.join(cache_dir, "arrow-%s-%s.tar.gz" % (version, target))
     if not path.exists(snapshot_tarfile):
         # Build the URI
         uri = SOURCE.format(version=version, target=target)

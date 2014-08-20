@@ -13,7 +13,7 @@ from glob import glob
 top = '.'
 out = 'build'
 
-SNAPSHOT_VERSION = "0.1.1"
+SNAPSHOT_VERSION = "0.1.2"
 
 
 def distclean(ctx):
@@ -46,7 +46,7 @@ def options(ctx):
 
 
 def llvm_config(ctx, *args):
-    command = [ctx.env.LLVM_CONFIG[0]]
+    command = [ctx.env.LLVM_CONFIG]
     command.extend(args)
     return check_output(command).decode("utf-8").strip()
 

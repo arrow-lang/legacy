@@ -1,4 +1,5 @@
 let main() -> {
+    assert("hello" == "hello");
     assert("hello" != "hsgdello");
     assert("hel" < "hello");
     assert("hello" <= "hello");

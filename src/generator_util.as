@@ -72,6 +72,45 @@ let declare_basic_types(mut g: generator_.Generator) -> {
     g.items.set_ptr("str", han as *int8);
 }
 
+# Declare `platform` built-in module
+# -----------------------------------------------------------------------------
+let declare_platform(mut g: generator_.Generator, target: str) -> {
+    # Split the target string into its component parts.
+    let parts = string.split('-', target);
+
+    # Create a 'platform' module.
+    let ns = list.List.new(types.STR);
+    let pmod_han = code.make_module("platform", ns);
+    ns.push_str("platform");
+
+    # Create a 'platform.os' static.
+    let type_han = g.items.get_ptr("str") as *code.Handle;
+    let type_ = type_han._object as *code.Type;
+    let mut handle = llvm.LLVMAddGlobal(g.mod, type_.handle, "platform.os");
+    llvm.LLVMSetLinkage(handle, 9);  # LLVMPrivateLinkage
+    llvm.LLVMSetVisibility(handle, 1);  # LLVMHiddenVisibility
+    llvm.LLVMSetGlobalConstant(handle, true);
+    let mut val = llvm.LLVMBuildGlobalStringPtr(g.irb, parts.get_str(2), "");
+    llvm.LLVMSetInitializer(handle, val);
+    let pmod_os_han = code.make_static_slot(
+        0 as *ast.SlotDecl, "os", ns, type_han, handle);
+
+    # Create a 'platform.arch' static.
+    handle = llvm.LLVMAddGlobal(g.mod, type_.handle, "platform.arch");
+    llvm.LLVMSetLinkage(handle, 9);  # LLVMPrivateLinkage
+    llvm.LLVMSetVisibility(handle, 1);  # LLVMHiddenVisibility
+    llvm.LLVMSetGlobalConstant(handle, true);
+    val = llvm.LLVMBuildGlobalStringPtr(g.irb, parts.get_str(0), "");
+    llvm.LLVMSetInitializer(handle, val);
+    let pmod_arch_han = code.make_static_slot(
+        0 as *ast.SlotDecl, "arch", ns, type_han, handle);
+
+    # Emplace these in the global scope.
+    g.items.set_ptr("platform", pmod_han as *int8);
+    g.items.set_ptr("platform.os", pmod_os_han as *int8);
+    g.items.set_ptr("platform.arch", pmod_arch_han as *int8);
+}
+
 # Declare `assert` built-in function
 # -----------------------------------------------------------------------------
 let declare_assert(mut g: generator_.Generator) -> {

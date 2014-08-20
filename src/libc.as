@@ -22,6 +22,7 @@ extern let strncmp(str, str, n: uint) -> int64;
 
 # Searching
 extern let strrchr(str, uint8) -> str;
+extern let strtok(str, str) -> str;
 
 # Other
 extern let memset(*int8, int8, n: uint) -> *int8;

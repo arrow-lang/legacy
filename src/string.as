@@ -178,6 +178,24 @@ let join(separator: char, list: list.List): String -> {
     res;
 }
 
+# Split a string into a list of strings using a separator character.
+# -----------------------------------------------------------------------------
+let split(separator: char, s: str): list.List -> {
+    # Make a new list (of strings).
+    let mut res = list.List.new(types.STR);
+
+    # Enumerate through each 'token' of the string.
+    let delimiters = [separator as int8, 0 as int8];
+    let mut token = libc.strtok(s, (&delimiters[0]) as str);
+    while not isnil(token) {
+        res.push_str(token);
+        token = libc.strtok(nil, (&delimiters[0]) as str);
+    }
+
+    # Return our list of strings.
+    return res;
+}
+
 # Test driver
 # =============================================================================
 

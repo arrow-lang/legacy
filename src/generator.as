@@ -61,10 +61,6 @@ let generate(mut g: generator_.Generator, name: str, import_paths: list.List,
     let data_layout = llvm.LLVMCopyStringRepOfTargetData(g.target_data);
     llvm.LLVMSetDataLayout(g.mod, data_layout);
 
-    # Dispose of the used triple.
-    llvm.LLVMDisposeMessage(triple);
-    llvm.LLVMDisposeMessage(data_layout);
-
     # Construct an instruction builder.
     g.irb = llvm.LLVMCreateBuilder();
 
@@ -183,6 +179,13 @@ let generate(mut g: generator_.Generator, name: str, import_paths: list.List,
 
     # Add `assert` built-in.
     generator_util.declare_assert(g);
+
+    # Add `platform` built-in.
+    generator_util.declare_platform(g, triple);
+
+    # Dispose of the used triple.
+    llvm.LLVMDisposeMessage(triple);
+    llvm.LLVMDisposeMessage(data_layout);
 
     # Generation is a complex beast. So we first need to break apart
     # the declarations or "items" from the nodes. As all nodes are owned

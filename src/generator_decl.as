@@ -71,16 +71,18 @@ let generate(mut g: generator_.Generator) ->
 let generate_static_slot(mut g: generator_.Generator, qname: str,
                          x: *code.StaticSlot) ->
 {
-    # Get the type node out of the handle.
-    let type_: *code.Type = x.type_._object as *code.Type;
+    if x.handle == 0 as *llvm.LLVMOpaqueValue {
+        # Get the type node out of the handle.
+        let type_: *code.Type = x.type_._object as *code.Type;
 
-    # Add the global slot declaration to the IR.
-    x.handle = llvm.LLVMAddGlobal(g.mod, type_.handle, qname);
-    llvm.LLVMSetLinkage(x.handle, 9);  # LLVMPrivateLinkage
-    llvm.LLVMSetVisibility(x.handle, 1);  # LLVMHiddenVisibility
+        # Add the global slot declaration to the IR.
+        x.handle = llvm.LLVMAddGlobal(g.mod, type_.handle, qname);
+        llvm.LLVMSetLinkage(x.handle, 9);  # LLVMPrivateLinkage
+        llvm.LLVMSetVisibility(x.handle, 1);  # LLVMHiddenVisibility
 
-    # Set if this is constant.
-    llvm.LLVMSetGlobalConstant(x.handle, not x.context.mutable);
+        # Set if this is constant.
+        llvm.LLVMSetGlobalConstant(x.handle, not x.context.mutable);
+    };
 }
 
 # Function [TAG_FUNCTION]
